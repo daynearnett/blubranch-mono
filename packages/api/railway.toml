@@ -1,27 +1,19 @@
 # Railway service config for the BluBranch API.
-# Place this file in packages/api and set the Railway service's
-# "Root Directory" setting to `packages/api` so Railway picks it up.
 #
-# Why the `cd ../..` everywhere:
-# - Railway's nixpacks builder starts in the service root directory.
-# - Our pnpm workspace is rooted two levels up, and `pnpm install` must
-#   be run from there to resolve the workspace symlinks (@blubranch/db,
-#   @blubranch/shared) and the hoisted node_modules.
-# - All commands therefore step up to the workspace root before doing
-#   anything pnpm-related.
+# Build, install, and start are owned by `nixpacks.toml` next to this file.
+# This file only carries deploy-time settings (healthcheck, restart policy,
+# watch paths).
 #
-# Why `--prod=false`:
-# - Railway sets NODE_ENV=production. Without --prod=false, pnpm strips
-#   devDependencies during install. We need devDeps because:
-#     1. tsx (devDep in @blubranch/api) is the runtime — `pnpm start`
-#        executes `tsx src/server.ts` directly, no compile step.
-#     2. tsx + typescript (devDeps in @blubranch/db) are needed for the
-#        Prisma seed script (`prisma db seed` runs `tsx prisma/seed.ts`).
+# Required Railway service settings (set in the dashboard, not here):
+#   - Root Directory: leave blank (build context = monorepo root, so /app
+#     contains pnpm-workspace.yaml and the install/start cmds in
+#     nixpacks.toml resolve correctly).
+#   - Config Path: `packages/api/railway.toml` so Railway reads this file
+#     and the sibling `nixpacks.toml`.
 
 [build]
 builder = "NIXPACKS"
-buildCommand = "cd ../.. && corepack enable && pnpm install --frozen-lockfile --prod=false && pnpm --filter @blubranch/db prisma:generate"
-# Trigger a rebuild when files in api, db, or shared change. Other
+# Trigger a rebuild only when files in api / db / shared change. Other
 # workspaces (mobile, admin) shouldn't redeploy the API.
 watchPatterns = [
   "packages/api/**",
@@ -32,15 +24,7 @@ watchPatterns = [
 ]
 
 [deploy]
-# Apply pending Prisma migrations once per deploy, then start the server.
-# `prisma migrate deploy` is idempotent and safe to run on every container
-# start, but Railway runs this preDeployCommand exactly once per deploy
-# on a separate ephemeral instance — saves a few seconds of warm-up.
-preDeployCommand = ["cd ../.. && pnpm --filter @blubranch/db exec prisma migrate deploy"]
-startCommand = "cd ../.. && pnpm --filter @blubranch/api start"
 healthcheckPath = "/health"
-# Conservative timeout — if the API can't answer /health in 5 minutes
-# something is very wrong.
 healthcheckTimeout = 300
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 10

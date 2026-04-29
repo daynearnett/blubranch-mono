@@ -1,11 +1,11 @@
-# Pin Node + pnpm via Nixpacks so a future Railway base-image rotation
-# can't silently change them under us. Both versions match what we use
-# locally and in `.npmrc`.
-
 [phases.setup]
-nixPkgs = ["nodejs_20", "openssl", "ca-certificates"]
+nixPkgs = ["nodejs_20", "openssl"]
 
-[variables]
-# Telling pnpm where to put its global store inside the build sandbox
-# avoids "EACCES" failures when pnpm tries to write to /root.
-PNPM_HOME = "/root/.local/share/pnpm"
+[phases.install]
+cmds = ["npm i -g pnpm@10 && cd /app && pnpm install --frozen-lockfile"]
+
+[phases.build]
+cmds = ["cd /app && pnpm --filter @blubranch/db exec prisma generate"]
+
+[start]
+cmd = "cd /app/packages/api && npx prisma migrate deploy --schema=../db/prisma/schema.prisma && node --import tsx src/server.ts"

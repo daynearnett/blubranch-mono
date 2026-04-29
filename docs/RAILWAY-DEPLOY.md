@@ -13,10 +13,11 @@
 
 | File | Role |
 |------|------|
-| `packages/api/railway.toml` | service config — build / pre-deploy migrate / start / healthcheck |
-| `packages/api/nixpacks.toml` | Node 20 + openssl pin so the base image can't drift |
+| `packages/api/nixpacks.toml` | owns install / build / start. Pins Node 20 + openssl, installs pnpm 10 globally, runs `prisma generate`, and at boot runs `prisma migrate deploy` then `node --import tsx src/server.ts` |
+| `packages/api/railway.toml` | deploy-time settings only (healthcheck `/health`, restart policy, watch paths scoped to api / db / shared) |
 | `packages/api/src/app.ts` | CORS allowlist for `*.blubranch.com`, `localhost`, no-Origin (mobile native) — extra origins via `EXTRA_ALLOWED_ORIGINS` env var |
-| `packages/api/package.json` | `start`, `migrate`, `seed` scripts |
+| `packages/api/package.json` | `tsx` lives in **dependencies** (used by the start command via `node --import tsx`) |
+| `packages/db/package.json` | `prisma` and `tsx` live in **dependencies** so the start command's `npx prisma migrate deploy` and the seed runner work without `--prod=false` |
 | `packages/db/prisma/schema.prisma` | declares `extensions = [postgis]` so Prisma enables PostGIS on first migrate |
 
 ---
@@ -110,15 +111,16 @@ railway add --service blubranch-api
 
 Then in the Railway dashboard for that service:
 
-| Setting | Value |
-|---------|-------|
-| **Source** → Connect Repo | This monorepo |
-| **Source** → Branch | `main` (or whichever you ship from) |
-| **Settings** → Root Directory | `packages/api` |
-| **Settings** → Watch Paths | leave default (railway.toml's `watchPatterns` handles this) |
-| **Settings** → Health Check Path | `/health` (railway.toml sets this; doubles up here for clarity) |
+| Setting | Value | Why |
+|---------|-------|-----|
+| **Source** → Connect Repo | This monorepo | |
+| **Source** → Branch | `main` (or whichever you ship from) | |
+| **Settings** → Root Directory | **leave blank** (default = repo root) | The build context arrives at `/app` as the monorepo root, which is what `nixpacks.toml`'s `cd /app && pnpm install` expects (the workspace `pnpm-workspace.yaml` lives there) |
+| **Settings** → Config-as-Code Path | `packages/api/railway.toml` | Tells Railway to read `railway.toml` from this subpath instead of the repo root. Railway also picks up the sibling `nixpacks.toml` in the same directory. |
+| **Settings** → Watch Paths | leave default | `railway.toml`'s `watchPatterns` already scopes rebuilds to api / db / shared |
+| **Settings** → Health Check Path | `/health` | Set in `railway.toml`; doubling up in the dashboard is harmless |
 
-Railway will auto-detect `packages/api/railway.toml` and use those build / start / pre-deploy commands.
+After the source connects, Railway runs the install / build phases from `nixpacks.toml`. Watch the build with `railway logs`.
 
 ---
 
@@ -180,9 +182,16 @@ railway logs
 A successful deploy prints something like:
 ```
 Build successful
-Pre-deploy: 2 migrations applied (init, postgis_geography, worker_license_number)
-Container started: BluBranch API listening on http://0.0.0.0:8080
+Starting container...
+3 migrations found in prisma/migrations
+Applying migration `20260428150143_init`
+Applying migration `20260428150200_postgis_geography`
+Applying migration `20260428160000_worker_license_number`
+All migrations have been successfully applied.
+BluBranch API listening on http://0.0.0.0:8080
 ```
+
+Migrations run inside the start command (per `nixpacks.toml`) right before the server boots. They're idempotent, so a container restart after the first deploy will report "No pending migrations to apply" and skip straight to the `node --import tsx` line.
 
 Then probe `/health`:
 
@@ -307,7 +316,8 @@ railway add --service blubranch-api
 
 # In the dashboard:
 #   - Service Source: connect this repo
-#   - Settings → Root Directory: packages/api
+#   - Settings → Root Directory: leave blank (build context = repo root)
+#   - Settings → Config-as-Code Path: packages/api/railway.toml
 #   - Variables: link Postgres.DATABASE_URL and Redis.REDIS_URL,
 #                set JWT_SECRET / NODE_ENV / PUBLIC_BASE_URL
 
