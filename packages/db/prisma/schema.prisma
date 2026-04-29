@@ -1,0 +1,477 @@
+// BluBranch Prisma schema
+// Database: PostgreSQL with PostGIS extension
+// All primary keys are uuid; geography columns use raw SQL via migrations.
+
+generator client {
+  provider        = "prisma-client-js"
+  output          = "../src/generated/client"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [postgis]
+}
+
+// ───────────────────────────── Enums ─────────────────────────────
+
+enum Role {
+  worker
+  employer
+  admin
+}
+
+enum AuthProvider {
+  email
+  apple
+  google
+  facebook
+}
+
+enum ExperienceLevel {
+  years_0_2
+  years_3_5
+  years_6_10
+  years_11_15
+  years_16_20
+  years_20_plus
+}
+
+enum JobAvailability {
+  open
+  actively_looking
+  not_looking
+}
+
+enum JobType {
+  full_time
+  part_time
+  contract
+  temp_to_hire
+}
+
+enum WorkSetting {
+  commercial
+  residential
+  industrial
+  mixed
+}
+
+enum JobStatus {
+  draft
+  open
+  closed
+  expired
+}
+
+enum PlanTier {
+  basic
+  pro
+  unlimited
+}
+
+enum ApplicationStatus {
+  applied
+  reviewed
+  shortlisted
+  hired
+  rejected
+}
+
+enum ConnectionStatus {
+  pending
+  accepted
+  declined
+}
+
+enum CompanySize {
+  size_1_10
+  size_11_50
+  size_51_200
+  size_201_500
+  size_500_plus
+}
+
+// ───────────────────────────── Core: users ─────────────────────────────
+
+model User {
+  id              String       @id @default(uuid()) @db.Uuid
+  firstName       String       @map("first_name") @db.VarChar(100)
+  lastName        String       @map("last_name") @db.VarChar(100)
+  email           String       @unique @db.VarChar(255)
+  phone           String       @unique @db.VarChar(20)
+  passwordHash    String?      @map("password_hash") @db.VarChar(255)
+  role            Role
+  authProvider    AuthProvider @map("auth_provider")
+  authProviderId  String?      @map("auth_provider_id") @db.VarChar(255)
+  profilePhotoUrl String?      @map("profile_photo_url") @db.VarChar(500)
+  isVerified      Boolean      @default(false) @map("is_verified")
+  createdAt       DateTime     @default(now()) @map("created_at")
+  updatedAt       DateTime     @updatedAt @map("updated_at")
+
+  workerProfile  WorkerProfile?
+  settings       UserSettings?
+  trades         UserTrade[]
+  skills         UserSkill[]
+  certifications Certification[]
+  portfolioPhotos PortfolioPhoto[]
+  workHistory    WorkHistory[]
+  companies      Company[]
+
+  jobsPosted     Job[]              @relation("JobEmployer")
+  applications   JobApplication[]
+  posts          Post[]
+  postLikes      PostLike[]
+  postComments   PostComment[]
+
+  connectionsRequested Connection[] @relation("ConnectionRequester")
+  connectionsReceived  Connection[] @relation("ConnectionReceiver")
+
+  endorsementsGiven    Endorsement[] @relation("EndorsementEndorser")
+  endorsementsReceived Endorsement[] @relation("EndorsementEndorsed")
+
+  conversationsA Conversation[] @relation("ConversationUserA")
+  conversationsB Conversation[] @relation("ConversationUserB")
+  messagesSent   Message[]      @relation("MessageSender")
+
+  @@index([role])
+  @@map("users")
+}
+
+// ───────────────────────────── Worker profile ─────────────────────────────
+
+model WorkerProfile {
+  id                 String          @id @default(uuid()) @db.Uuid
+  userId             String          @unique @map("user_id") @db.Uuid
+  user               User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  headline           String?         @db.VarChar(200)
+  bio                String?         @db.VarChar(300)
+  experienceLevel    ExperienceLevel @map("experience_level")
+  hourlyRate         Decimal?        @map("hourly_rate") @db.Decimal(8, 2)
+  city               String          @db.VarChar(100)
+  state              String          @db.VarChar(50)
+  zipCode            String          @map("zip_code") @db.VarChar(10)
+  // location is geography(Point, 4326) — added via raw SQL in migration; PostGIS GiST index also added there.
+  travelRadiusMiles  Int             @map("travel_radius_miles")
+  jobAvailability    JobAvailability @map("job_availability")
+  unionName          String?         @map("union_name") @db.VarChar(200)
+  // Self-reported license number captured at signup. Unverified — the
+  // certifications table is reserved for named, verifiable credentials.
+  licenseNumber      String?         @map("license_number") @db.VarChar(100)
+  createdAt          DateTime        @default(now()) @map("created_at")
+  updatedAt          DateTime        @updatedAt @map("updated_at")
+
+  @@index([city, state])
+  @@map("worker_profiles")
+}
+
+model UserSettings {
+  userId         String  @id @map("user_id") @db.Uuid
+  user           User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  openToWork     Boolean @default(true) @map("open_to_work")
+  showHourlyRate Boolean @default(false) @map("show_hourly_rate")
+  showUnion      Boolean @default(true) @map("show_union")
+  financialTips  Boolean @default(true) @map("financial_tips")
+  jobAlerts      Boolean @default(true) @map("job_alerts")
+
+  @@map("user_settings")
+}
+
+// ───────────────────────────── Trades / skills ─────────────────────────────
+
+model Trade {
+  id     Int    @id @default(autoincrement())
+  name   String @unique @db.VarChar(100)
+  slug   String @unique @db.VarChar(100)
+
+  userTrades UserTrade[]
+  skills     Skill[]
+  jobs       Job[]
+
+  @@map("trades")
+}
+
+model UserTrade {
+  userId  String @map("user_id") @db.Uuid
+  tradeId Int    @map("trade_id")
+  user    User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  trade   Trade  @relation(fields: [tradeId], references: [id], onDelete: Cascade)
+
+  @@id([userId, tradeId])
+  @@index([tradeId])
+  @@map("user_trades")
+}
+
+model Skill {
+  id      Int    @id @default(autoincrement())
+  name    String @db.VarChar(100)
+  tradeId Int?   @map("trade_id")
+  trade   Trade? @relation(fields: [tradeId], references: [id], onDelete: SetNull)
+
+  userSkills UserSkill[]
+
+  @@unique([name, tradeId])
+  @@map("skills")
+}
+
+model UserSkill {
+  userId  String @map("user_id") @db.Uuid
+  skillId Int    @map("skill_id")
+  user    User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  skill   Skill  @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+  @@id([userId, skillId])
+  @@index([skillId])
+  @@map("user_skills")
+}
+
+model Certification {
+  id                  String    @id @default(uuid()) @db.Uuid
+  userId              String    @map("user_id") @db.Uuid
+  user                User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name                String    @db.VarChar(200)
+  certificationNumber String?   @map("certification_number") @db.VarChar(100)
+  isVerified          Boolean   @default(false) @map("is_verified")
+  verifiedAt          DateTime? @map("verified_at")
+
+  @@index([userId])
+  @@map("certifications")
+}
+
+model PortfolioPhoto {
+  id        String  @id @default(uuid()) @db.Uuid
+  userId    String  @map("user_id") @db.Uuid
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  photoUrl  String  @map("photo_url") @db.VarChar(500)
+  caption   String? @db.VarChar(100)
+  sortOrder Int     @map("sort_order")
+
+  @@index([userId])
+  @@map("portfolio_photos")
+}
+
+model WorkHistory {
+  id          String    @id @default(uuid()) @db.Uuid
+  userId      String    @map("user_id") @db.Uuid
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  companyName String    @map("company_name") @db.VarChar(200)
+  title       String    @db.VarChar(200)
+  startDate   DateTime  @map("start_date") @db.Date
+  endDate     DateTime? @map("end_date") @db.Date
+  isCurrent   Boolean   @map("is_current")
+
+  @@index([userId])
+  @@map("work_history")
+}
+
+// ───────────────────────────── Companies / jobs ─────────────────────────────
+
+model Company {
+  id              String      @id @default(uuid()) @db.Uuid
+  employerId      String      @map("employer_id") @db.Uuid
+  employer        User        @relation(fields: [employerId], references: [id], onDelete: Cascade)
+  name            String      @db.VarChar(200)
+  industry        String?     @db.VarChar(100)
+  sizeRange       CompanySize @map("size_range")
+  website         String?     @db.VarChar(500)
+  description     String?     @db.VarChar(300)
+  contactEmail    String      @map("contact_email") @db.VarChar(255)
+  logoUrl         String?     @map("logo_url") @db.VarChar(500)
+  establishedYear Int?        @map("established_year")
+  rating          Decimal?    @db.Decimal(3, 2)
+  createdAt       DateTime    @default(now()) @map("created_at")
+
+  jobs Job[]
+
+  @@index([employerId])
+  @@map("companies")
+}
+
+model Job {
+  id                     String      @id @default(uuid()) @db.Uuid
+  employerId             String      @map("employer_id") @db.Uuid
+  employer               User        @relation("JobEmployer", fields: [employerId], references: [id], onDelete: Cascade)
+  companyId              String      @map("company_id") @db.Uuid
+  company                Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  title                  String      @db.VarChar(200)
+  tradeId                Int         @map("trade_id")
+  trade                  Trade       @relation(fields: [tradeId], references: [id])
+  experienceLevel        String      @map("experience_level") @db.VarChar(50)
+  payMin                 Decimal     @map("pay_min") @db.Decimal(8, 2)
+  payMax                 Decimal     @map("pay_max") @db.Decimal(8, 2)
+  jobType                JobType     @map("job_type")
+  workSetting            WorkSetting @map("work_setting")
+  // location is geography(Point, 4326) — added via raw SQL in migration; PostGIS GiST index also added there.
+  city                   String      @db.VarChar(100)
+  state                  String      @db.VarChar(50)
+  zipCode                String      @map("zip_code") @db.VarChar(10)
+  description            String      @db.VarChar(1000)
+  openingsCount          Int         @default(1) @map("openings_count")
+  status                 JobStatus
+  planTier               PlanTier    @map("plan_tier")
+  isFeatured             Boolean     @default(false) @map("is_featured")
+  isUrgent               Boolean     @default(false) @map("is_urgent")
+  boostPushNotification  Boolean     @default(false) @map("boost_push_notification")
+  boostFeaturedPlacement Boolean     @default(false) @map("boost_featured_placement")
+  stripePaymentId        String?     @map("stripe_payment_id") @db.VarChar(255)
+  createdAt              DateTime    @default(now()) @map("created_at")
+  expiresAt              DateTime    @map("expires_at")
+
+  benefits     JobBenefit[]
+  applications JobApplication[]
+
+  @@index([status, expiresAt])
+  @@index([tradeId, status])
+  @@index([city, state])
+  @@map("jobs")
+}
+
+model Benefit {
+  id   Int    @id @default(autoincrement())
+  name String @unique @db.VarChar(100)
+
+  jobs JobBenefit[]
+
+  @@map("benefits")
+}
+
+model JobBenefit {
+  jobId     String  @map("job_id") @db.Uuid
+  benefitId Int     @map("benefit_id")
+  job       Job     @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  benefit   Benefit @relation(fields: [benefitId], references: [id], onDelete: Cascade)
+
+  @@id([jobId, benefitId])
+  @@index([benefitId])
+  @@map("job_benefits")
+}
+
+model JobApplication {
+  id        String            @id @default(uuid()) @db.Uuid
+  jobId     String            @map("job_id") @db.Uuid
+  job       Job               @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  workerId  String            @map("worker_id") @db.Uuid
+  worker    User              @relation(fields: [workerId], references: [id], onDelete: Cascade)
+  status    ApplicationStatus @default(applied)
+  message   String?           @db.Text
+  appliedAt DateTime          @default(now()) @map("applied_at")
+
+  @@unique([jobId, workerId])
+  @@index([workerId])
+  @@map("job_applications")
+}
+
+// ───────────────────────────── Social: posts ─────────────────────────────
+
+model Post {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  content   String   @db.Text
+  createdAt DateTime @default(now()) @map("created_at")
+
+  photos   PostPhoto[]
+  likes    PostLike[]
+  comments PostComment[]
+
+  @@index([userId, createdAt])
+  @@map("posts")
+}
+
+model PostPhoto {
+  id        String @id @default(uuid()) @db.Uuid
+  postId    String @map("post_id") @db.Uuid
+  post      Post   @relation(fields: [postId], references: [id], onDelete: Cascade)
+  photoUrl  String @map("photo_url") @db.VarChar(500)
+  sortOrder Int    @map("sort_order")
+
+  @@index([postId])
+  @@map("post_photos")
+}
+
+model PostLike {
+  postId    String   @map("post_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@id([postId, userId])
+  @@index([userId])
+  @@map("post_likes")
+}
+
+model PostComment {
+  id        String   @id @default(uuid()) @db.Uuid
+  postId    String   @map("post_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  content   String   @db.Text
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([postId, createdAt])
+  @@map("post_comments")
+}
+
+// ───────────────────────────── Social: connections / endorsements ─────────────────────────────
+
+model Connection {
+  id          String           @id @default(uuid()) @db.Uuid
+  requesterId String           @map("requester_id") @db.Uuid
+  receiverId  String           @map("receiver_id") @db.Uuid
+  requester   User             @relation("ConnectionRequester", fields: [requesterId], references: [id], onDelete: Cascade)
+  receiver    User             @relation("ConnectionReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
+  status      ConnectionStatus @default(pending)
+  createdAt   DateTime         @default(now()) @map("created_at")
+
+  @@unique([requesterId, receiverId])
+  @@index([receiverId, status])
+  @@map("connections")
+}
+
+model Endorsement {
+  id            String   @id @default(uuid()) @db.Uuid
+  endorserId    String   @map("endorser_id") @db.Uuid
+  endorsedId    String   @map("endorsed_id") @db.Uuid
+  endorser      User     @relation("EndorsementEndorser", fields: [endorserId], references: [id], onDelete: Cascade)
+  endorsed      User     @relation("EndorsementEndorsed", fields: [endorsedId], references: [id], onDelete: Cascade)
+  endorserTitle String   @map("endorser_title") @db.VarChar(200)
+  content       String   @db.VarChar(500)
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@index([endorsedId])
+  @@map("endorsements")
+}
+
+// ───────────────────────────── Messaging ─────────────────────────────
+
+model Conversation {
+  id        String   @id @default(uuid()) @db.Uuid
+  userAId   String   @map("user_a_id") @db.Uuid
+  userBId   String   @map("user_b_id") @db.Uuid
+  userA     User     @relation("ConversationUserA", fields: [userAId], references: [id], onDelete: Cascade)
+  userB     User     @relation("ConversationUserB", fields: [userBId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  messages Message[]
+
+  @@unique([userAId, userBId])
+  @@map("conversations")
+}
+
+model Message {
+  id             String       @id @default(uuid()) @db.Uuid
+  conversationId String       @map("conversation_id") @db.Uuid
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  senderId       String       @map("sender_id") @db.Uuid
+  sender         User         @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+  content        String       @db.Text
+  readAt         DateTime?    @map("read_at")
+  createdAt      DateTime     @default(now()) @map("created_at")
+
+  @@index([conversationId, createdAt])
+  @@map("messages")
+}

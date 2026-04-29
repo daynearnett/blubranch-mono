@@ -1,0 +1,19 @@
+# Files to exclude from the EAS Build upload. Same syntax as .gitignore.
+# Path resolution is rooted at apps/mobile — relative paths only.
+# Workspace siblings (packages/api, apps/admin, etc.) are pulled in
+# automatically by EAS via the pnpm workspace; nothing to do here.
+
+node_modules
+.expo
+.expo-shared
+dist
+build
+web-build
+
+# Local secrets
+.env
+.env.*.local
+
+# Editor / OS noise
+.DS_Store
+*.log
