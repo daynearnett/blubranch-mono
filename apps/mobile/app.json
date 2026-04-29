@@ -2,7 +2,7 @@
   "expo": {
     "name": "BluBranch",
     "slug": "blubranch",
-    "version": "0.1.0",
+    "version": "0.1.2",
     "orientation": "default",
     "icon": "./assets/icon.png",
     "scheme": "blubranch",
@@ -16,12 +16,10 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.blubranch.app",
-      "buildNumber": "1",
+      "buildNumber": "3",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
-        "UIBackgroundModes": [
-          "remote-notification"
-        ]
+        "UIBackgroundModes": ["remote-notification"]
       }
     },
     "android": {
@@ -30,10 +28,7 @@
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#1B3A5C"
-      },
-      "permissions": [
-        "android.permission.RECORD_AUDIO"
-      ]
+      }
     },
     "web": {
       "bundler": "metro",
@@ -83,6 +78,12 @@
         "origin": false
       }
     },
-    "owner": "daynearnett"
+    "owner": "daynearnett",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/c623a781-b1cf-46a2-901a-b0b6f6e923d1"
+    }
   }
 }

@@ -38,31 +38,43 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   // Bootstrap from storage on mount.
+  // Wrapped end-to-end in try/catch so a Keychain failure, corrupt blob, or
+  // unreachable refresh endpoint can never block the app from rendering the
+  // signed-out UI. The Welcome screen must come up no matter what.
   useEffect(() => {
     (async () => {
-      const [access, refresh, userJson] = await Promise.all([
-        secureStorage.getItem(ACCESS_KEY),
-        secureStorage.getItem(REFRESH_KEY),
-        secureStorage.getItem(USER_KEY),
-      ]);
-      if (access && userJson) {
-        api.setAccessToken(access);
-        try {
-          setUser(JSON.parse(userJson));
-          setStatus('signed-in');
-          // Best-effort token refresh in the background.
-          if (refresh) {
-            api.auth
-              .refresh(refresh)
-              .then(persist)
-              .catch(() => {
-                /* keep current session on refresh failure */
-              });
+      try {
+        const [access, refresh, userJson] = await Promise.all([
+          secureStorage.getItem(ACCESS_KEY).catch(() => null),
+          secureStorage.getItem(REFRESH_KEY).catch(() => null),
+          secureStorage.getItem(USER_KEY).catch(() => null),
+        ]);
+        if (access && userJson) {
+          api.setAccessToken(access);
+          try {
+            setUser(JSON.parse(userJson));
+            setStatus('signed-in');
+            // Best-effort token refresh in the background. If the API host
+            // doesn't resolve (e.g. staging not yet deployed) this rejects
+            // silently — the user keeps their cached session.
+            if (refresh) {
+              api.auth
+                .refresh(refresh)
+                .then(persist)
+                .catch(() => {
+                  /* keep current session on refresh failure */
+                });
+            }
+            return;
+          } catch {
+            // Stored user JSON is corrupt — fall through to signed-out.
           }
-          return;
-        } catch {
-          // fall through to signed-out
         }
+      } catch (err) {
+        // Should be unreachable since per-call catches above swallow errors,
+        // but if anything else throws (e.g. a future native module), we still
+        // bail to signed-out instead of leaving the UI stuck on 'loading'.
+        console.warn('[auth] bootstrap failed', err);
       }
       setStatus('signed-out');
     })();

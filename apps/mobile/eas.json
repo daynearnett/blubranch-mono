@@ -23,7 +23,8 @@
       "distribution": "store",
       "ios": {
         "simulator": false,
-        "resourceClass": "m-medium"
+        "resourceClass": "m-medium",
+        "image": "macos-sequoia-15.6-xcode-26.2"
       },
       "channel": "preview",
       "env": {
@@ -34,7 +35,8 @@
       "distribution": "store",
       "autoIncrement": true,
       "ios": {
-        "resourceClass": "m-medium"
+        "resourceClass": "m-medium",
+        "image": "macos-sequoia-15.6-xcode-26.2"
       },
       "channel": "production",
       "env": {
@@ -45,9 +47,8 @@
   "submit": {
     "preview": {
       "ios": {
-        "appleId": "REPLACE_WITH_YOUR_APPLE_ID_EMAIL",
-        "ascAppId": "REPLACE_WITH_APP_STORE_CONNECT_APP_ID",
-        "appleTeamId": "REPLACE_WITH_APPLE_TEAM_ID"
+        "appleId": "a.daynearnett@gmail.com",
+        "appleTeamId": "WXY2PMFQB7"
       }
     },
     "production": {

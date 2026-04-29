@@ -8,6 +8,8 @@
     "build": "tsc -p tsconfig.json",
     "dev": "tsx watch src/server.ts",
     "start": "tsx src/server.ts",
+    "migrate": "pnpm --filter @blubranch/db exec prisma migrate deploy",
+    "seed": "pnpm --filter @blubranch/db exec prisma db seed",
     "lint": "eslint src",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
