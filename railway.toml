@@ -1,38 +1,34 @@
 # Railway service config for the BluBranch API.
 #
-# Build, install, and start are owned by `nixpacks.toml` next to this file.
-# This file only carries deploy-time settings (healthcheck, restart policy,
-# watch paths).
+# Build is owned by `Dockerfile` next to this file (we switched away from
+# Nixpacks because its Node provider always inserts an unconditional
+# `RUN npm i` in stage-0 that can't parse pnpm's `workspace:*` protocol —
+# see docs/RAILWAY-LESSONS.md issue 10).
 #
-# Why this lives at the monorepo root, not in packages/api/:
-#   - Railway clones the repo and uses the directory containing
-#     railway.toml/nixpacks.toml as the build context (mounted at /app
-#     inside the container).
-#   - For pnpm-workspace installs to work, /app must contain
-#     pnpm-workspace.yaml + pnpm-lock.yaml — i.e. the monorepo root.
-#   - Earlier we tried putting these configs in packages/api/ and pointing
-#     at them via Railway's "Config-as-Code Path" service setting. That
-#     setting tells Railway *where to read config from*, but the build
-#     context still gets clipped to that subdirectory, leaving the
-#     workspace root and lockfile outside /app — install fails with
-#     ERR_PNPM_NO_LOCKFILE. See docs/RAILWAY-LESSONS.md issue 9.
+# This file only carries deploy-time settings (healthcheck, restart
+# policy, watch paths).
 #
 # Required Railway service settings (set in the dashboard, not here):
 #   - Root Directory: leave blank.
 #   - Config-as-Code Path: leave default (Railway auto-detects this file).
-#   - Watch Paths: leave default (the watchPatterns below scope rebuilds).
+#   - Builder: should pick up DOCKERFILE automatically because we have a
+#     Dockerfile at the repo root. The builder field below makes it
+#     explicit so a Nixpacks default can't sneak back in.
 
 [build]
-builder = "NIXPACKS"
-# Trigger a rebuild only when files in api / db / shared / lockfile change.
-# Other workspaces (mobile, admin) shouldn't redeploy the API.
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
+# Trigger a rebuild only when files that affect the API image change.
+# Mobile / admin / docs changes don't need to redeploy the API.
 watchPatterns = [
   "packages/api/**",
   "packages/shared/**",
   "packages/db/**",
   "pnpm-lock.yaml",
+  "pnpm-workspace.yaml",
   "package.json",
-  "nixpacks.toml",
+  "Dockerfile",
+  ".dockerignore",
   "railway.toml",
 ]
 

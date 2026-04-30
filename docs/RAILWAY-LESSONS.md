@@ -76,24 +76,41 @@
 - Fix: moved `nixpacks.toml` and `railway.toml` to the **monorepo root** and cleared the **Config-as-Code Path** field in the dashboard. Railway auto-detects both files at the default location, the entire monorepo lands at `/app`, and `pnpm install --frozen-lockfile` finds the lockfile.
 - Lesson: in a pnpm-workspace monorepo, deploy configs (`railway.toml`, `nixpacks.toml`, `Dockerfile`, etc.) must live at the workspace root — alongside `pnpm-workspace.yaml` and the lockfile — for any builder that copies "the directory containing the config" into the build container. Don't try to scope them to a sub-package via a config-path setting; the build context follows the file, not the setting.
 
+## Issue 10: Nixpacks always inserts `RUN npm i` — switched to a Dockerfile
+- After fixing the lockfile-missing issue, the next failure was: `npm error code EUNSUPPORTEDPROTOCOL — Unsupported URL Type "workspace:": workspace:*` from a `RUN npm i` step in stage-0.
+- We tried to override the install step three different ways:
+  1. Custom `[phases.install]` cmds running `pnpm install --frozen-lockfile`
+  2. Adding a `packageManager: pnpm@10.0.0` field to root `package.json` so Nixpacks would "detect pnpm"
+  3. Pinning pnpm via Nix (`nodePackages.pnpm`) so it'd be available before install
+- Reality: Nixpacks's Node provider has a **stage-0 metadata-extraction step** that runs `npm i` unconditionally to read package metadata. This step runs *before* user-defined phases, isn't documented as overridable, and doesn't honor `packageManager`. It can't be turned off from `nixpacks.toml`.
+- Fix: ditched Nixpacks for a `Dockerfile` at the repo root. Sets `builder = "DOCKERFILE"` in `railway.toml`, deleted `nixpacks.toml` outright. The Dockerfile uses `node:20-bookworm-slim`, installs pnpm via `npm install -g pnpm@10` (the Debian PATH issues from Nixpacks issues 2-5 don't apply because Debian images put npm bin on PATH normally), copies the entire monorepo, runs `pnpm install --frozen-lockfile`, and `CMD`s `prisma migrate deploy && node --import tsx src/server.ts`.
+- Lesson: Nixpacks is great for single-package Node apps with no surprises in install. For pnpm workspaces (or anything with a `workspace:*` protocol in deps), reach for a Dockerfile. The Dockerfile is also faster to debug because every step is explicit — no hidden buildpack steps, no provider auto-detection running before your config takes effect.
+
 ## Configuration recap (known-good)
 
-`nixpacks.toml` (at the **monorepo root**):
-```toml
-[phases.setup]
-nixPkgs = ["nodejs_20", "openssl", "nodePackages.pnpm"]
+`Dockerfile` (at the **monorepo root**):
+```dockerfile
+FROM node:20-bookworm-slim
 
-[phases.install]
-cmds = ["cd /app && pnpm install --frozen-lockfile"]
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends openssl ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
 
-[phases.build]
-cmds = ["cd /app && pnpm --filter @blubranch/db exec prisma generate"]
+RUN npm install -g pnpm@10
 
-[start]
-cmd = "cd /app/packages/api && npx prisma migrate deploy --schema=../db/prisma/schema.prisma && node --import tsx src/server.ts"
+WORKDIR /app
+COPY . .
+
+RUN pnpm install --frozen-lockfile
+RUN pnpm --filter @blubranch/db exec prisma generate
+
+WORKDIR /app/packages/api
+EXPOSE 4000
+
+CMD ["sh", "-c", "npx prisma migrate deploy --schema=../db/prisma/schema.prisma && node --import tsx src/server.ts"]
 ```
 
-`railway.toml` also lives at the **monorepo root** and only carries deploy-time settings (healthcheck, restart policy, watch paths).
+`railway.toml` also lives at the **monorepo root** and only carries deploy-time settings (`builder = "DOCKERFILE"`, healthcheck, restart policy, watch paths).
 
 Railway dashboard service settings:
 - **Source** → connect this repo, branch = `main`

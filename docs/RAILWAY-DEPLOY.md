@@ -13,8 +13,9 @@
 
 | File | Role |
 |------|------|
-| `nixpacks.toml` (repo root) | owns install / build / start. Pins Node 20 + openssl, installs pnpm via Nix (`nodePackages.pnpm`), runs `prisma generate`, and at boot runs `prisma migrate deploy` then `node --import tsx src/server.ts`. Lives at the repo root because Railway uses the config-file directory as the build context — `/app` must contain `pnpm-workspace.yaml` + `pnpm-lock.yaml` for the workspace install to succeed. |
-| `railway.toml` (repo root) | deploy-time settings only (healthcheck `/health`, restart policy, watch paths scoped to api / db / shared / lockfile) |
+| `Dockerfile` (repo root) | owns install / build / start. node:20-bookworm-slim base, installs openssl + ca-certificates, installs pnpm via npm, copies the entire monorepo, runs `pnpm install --frozen-lockfile` and `prisma generate`, then `CMD` does `prisma migrate deploy` + `node --import tsx src/server.ts`. We use a Dockerfile (not Nixpacks) because Nixpacks's Node provider unconditionally inserts `RUN npm i` which can't parse pnpm's `workspace:*` protocol. See RAILWAY-LESSONS.md issue 10. |
+| `.dockerignore` (repo root) | excludes `node_modules`, build outputs, .expo, .env files, and other noise from the build context |
+| `railway.toml` (repo root) | deploy-time settings — `builder = "DOCKERFILE"`, `dockerfilePath = "Dockerfile"`, healthcheck `/health`, restart policy, watch paths scoped to api / db / shared / lockfile / Dockerfile |
 | `packages/api/src/app.ts` | CORS allowlist for `*.blubranch.com`, `localhost`, no-Origin (mobile native) — extra origins via `EXTRA_ALLOWED_ORIGINS` env var |
 | `packages/api/package.json` | `tsx` lives in **dependencies** (used by the start command via `node --import tsx`) |
 | `packages/db/package.json` | `prisma` and `tsx` live in **dependencies** so the start command's `npx prisma migrate deploy` and the seed runner work without `--prod=false` |
@@ -115,12 +116,13 @@ Then in the Railway dashboard for that service:
 |---------|-------|-----|
 | **Source** → Connect Repo | This monorepo | |
 | **Source** → Branch | `main` (or whichever you ship from) | |
-| **Settings** → Root Directory | **leave blank** (default = repo root) | The build context arrives at `/app` as the monorepo root, which is what `nixpacks.toml`'s `cd /app && pnpm install` expects (the workspace `pnpm-workspace.yaml` and `pnpm-lock.yaml` live there). |
-| **Settings** → Config-as-Code Path | leave default | Railway auto-detects `railway.toml` + `nixpacks.toml` at the repo root. |
-| **Settings** → Watch Paths | leave default | `railway.toml`'s `watchPatterns` already scopes rebuilds to api / db / shared / the lockfile. |
+| **Settings** → Root Directory | **leave blank** (default = repo root) | Docker's build context arrives as the monorepo root, which is what the `Dockerfile`'s `COPY . .` expects (the workspace `pnpm-workspace.yaml` and `pnpm-lock.yaml` are there). |
+| **Settings** → Builder | DOCKERFILE | `railway.toml` already sets this; if the dashboard shows it as Nixpacks, change it manually. |
+| **Settings** → Config-as-Code Path | leave default | Railway auto-detects `railway.toml` + `Dockerfile` at the repo root. |
+| **Settings** → Watch Paths | leave default | `railway.toml`'s `watchPatterns` already scopes rebuilds to api / db / shared / lockfile / Dockerfile. |
 | **Settings** → Health Check Path | `/health` | Set in `railway.toml`; doubling up in the dashboard is harmless. |
 
-After the source connects, Railway runs the install / build phases from `nixpacks.toml`. Watch the build with `railway logs`.
+After the source connects, Railway builds the image from `Dockerfile` and starts it with the `CMD`. Watch the build with `railway logs`.
 
 ---
 
@@ -191,7 +193,7 @@ All migrations have been successfully applied.
 BluBranch API listening on http://0.0.0.0:8080
 ```
 
-Migrations run inside the start command (per `nixpacks.toml`) right before the server boots. They're idempotent, so a container restart after the first deploy will report "No pending migrations to apply" and skip straight to the `node --import tsx` line.
+Migrations run inside the container's `CMD` (per the `Dockerfile`) right before the server boots. They're idempotent, so a container restart after the first deploy will report "No pending migrations to apply" and skip straight to the `node --import tsx` line.
 
 Then probe `/health`:
 
@@ -317,9 +319,12 @@ railway add --service blubranch-api
 # In the dashboard:
 #   - Service Source: connect this repo
 #   - Settings → Root Directory: leave blank (build context = repo root)
+#   - Settings → Builder: DOCKERFILE (set in railway.toml; if the
+#                                      dashboard shows Nixpacks, switch
+#                                      it manually)
 #   - Settings → Config-as-Code Path: leave default (auto-detects
-#                                      railway.toml + nixpacks.toml at
-#                                      the repo root)
+#                                      railway.toml + Dockerfile at the
+#                                      repo root)
 #   - Variables: link Postgres.DATABASE_URL and Redis.REDIS_URL,
 #                set JWT_SECRET / NODE_ENV / PUBLIC_BASE_URL
 
