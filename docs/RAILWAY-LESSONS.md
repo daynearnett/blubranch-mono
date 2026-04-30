@@ -43,11 +43,11 @@
 - `nodePackages.pnpm` declares pnpm as a Nix derivation, installed alongside Node. Nix puts the `pnpm` symlink directly on the build's `$PATH` (because that's how `nixPkgs` items are exposed) — no shell hacking needed.
 - Lesson: when a dependency needs to be on PATH inside a Nix-based builder, install it as a Nix package, not via a package manager that targets a different layout convention.
 
-## Issue 6: Service "Root Directory" must be blank for monorepo + config-as-code path
+## Issue 6: Service "Root Directory" must be blank for monorepo deploys
 - Initial Railway service had Root Directory set to `packages/api` (intuitive for a service whose code lives there)
 - Build context (`/app`) only contained `packages/api/` files. `cd /app && pnpm install --frozen-lockfile` failed because there was no `pnpm-workspace.yaml` — pnpm just installed `@blubranch/api`'s direct deps and skipped the workspace symlinks, breaking imports of `@blubranch/db` and `@blubranch/shared` at runtime.
-- Fix: leave the service's **Root Directory** field blank (build context = repo root) AND set the **Config-as-Code Path** to `packages/api/railway.toml` so Railway still finds the right config file.
-- Lesson: in Railway, "Root Directory" controls the *build context*, not just where Railway looks for config. For pnpm-workspace monorepos, the install must run from the workspace root, so the build context has to be the monorepo root.
+- Fix: leave the service's **Root Directory** field blank.
+- Lesson: in Railway, "Root Directory" controls the *build context*, not just which subdirectory Railway watches. For pnpm-workspace monorepos, the install must run from the workspace root, so the build context has to be the monorepo root.
 
 ## Issue 7: `NODE_ENV=production` stripped runtime devDependencies
 - Railway sets `NODE_ENV=production` by default. With `pnpm install --frozen-lockfile` (no `--prod=false`), pnpm honors that and skips devDependencies.
@@ -68,9 +68,17 @@
 - The dashboard's "Add Reference" picker writes this for you; if you ever set vars via `railway variables --set` from the CLI, you have to type the `${{...}}` form yourself, including the double curlies.
 - Lesson: don't try to be clever with custom env-var plumbing — use the Variables → "Add Reference" picker every time. It's the only path that won't bite later when service names change or new env-prefix conventions land.
 
+## Issue 9: `Config-as-Code Path` doesn't move the build context — configs live at repo root
+- After fixing Issues 1–8, the build cleared install/build phases. Then the start command failed: `ERR_PNPM_NO_LOCKFILE` — pnpm couldn't find `pnpm-lock.yaml` at `/app`.
+- The lockfile was tracked in git, sitting at the monorepo root, not in `.gitignore` or any other ignore file. `git ls-files` proved it was in every clone Railway pulled.
+- Initial setup put `nixpacks.toml` and `railway.toml` inside `packages/api/` and pointed Railway at them via the **Config-as-Code Path** service setting (`packages/api/railway.toml`). The assumption: that setting only controls *where Railway reads its config*, leaving the build context at the repo root.
+- Reality: Railway uses the directory containing the config file as the **build context**. With `Config-as-Code Path` pointing into `packages/api/`, only that subdirectory got mounted at `/app` — `pnpm-lock.yaml` and `pnpm-workspace.yaml` (at the monorepo root) were excluded.
+- Fix: moved `nixpacks.toml` and `railway.toml` to the **monorepo root** and cleared the **Config-as-Code Path** field in the dashboard. Railway auto-detects both files at the default location, the entire monorepo lands at `/app`, and `pnpm install --frozen-lockfile` finds the lockfile.
+- Lesson: in a pnpm-workspace monorepo, deploy configs (`railway.toml`, `nixpacks.toml`, `Dockerfile`, etc.) must live at the workspace root — alongside `pnpm-workspace.yaml` and the lockfile — for any builder that copies "the directory containing the config" into the build container. Don't try to scope them to a sub-package via a config-path setting; the build context follows the file, not the setting.
+
 ## Configuration recap (known-good)
 
-`packages/api/nixpacks.toml`:
+`nixpacks.toml` (at the **monorepo root**):
 ```toml
 [phases.setup]
 nixPkgs = ["nodejs_20", "openssl", "nodePackages.pnpm"]
@@ -85,10 +93,12 @@ cmds = ["cd /app && pnpm --filter @blubranch/db exec prisma generate"]
 cmd = "cd /app/packages/api && npx prisma migrate deploy --schema=../db/prisma/schema.prisma && node --import tsx src/server.ts"
 ```
 
+`railway.toml` also lives at the **monorepo root** and only carries deploy-time settings (healthcheck, restart policy, watch paths).
+
 Railway dashboard service settings:
 - **Source** → connect this repo, branch = `main`
 - **Settings → Root Directory** → leave blank
-- **Settings → Config-as-Code Path** → `packages/api/railway.toml`
+- **Settings → Config-as-Code Path** → leave default (Railway auto-detects `railway.toml` + `nixpacks.toml` at the repo root)
 - **Variables** → link `${{Postgres.DATABASE_URL}}`, `${{Redis.REDIS_URL}}`; set `JWT_SECRET`, `NODE_ENV=production`, `PUBLIC_BASE_URL`
 
 `packages/api/package.json` — `tsx` in `dependencies`.

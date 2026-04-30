@@ -1,0 +1,43 @@
+# Railway service config for the BluBranch API.
+#
+# Build, install, and start are owned by `nixpacks.toml` next to this file.
+# This file only carries deploy-time settings (healthcheck, restart policy,
+# watch paths).
+#
+# Why this lives at the monorepo root, not in packages/api/:
+#   - Railway clones the repo and uses the directory containing
+#     railway.toml/nixpacks.toml as the build context (mounted at /app
+#     inside the container).
+#   - For pnpm-workspace installs to work, /app must contain
+#     pnpm-workspace.yaml + pnpm-lock.yaml — i.e. the monorepo root.
+#   - Earlier we tried putting these configs in packages/api/ and pointing
+#     at them via Railway's "Config-as-Code Path" service setting. That
+#     setting tells Railway *where to read config from*, but the build
+#     context still gets clipped to that subdirectory, leaving the
+#     workspace root and lockfile outside /app — install fails with
+#     ERR_PNPM_NO_LOCKFILE. See docs/RAILWAY-LESSONS.md issue 9.
+#
+# Required Railway service settings (set in the dashboard, not here):
+#   - Root Directory: leave blank.
+#   - Config-as-Code Path: leave default (Railway auto-detects this file).
+#   - Watch Paths: leave default (the watchPatterns below scope rebuilds).
+
+[build]
+builder = "NIXPACKS"
+# Trigger a rebuild only when files in api / db / shared / lockfile change.
+# Other workspaces (mobile, admin) shouldn't redeploy the API.
+watchPatterns = [
+  "packages/api/**",
+  "packages/shared/**",
+  "packages/db/**",
+  "pnpm-lock.yaml",
+  "package.json",
+  "nixpacks.toml",
+  "railway.toml",
+]
+
+[deploy]
+healthcheckPath = "/health"
+healthcheckTimeout = 300
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 10
