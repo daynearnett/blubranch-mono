@@ -101,32 +101,31 @@
 - Defense: the Dockerfile now does explicit per-file COPYs of `pnpm-lock.yaml`, `pnpm-workspace.yaml`, `package.json`, `.npmrc`, and each workspace package's manifest BEFORE `pnpm install`. If the build context is wrong, Docker fails at one of those COPYs with `ERROR: failed to compute cache key: lstat <name>: no such file or directory` — which names the missing file directly instead of letting the failure surface deep inside pnpm.
 - Lesson: in Railway, "where Railway finds the Dockerfile" and "what's in the Dockerfile's build context" are two separate dashboard settings, and the Root Directory field controls the latter even when a custom `dockerfilePath` is set. Always verify the Root Directory field shows blank in the dashboard before debugging anything else when the symptom is "expected file isn't at /app". Adding fail-fast COPYs of critical files in the Dockerfile turns a deep, misleading error (ERR_PNPM_NO_LOCKFILE) into an immediate, file-named one.
 
-## Issue 12: BuildKit choked on per-package-manifest COPYs in a monorepo
+## Issue 12: BuildKit "failed to calculate checksum" on workspace COPYs
 - After fixing the Root Directory issue, the build cleared the root-level metadata COPYs (`COPY package.json pnpm-workspace.yaml pnpm-lock.yaml .npmrc ./`) and then died on `COPY packages/shared/package.json ./packages/shared/` with `failed to calculate checksum... packages/shared/package.json: not found`.
 - The file genuinely existed:
   - On disk locally (regular file, 557 bytes, not a symlink)
   - Tracked in git, on origin/main
   - Not matched by any `.gitignore`, `.dockerignore`, or `.gitattributes` pattern
   - No non-ASCII chars or hidden characters in `.dockerignore`
-- We couldn't pin down the exact BuildKit-side cause (could be a path-resolution quirk specific to deep nested per-file COPYs after `.dockerignore` filtering, possibly an interaction with `**/dist` filtering of sibling `packages/shared/dist`). Reproducible across attempts though.
-- Fix: replaced the per-package manifest COPYs with whole-directory COPYs:
-  ```dockerfile
-  # Before (failed):
-  COPY apps/admin/package.json ./apps/admin/
-  COPY apps/mobile/package.json ./apps/mobile/
-  COPY packages/api/package.json ./packages/api/
-  COPY packages/db/package.json ./packages/db/
-  COPY packages/shared/package.json ./packages/shared/
-  RUN pnpm install --frozen-lockfile
-  COPY . .
+- First attempted fix: replaced per-package-manifest COPYs (`COPY packages/shared/package.json ./packages/shared/` etc.) with whole-directory COPYs (`COPY apps ./apps`, `COPY packages ./packages`). **This also failed** with the same `failed to calculate checksum... not found` error pattern, which ruled out the per-file COPY hypothesis.
+- See Issue 13 for the actual fix.
 
-  # After (works):
-  COPY apps ./apps
-  COPY packages ./packages
-  RUN pnpm install --frozen-lockfile
+## Issue 13: Trimming `.dockerignore` to the bare minimum unblocked workspace COPYs
+- The `.dockerignore` we were running with had ~30 patterns including a bunch of `**/dist`, `**/.expo`, `**/.turbo` globs and per-path entries like `apps/mobile/.expo`. None of them should have matched `apps/`, `packages/`, or `packages/shared/package.json`, but the build kept failing with "failed to calculate checksum... not found" on those COPYs.
+- Hypothesis (unconfirmed): something in BuildKit's interaction between `**`-globs and a deep monorepo tree was confusing its checksum calculation for whole-directory COPYs. It wasn't matching the directories — it was failing to traverse them while applying ignore filters.
+- Fix: minimized `.dockerignore` to three concerns only:
   ```
-- Trade-off: the install layer's Docker cache invalidates whenever any file under `apps/` or `packages/` changes, not just when manifests change. Deploys do a full pnpm install on every push. For our deploy cadence (a few times a day at most) this is acceptable; the alternative was a broken build.
-- Lesson: the standard "copy each workspace's package.json individually for caching" pattern that works for shallow Node monorepos can be brittle in BuildKit when the source tree has many nested directories with many ignore-pattern matches. Coarser COPYs (whole `apps/` and `packages/` directories) are more robust. We can revisit caching once the rest of the deploy pipeline is stable.
+  node_modules
+  **/node_modules
+  .git
+  .env
+  .env.*
+  !.env.example
+  ```
+  Removed every `**/dist`, `**/.expo`, `**/.turbo`, `web-build`, `*.md`, `docs`, `apps/mobile/dist`, `packages/db/src/generated`, etc. They were nice-to-have for keeping the build context small, but each was a potential interaction trigger and we'd already paid for several failed deploys chasing them.
+- Trade-off: the build context now includes `dist/`, `.expo/`, `.turbo/`, `docs/`, etc. directories. This makes uploads larger and the install image slightly fatter (because subsequent `COPY apps ./apps` brings in `apps/mobile/dist` for example). For our purposes (a few-MB difference in build context, build still under 2 minutes) this doesn't matter. The Dockerfile only `cd`s into `packages/api/` at runtime so unused files don't affect the running app.
+- Lesson: when BuildKit fails with cryptic "not found" errors on COPYs of files that demonstrably exist, the smallest `.dockerignore` is the safest. Pattern interactions with `**`-globs in a monorepo are not worth debugging — minimize first, optimize later. If you need to exclude something specific, exclude it by an exact path, not a wildcard.
 
 ## Configuration recap (known-good)
 

@@ -1,58 +1,25 @@
-# Files to exclude from the Docker build context. Smaller context =
-# faster uploads + faster `COPY . .` + tighter cache invalidation.
+# Minimal .dockerignore.
 #
-# Anything we want IN the image must NOT match a line below.
+# We deliberately keep this short. An earlier longer version (see git
+# history) had many `**/dist`, `**/.expo`, `**/.turbo`-style globs that
+# exposed a BuildKit edge case where `COPY apps ./apps` and similar
+# whole-directory copies failed with "failed to calculate checksum...
+# not found" — see RAILWAY-LESSONS.md issue 13. The patterns themselves
+# weren't matching `apps/` or `packages/`, but trimming the file fixed
+# it. Cause unconfirmed; coexistence with our pnpm monorepo is the
+# only safe bet.
+#
+# If you need to add new exclusions, prefer specific paths over
+# wildcards and verify the build succeeds before committing.
 
 # Dependencies — Docker installs fresh inside the build
 node_modules
 **/node_modules
 
-# Build outputs from local development
-dist
-**/dist
-build
-**/build
-.next
-**/.next
-.turbo
-**/.turbo
+# VCS metadata — not needed inside the image
+.git
 
-# Expo / mobile artifacts (not needed for API image)
-.expo
-**/.expo
-.expo-shared
-**/.expo-shared
-web-build
-**/web-build
-
-# Generated Prisma client — regenerated inside the build
-packages/db/src/generated
-
-# Local env (the image gets vars from Railway at runtime)
+# Local env — secrets come from Railway env vars at runtime
 .env
 .env.*
 !.env.example
-
-# Image upload directory — created at runtime
-uploads
-
-# Editor / OS noise
-.DS_Store
-*.log
-.vscode
-.idea
-
-# VCS metadata — not needed in the image
-.git
-.github
-.gitignore
-.gitattributes
-
-# Repo-level docs / readmes don't need to be in the image
-docs
-*.md
-
-# Mobile + admin builds aren't part of the API image
-apps/mobile/.expo
-apps/mobile/dist
-apps/admin/dist
