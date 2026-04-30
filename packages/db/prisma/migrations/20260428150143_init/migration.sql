@@ -1,5 +1,17 @@
--- CreateExtension
-CREATE EXTENSION IF NOT EXISTS "postgis";
+-- CreateExtension (PostGIS-optional)
+-- Wrapped in a DO block so the migration succeeds even if PostGIS isn't
+-- available on the target Postgres (e.g. Railway's stock image). When
+-- this branch is taken, the geography columns added by migration
+-- 20260428150200_postgis_geography also no-op, and the API skips
+-- geography-aware queries based on the POSTGIS_ENABLED env var.
+DO $$
+BEGIN
+  CREATE EXTENSION IF NOT EXISTS "postgis";
+EXCEPTION
+  WHEN OTHERS THEN
+    RAISE NOTICE 'PostGIS unavailable on this Postgres; skipping. Geography features will be disabled.';
+END
+$$;
 
 -- CreateEnum
 CREATE TYPE "Role" AS ENUM ('worker', 'employer', 'admin');

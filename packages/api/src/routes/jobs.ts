@@ -6,6 +6,7 @@ import {
 import { Prisma } from '@blubranch/db';
 import type { FastifyInstance } from 'fastify';
 import { requireAuth, requireRole } from '../auth/middleware.js';
+import { isPostGisEnabled } from '../lib/postgis.js';
 import { getPrisma } from '../lib/prisma.js';
 import { parseBody } from '../lib/validate.js';
 import { geocodeAddress, setGeographyPoint } from '../services/geocode.js';
@@ -124,8 +125,15 @@ export async function jobRoutes(app: FastifyInstance): Promise<void> {
       conditions.push(Prisma.sql`(j."title" ILIKE ${term} OR j."description" ILIKE ${term})`);
     }
 
+    // PostGIS-aware lat/lng filtering only fires when (a) the caller
+    // supplied a point AND (b) PostGIS is enabled in this environment.
+    // On Railway's stock Postgres POSTGIS_ENABLED=false → we skip the
+    // radius filter and the distance column entirely. The query still
+    // returns results, just without distance sorting.
+    const useGeo = isPostGisEnabled() && q.lat !== undefined && q.lng !== undefined;
+
     let distanceSelect = Prisma.sql`NULL::double precision AS distance_miles`;
-    if (q.lat !== undefined && q.lng !== undefined) {
+    if (useGeo) {
       const meters = q.radius * MILES_TO_METERS;
       const point = Prisma.sql`ST_SetSRID(ST_MakePoint(${q.lng}, ${q.lat}), 4326)::geography`;
       distanceSelect = Prisma.sql`(ST_Distance(j."location", ${point}) / ${MILES_TO_METERS}) AS distance_miles`;
@@ -141,10 +149,10 @@ export async function jobRoutes(app: FastifyInstance): Promise<void> {
       orderSql = Prisma.sql`ORDER BY j."is_featured" DESC, j."created_at" DESC`;
     } else if (q.sort === 'pay_highest') {
       orderSql = Prisma.sql`ORDER BY j."is_featured" DESC, j."pay_max" DESC`;
-    } else if (q.lat !== undefined && q.lng !== undefined) {
+    } else if (useGeo) {
       orderSql = Prisma.sql`ORDER BY j."is_featured" DESC, distance_miles ASC NULLS LAST`;
     } else {
-      // 'nearest' fallback when no point given.
+      // 'nearest' fallback when no point given OR PostGIS disabled.
       orderSql = Prisma.sql`ORDER BY j."is_featured" DESC, j."created_at" DESC`;
     }
 

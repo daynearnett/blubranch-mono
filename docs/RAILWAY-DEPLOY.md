@@ -67,9 +67,11 @@ The command writes `.railway/config.json` linking the local repo to the project.
 
 ---
 
-## Step 3 — Provision PostgreSQL with PostGIS
+## Step 3 — Provision PostgreSQL (PostGIS optional)
 
-Railway's stock Postgres image ships PostGIS; we just need to enable the extension via Prisma's first migration (which is already wired up — `schema.prisma` declares `extensions = [postgis]`).
+Railway's stock Postgres image does **not** ship PostGIS. Our migrations and runtime code are written to handle this gracefully — the geography columns and the `CREATE EXTENSION` statement are wrapped in `DO ... EXCEPTION` blocks so the migration succeeds without PostGIS, and the API checks `POSTGIS_ENABLED` at runtime and skips radius / distance queries when it's `false`. Set `POSTGIS_ENABLED=false` in the API service env (see Step 6).
+
+Geospatial features (radius search, distance sorting) won't work on Railway staging until/unless we move to a Postgres provider that ships PostGIS (e.g. Supabase, AWS RDS PostgreSQL with `rds.allowed_extensions`, or self-hosted `postgis/postgis` on Railway). Local Docker dev uses `postgis/postgis:16-3.4` and works as before. See RAILWAY-LESSONS.md issue 14 for the diagnostic story.
 
 ```bash
 railway add --database postgres
@@ -88,7 +90,7 @@ railway variables -s Postgres
 
 You'll see `DATABASE_URL`, `PGHOST`, `PGUSER`, etc.
 
-> **About the `postgis` extension:** Prisma's first `migrate deploy` will run `CREATE EXTENSION IF NOT EXISTS "postgis"` automatically because we declared it in `schema.prisma`. No manual psql session needed. If for some reason the extension isn't available on the image (you'll see `ERROR: extension "postgis" is not available` in the deploy logs), Railway support can swap to the `postgis/postgis` image; flag this and we'll switch.
+> **About the `postgis` extension:** the init migration tries `CREATE EXTENSION IF NOT EXISTS "postgis"` inside a `DO` block with exception handling. On Railway's stock image it'll log a NOTICE ("PostGIS unavailable... skipping") and continue. The follow-up migration that adds the geography columns and GiST indexes is also wrapped in DO blocks and skips silently when the geography type isn't available. End result: all non-geo tables are created normally; radius/distance features become no-ops via the `POSTGIS_ENABLED` runtime flag.
 
 ---
 
@@ -141,6 +143,7 @@ From the dashboard service → **Variables** tab, add these. The first two are m
 | `JWT_SECRET` | a 64-char random string | `openssl rand -hex 32` locally, paste the result |
 | `NODE_ENV` | `production` | plain text |
 | `PUBLIC_BASE_URL` | `https://api-staging.blubranch.com` | matches the custom domain you'll set in step 8 — used to build absolute URLs for uploaded image links |
+| `POSTGIS_ENABLED` | `false` on Railway, `true` (or unset) locally | Railway's stock Postgres image doesn't ship PostGIS. Setting this to `false` makes the API skip geography queries (radius search in `/jobs`, distance sort in `/feed`) instead of 500-ing. The migrations themselves are PostGIS-optional — see RAILWAY-LESSONS.md issue 14. |
 
 `PORT` is injected automatically by Railway — do **not** set it. The API reads `process.env.PORT` and binds there.
 

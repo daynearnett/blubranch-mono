@@ -2,6 +2,7 @@ import { feedQuerySchema, postCommentInputSchema, postInputSchema } from '@blubr
 import { Prisma } from '@blubranch/db';
 import type { FastifyInstance } from 'fastify';
 import { requireAuth } from '../auth/middleware.js';
+import { isPostGisEnabled } from '../lib/postgis.js';
 import { getPrisma } from '../lib/prisma.js';
 import { parseBody } from '../lib/validate.js';
 
@@ -163,7 +164,7 @@ export async function postRoutes(app: FastifyInstance): Promise<void> {
       distance_miles: number | null;
     }> = [];
 
-    if (profile?.city && profile?.state) {
+    if (profile?.city && profile?.state && isPostGisEnabled()) {
       const conditions: Prisma.Sql[] = [Prisma.sql`j."status" = 'open'::"JobStatus"`];
       if (tradeIds.length > 0) {
         conditions.push(Prisma.sql`j."trade_id" = ANY(${tradeIds}::int[])`);
