@@ -2,7 +2,7 @@
 nixPkgs = ["nodejs_20", "openssl"]
 
 [phases.install]
-cmds = ["npm i -g pnpm@10 && cd /app && pnpm install --frozen-lockfile"]
+cmds = ["corepack enable && corepack prepare pnpm@10 --activate && cd /app && pnpm install --frozen-lockfile"]
 
 [phases.build]
 cmds = ["cd /app && pnpm --filter @blubranch/db exec prisma generate"]
