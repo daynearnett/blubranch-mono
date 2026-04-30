@@ -4,10 +4,7 @@
 # history) had many `**/dist`, `**/.expo`, `**/.turbo`-style globs that
 # exposed a BuildKit edge case where `COPY apps ./apps` and similar
 # whole-directory copies failed with "failed to calculate checksum...
-# not found" — see RAILWAY-LESSONS.md issue 13. The patterns themselves
-# weren't matching `apps/` or `packages/`, but trimming the file fixed
-# it. Cause unconfirmed; coexistence with our pnpm monorepo is the
-# only safe bet.
+# not found" — see RAILWAY-LESSONS.md issue 13.
 #
 # If you need to add new exclusions, prefer specific paths over
 # wildcards and verify the build succeeds before committing.
@@ -23,3 +20,12 @@ node_modules
 .env
 .env.*
 !.env.example
+
+# Force-include critical workspace files. Nothing above SHOULD match
+# these, but defensive negations rule out any future "hmm,
+# pnpm-lock.yaml is missing" mystery and double as a cache-buster
+# (changing this file invalidates BuildKit's COPY layer key).
+!pnpm-lock.yaml
+!pnpm-workspace.yaml
+!package.json
+!.npmrc
