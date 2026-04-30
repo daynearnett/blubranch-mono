@@ -101,9 +101,36 @@
 - Defense: the Dockerfile now does explicit per-file COPYs of `pnpm-lock.yaml`, `pnpm-workspace.yaml`, `package.json`, `.npmrc`, and each workspace package's manifest BEFORE `pnpm install`. If the build context is wrong, Docker fails at one of those COPYs with `ERROR: failed to compute cache key: lstat <name>: no such file or directory` — which names the missing file directly instead of letting the failure surface deep inside pnpm.
 - Lesson: in Railway, "where Railway finds the Dockerfile" and "what's in the Dockerfile's build context" are two separate dashboard settings, and the Root Directory field controls the latter even when a custom `dockerfilePath` is set. Always verify the Root Directory field shows blank in the dashboard before debugging anything else when the symptom is "expected file isn't at /app". Adding fail-fast COPYs of critical files in the Dockerfile turns a deep, misleading error (ERR_PNPM_NO_LOCKFILE) into an immediate, file-named one.
 
+## Issue 12: BuildKit choked on per-package-manifest COPYs in a monorepo
+- After fixing the Root Directory issue, the build cleared the root-level metadata COPYs (`COPY package.json pnpm-workspace.yaml pnpm-lock.yaml .npmrc ./`) and then died on `COPY packages/shared/package.json ./packages/shared/` with `failed to calculate checksum... packages/shared/package.json: not found`.
+- The file genuinely existed:
+  - On disk locally (regular file, 557 bytes, not a symlink)
+  - Tracked in git, on origin/main
+  - Not matched by any `.gitignore`, `.dockerignore`, or `.gitattributes` pattern
+  - No non-ASCII chars or hidden characters in `.dockerignore`
+- We couldn't pin down the exact BuildKit-side cause (could be a path-resolution quirk specific to deep nested per-file COPYs after `.dockerignore` filtering, possibly an interaction with `**/dist` filtering of sibling `packages/shared/dist`). Reproducible across attempts though.
+- Fix: replaced the per-package manifest COPYs with whole-directory COPYs:
+  ```dockerfile
+  # Before (failed):
+  COPY apps/admin/package.json ./apps/admin/
+  COPY apps/mobile/package.json ./apps/mobile/
+  COPY packages/api/package.json ./packages/api/
+  COPY packages/db/package.json ./packages/db/
+  COPY packages/shared/package.json ./packages/shared/
+  RUN pnpm install --frozen-lockfile
+  COPY . .
+
+  # After (works):
+  COPY apps ./apps
+  COPY packages ./packages
+  RUN pnpm install --frozen-lockfile
+  ```
+- Trade-off: the install layer's Docker cache invalidates whenever any file under `apps/` or `packages/` changes, not just when manifests change. Deploys do a full pnpm install on every push. For our deploy cadence (a few times a day at most) this is acceptable; the alternative was a broken build.
+- Lesson: the standard "copy each workspace's package.json individually for caching" pattern that works for shallow Node monorepos can be brittle in BuildKit when the source tree has many nested directories with many ignore-pattern matches. Coarser COPYs (whole `apps/` and `packages/` directories) are more robust. We can revisit caching once the rest of the deploy pipeline is stable.
+
 ## Configuration recap (known-good)
 
-`Dockerfile` (at the **monorepo root**) — explicit COPYs of workspace metadata before source so a wrong build context fails fast and clearly:
+`Dockerfile` (at the **monorepo root**):
 ```dockerfile
 FROM node:20-bookworm-slim
 
@@ -115,21 +142,16 @@ RUN npm install -g pnpm@10
 
 WORKDIR /app
 
-# Stage 1: install — explicit COPYs catch a bad build context immediately
+# Root-level metadata first — fails fast if the build context is wrong
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml .npmrc ./
-COPY apps/admin/package.json ./apps/admin/
-COPY apps/mobile/package.json ./apps/mobile/
-COPY packages/api/package.json ./packages/api/
-COPY packages/db/package.json ./packages/db/
-COPY packages/shared/package.json ./packages/shared/
+
+# Whole workspace dirs (per-manifest COPYs broke under BuildKit; see issue 12)
+COPY apps ./apps
+COPY packages ./packages
 
 RUN pnpm install --frozen-lockfile
-
-# Stage 2: source
-COPY . .
 RUN pnpm --filter @blubranch/db exec prisma generate
 
-# Stage 3: runtime
 WORKDIR /app/packages/api
 EXPOSE 4000
 CMD ["sh", "-c", "npx prisma migrate deploy --schema=../db/prisma/schema.prisma && node --import tsx src/server.ts"]

@@ -31,38 +31,35 @@ RUN npm install -g pnpm@10
 
 WORKDIR /app
 
-# === Stage 1: install ===
-# Copy ONLY workspace metadata + per-package manifests first. This:
-#   1. Lets Docker cache the install layer when only source files change
-#      (much faster iterative builds).
-#   2. Fails LOUDLY and IMMEDIATELY if the build context is wrong: any
-#      missing file produces `ERROR: failed to compute cache key: lstat
-#      <name>: no such file or directory` — clearer than waiting for
-#      ERR_PNPM_NO_LOCKFILE three steps later.
+# Copy root-level workspace metadata first. These four files MUST exist
+# at the build context root — if any is missing, Docker fails here with
+# `ERROR: failed to compute cache key: lstat <name>: no such file or
+# directory` instead of waiting until pnpm errors out. A failure on one
+# of these COPYs means Railway's "Root Directory" service setting is
+# wrong (RAILWAY-LESSONS.md issue 11).
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml .npmrc ./
-COPY apps/admin/package.json ./apps/admin/
-COPY apps/mobile/package.json ./apps/mobile/
-COPY packages/api/package.json ./packages/api/
-COPY packages/db/package.json ./packages/db/
-COPY packages/shared/package.json ./packages/shared/
+
+# Copy entire workspace trees. We tried per-manifest COPYs (e.g.
+# `COPY packages/shared/package.json ./packages/shared/`) for finer
+# install-layer caching, but BuildKit choked on those with
+# "failed to calculate checksum... not found" even though the files
+# clearly existed. Trading caching for reliability — see
+# RAILWAY-LESSONS.md issue 12. .dockerignore still filters
+# node_modules, dist, .expo, etc.
+COPY apps ./apps
+COPY packages ./packages
 
 # Install with workspace context. Postinstall hooks (e.g. packages/db's
-# `prisma generate`) attempt to run but will silently no-op for the db
-# package because schema.prisma isn't copied yet (the hook uses
-# `|| true`). The explicit `prisma generate` after the source COPY
-# below regenerates the client correctly.
+# `prisma generate`) run here — schema.prisma is already in place from
+# the COPY above, so the client is generated as part of install.
 RUN pnpm install --frozen-lockfile
 
-# === Stage 2: source ===
-# Bring in actual source after the install layer so source changes
-# don't invalidate the deps cache. `.dockerignore` excludes
-# node_modules, so the install layer's node_modules survives.
-COPY . .
-
-# Generate the Prisma client now that schema.prisma is in /app.
+# Belt-and-suspenders: regenerate the Prisma client explicitly. The
+# postinstall above should have done it, but pinning it as a real build
+# step gives us a clean error if anything in packages/db/prisma is
+# broken (instead of a confusing runtime failure later).
 RUN pnpm --filter @blubranch/db exec prisma generate
 
-# === Stage 3: runtime ===
 WORKDIR /app/packages/api
 
 EXPOSE 4000
