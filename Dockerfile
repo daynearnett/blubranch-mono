@@ -7,4 +7,4 @@ RUN pnpm install --frozen-lockfile
 RUN pnpm --filter @blubranch/db exec prisma generate
 WORKDIR /app/packages/api
 EXPOSE ${PORT:-4000}
-CMD ["sh", "-c", "npx prisma migrate deploy --schema=../db/prisma/schema.prisma && node --import tsx src/server.ts"]
+CMD ["sh", "-c", "npx prisma migrate reset --schema=../db/prisma/schema.prisma --force && node --import tsx src/server.ts"]
