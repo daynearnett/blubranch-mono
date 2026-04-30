@@ -86,9 +86,24 @@
 - Fix: ditched Nixpacks for a `Dockerfile` at the repo root. Sets `builder = "DOCKERFILE"` in `railway.toml`, deleted `nixpacks.toml` outright. The Dockerfile uses `node:20-bookworm-slim`, installs pnpm via `npm install -g pnpm@10` (the Debian PATH issues from Nixpacks issues 2-5 don't apply because Debian images put npm bin on PATH normally), copies the entire monorepo, runs `pnpm install --frozen-lockfile`, and `CMD`s `prisma migrate deploy && node --import tsx src/server.ts`.
 - Lesson: Nixpacks is great for single-package Node apps with no surprises in install. For pnpm workspaces (or anything with a `workspace:*` protocol in deps), reach for a Dockerfile. The Dockerfile is also faster to debug because every step is explicit — no hidden buildpack steps, no provider auto-detection running before your config takes effect.
 
+## Issue 11: Dockerfile build context isn't the repo root → `ERR_PNPM_NO_LOCKFILE`
+- After switching to the Dockerfile, the build progressed to step 6 (`RUN pnpm install --frozen-lockfile`) and failed with `ERR_PNPM_NO_LOCKFILE`. pnpm couldn't find `pnpm-lock.yaml` at `/app`.
+- The lockfile was confirmed:
+  - Tracked in git (`git ls-files pnpm-lock.yaml` returns it)
+  - Pushed to `origin/main` (`git ls-tree -r origin/main` includes it)
+  - Not in `.gitignore`, `.dockerignore`, or `.gitattributes` (no export-ignore)
+  - Available in a fresh clone of the repo
+- Diagnosis: Railway has TWO independent service settings that affect Docker builds —
+  - `dockerfilePath`: where to find the Dockerfile (resolved against the repo root)
+  - **Root Directory**: the build context (what `COPY . .` actually copies)
+  - These are separate. With Root Directory set to `packages/api`, Railway still finds `/Dockerfile` at the repo root, BUT `COPY . .` only copies `packages/api/` contents — the lockfile and `pnpm-workspace.yaml` (which live at the repo root) are *not* in the build context. The build proceeds far enough to fail at the install step.
+- Fix: clear the Root Directory field in the Railway service dashboard (Settings → Source → Root Directory) so the build context becomes the repo root. The `dockerfilePath = "Dockerfile"` in `railway.toml` then resolves correctly and `COPY . .` brings in everything.
+- Defense: the Dockerfile now does explicit per-file COPYs of `pnpm-lock.yaml`, `pnpm-workspace.yaml`, `package.json`, `.npmrc`, and each workspace package's manifest BEFORE `pnpm install`. If the build context is wrong, Docker fails at one of those COPYs with `ERROR: failed to compute cache key: lstat <name>: no such file or directory` — which names the missing file directly instead of letting the failure surface deep inside pnpm.
+- Lesson: in Railway, "where Railway finds the Dockerfile" and "what's in the Dockerfile's build context" are two separate dashboard settings, and the Root Directory field controls the latter even when a custom `dockerfilePath` is set. Always verify the Root Directory field shows blank in the dashboard before debugging anything else when the symptom is "expected file isn't at /app". Adding fail-fast COPYs of critical files in the Dockerfile turns a deep, misleading error (ERR_PNPM_NO_LOCKFILE) into an immediate, file-named one.
+
 ## Configuration recap (known-good)
 
-`Dockerfile` (at the **monorepo root**):
+`Dockerfile` (at the **monorepo root**) — explicit COPYs of workspace metadata before source so a wrong build context fails fast and clearly:
 ```dockerfile
 FROM node:20-bookworm-slim
 
@@ -99,14 +114,24 @@ RUN apt-get update \
 RUN npm install -g pnpm@10
 
 WORKDIR /app
-COPY . .
+
+# Stage 1: install — explicit COPYs catch a bad build context immediately
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml .npmrc ./
+COPY apps/admin/package.json ./apps/admin/
+COPY apps/mobile/package.json ./apps/mobile/
+COPY packages/api/package.json ./packages/api/
+COPY packages/db/package.json ./packages/db/
+COPY packages/shared/package.json ./packages/shared/
 
 RUN pnpm install --frozen-lockfile
+
+# Stage 2: source
+COPY . .
 RUN pnpm --filter @blubranch/db exec prisma generate
 
+# Stage 3: runtime
 WORKDIR /app/packages/api
 EXPOSE 4000
-
 CMD ["sh", "-c", "npx prisma migrate deploy --schema=../db/prisma/schema.prisma && node --import tsx src/server.ts"]
 ```
 

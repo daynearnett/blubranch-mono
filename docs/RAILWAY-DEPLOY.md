@@ -116,13 +116,15 @@ Then in the Railway dashboard for that service:
 |---------|-------|-----|
 | **Source** → Connect Repo | This monorepo | |
 | **Source** → Branch | `main` (or whichever you ship from) | |
-| **Settings** → Root Directory | **leave blank** (default = repo root) | Docker's build context arrives as the monorepo root, which is what the `Dockerfile`'s `COPY . .` expects (the workspace `pnpm-workspace.yaml` and `pnpm-lock.yaml` are there). |
+| **Settings** → **Root Directory** | **MUST be blank** | This controls the **Docker build context**, not just where Railway watches for changes. With `Root Directory = packages/api`, Railway still *finds* the `Dockerfile` at the repo root via `dockerfilePath`, but `COPY . .` only copies `packages/api/` contents — `pnpm-lock.yaml` and `pnpm-workspace.yaml` end up missing and the build fails with `ERR_PNPM_NO_LOCKFILE`. **Verify this every deploy.** See RAILWAY-LESSONS.md issue 11. |
 | **Settings** → Builder | DOCKERFILE | `railway.toml` already sets this; if the dashboard shows it as Nixpacks, change it manually. |
 | **Settings** → Config-as-Code Path | leave default | Railway auto-detects `railway.toml` + `Dockerfile` at the repo root. |
 | **Settings** → Watch Paths | leave default | `railway.toml`'s `watchPatterns` already scopes rebuilds to api / db / shared / lockfile / Dockerfile. |
 | **Settings** → Health Check Path | `/health` | Set in `railway.toml`; doubling up in the dashboard is harmless. |
 
 After the source connects, Railway builds the image from `Dockerfile` and starts it with the `CMD`. Watch the build with `railway logs`.
+
+> **If the build fails on a `COPY` step** (e.g. `ERROR: failed to compute cache key: lstat pnpm-lock.yaml: no such file or directory`), the Root Directory field is wrong. The Dockerfile's explicit COPYs at the top exist precisely to surface this failure clearly instead of letting it manifest 10 minutes later as a cryptic pnpm error.
 
 ---
 
