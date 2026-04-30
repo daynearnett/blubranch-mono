@@ -1,11 +1,11 @@
 [phases.setup]
-nixPkgs = ["nodejs_20", "openssl"]
+nixPkgs = ["nodejs_20", "openssl", "nodePackages.pnpm"]
 
 [phases.install]
-cmds = ["npm i -g pnpm@10 && export PATH=$(npm root -g)/../bin:$PATH && cd /app && pnpm install --frozen-lockfile"]
+cmds = ["cd /app && pnpm install --frozen-lockfile"]
 
 [phases.build]
-cmds = ["export PATH=$(npm root -g)/../bin:$PATH && cd /app && pnpm --filter @blubranch/db exec prisma generate"]
+cmds = ["cd /app && pnpm --filter @blubranch/db exec prisma generate"]
 
 [start]
-cmd = "export PATH=$(npm root -g)/../bin:$PATH && cd /app/packages/api && npx prisma migrate deploy --schema=../db/prisma/schema.prisma && node --import tsx src/server.ts"
+cmd = "cd /app/packages/api && npx prisma migrate deploy --schema=../db/prisma/schema.prisma && node --import tsx src/server.ts"
