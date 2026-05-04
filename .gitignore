@@ -67,3 +67,10 @@ coverage/
 *.tgz
 .cache/
 .parcel-cache/
+
+# Catch all .env variants (.env.txt, .env.seed, .env.production, etc.)
+.env*
+!.env.example
+
+# Stray zip files (downloads, build artifacts)
+*.zip
