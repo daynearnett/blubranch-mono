@@ -139,7 +139,55 @@
   - OR fall back to ST_DWithin via a different geometry library (PostGIS's `cube` + `earthdistance` modules are sometimes available where `postgis` isn't, but Railway's stock image likely doesn't have those either)
 - Lesson: when targeting a managed Postgres provider, never assume optional extensions ship with the base image. Make migrations and runtime code feature-detect the extension and degrade gracefully. The pattern — DO-block exception in migrations + env-var guard in code — is portable to any Postgres-extension dependency (pg_trgm, vector, etc.).
 
+## Issue 15: `railway run` executes locally → can't resolve `*.railway.internal` hostnames
+
+- Trying to seed the staging database from the laptop with `railway run --service blubranch pnpm seed` failed at the first `prisma.trade.upsert()`: `Can't reach database server at postgres.railway.internal:5432`.
+- Cause: `railway run` injects the service's environment variables and runs the given command **in your local shell, on your machine**. The injected `DATABASE_URL` references `postgres.railway.internal`, which is a private DNS name that only resolves inside Railway's wireguard mesh — from a laptop, the hostname doesn't exist.
+- This wasn't obvious from the CLI's docs. The mental model "railway run = run-as-if-on-Railway" is wrong; it's "run-locally-with-Railway-env-vars-injected." The injected vars *contain* internal-only hostnames that local processes can't reach.
+- Fix path A (preferred for one-off ops): use the Postgres service's **public** URL. In the Railway dashboard, on the Postgres service: **Settings → Networking → enable Public Networking** if not already on. After ~30s, the service's **Variables** tab shows a `DATABASE_PUBLIC_URL` (form `postgresql://postgres:PASSWORD@HOST.proxy.rlwy.net:PORT/railway`). Use that URL — *not* the internal `${{Postgres.DATABASE_URL}}` reference — when running migrations or seeds from the laptop.
+- Fix path B (cleaner long-term): run the operation inside the Railway service container so internal hostnames resolve. `railway ssh --service <name>` opens a shell inside the running container; from there, `cd packages/db && pnpm exec prisma db seed` works because `DATABASE_URL` is already set and `postgres.railway.internal` is reachable. Whether this works depends on the Railway plan and the service's runtime image having a usable shell.
+- Lesson: `railway run` is for "I want my local code to run with this service's env vars" (e.g., running a script that hits external APIs like Stripe with the production keys), **not** for "I want this command to execute as if it were inside the deployed container." For the latter, use `railway ssh` or commit the operation as a one-off Railway job.
+
+## Issue 16: `pnpm seed` doesn't resolve from the monorepo root → must filter into a workspace package
+
+- RAILWAY-DEPLOY.md step 8 documented the seed command as `railway run --service blubranch-api pnpm seed`. From the repo root that errors with `ERR_PNPM_RECURSIVE_EXEC_FIRST_FAIL — Command "seed" not found. Did you mean "pnpm semver"?`
+- Cause: the root `package.json` has no `seed` script. The `seed` script is defined inside `packages/api/package.json` as `pnpm --filter @blubranch/db exec prisma db seed`. pnpm's recursive resolver looks at the current package's `scripts`, doesn't find `seed`, and bails.
+- Fix (the command that actually works): `pnpm --filter @blubranch/api seed` from the repo root. The `--filter` flag tells pnpm "run this script in the named workspace package's scope," which finds the script and runs the inner filter to `@blubranch/db`. Combined with the public-URL approach from Issue 15, the full local-seed invocation is:
+  ```bash
+  set -a; source .env.seed; set +a   # .env.seed contains DATABASE_URL=<public URL>
+  pnpm --filter @blubranch/api seed
+  ```
+- Considered but skipped: adding `"seed": "pnpm --filter @blubranch/api seed"` to the root `package.json` so the documented command would Just Work. Worth doing eventually for ergonomics; not done in this session because the explicit `--filter` form is more honest about what's actually executing.
+- Lesson: in pnpm workspaces, scripts are package-scoped, not repo-scoped. Documenting commands as `pnpm <script>` from the root only works if a top-level alias exists. Either define top-level aliases for every operationally-relevant script, or document commands with the explicit `--filter` form so they're copy-pasteable.
+
+## Issue 17: TextEdit's "rich text by default" + "iCloud save by default" break env-file workflows
+
+- Tried to put a multi-character DB URL into `.env.seed` via TextEdit because terminal paste was misbehaving (Terminal.app variant of clipboard issues). Two macOS defaults bit hard:
+  1. TextEdit opens new documents in **Rich Text Format**, which embeds RTF metadata into saved files. `source .env.seed` then reads garbage and `DATABASE_URL` ends up unset (or set to RTF junk).
+  2. TextEdit's Save dialog defaults the location to **TextEdit – iCloud**, not the directory the file came from. With `open -e .env.seed` followed by Cmd+S, TextEdit happily saves a *new* file in iCloud Drive named `.env.seed.rtf` and leaves the original empty.
+- Fix that worked reliably: skip TextEdit entirely. Write the file directly from the shell with a heredoc, single-quoting the marker so the shell doesn't expand `$` or backticks in the URL:
+  ```bash
+  cat > .env.seed << 'ENVEOF'
+  DATABASE_URL="postgresql://postgres:PASSWORD@HOST.proxy.rlwy.net:PORT/railway"
+  ENVEOF
+  cat .env.seed   # verify
+  ```
+- If TextEdit really has to be used: **Format → Make Plain Text** (Cmd+Shift+T) before pasting, and in the Save dialog, navigate explicitly to the project directory rather than accepting the iCloud default.
+- Lesson: any workflow that involves "paste a secret into a GUI editor on a Mac" is fragile in ways that aren't visible until something downstream fails to parse. Heredoc-from-shell is fewer steps and has no hidden formatting layer.
+
+## Issue 18: Secrets in screenshots/chat = treat as compromised, rotate immediately
+
+- During the seeding workflow, the Postgres `DATABASE_PUBLIC_URL` (with the live password) appeared in a screenshot pasted into a chat with an LLM assistant. The URL is now in chat history that may be retained server-side and is visible to anyone with access to the conversation.
+- This is not abstract risk: the public URL grants full read/write to the staging Postgres from anywhere on the internet. Chat retention policies and account-compromise scenarios both turn "in a screenshot" into "in someone else's hands."
+- Fix: treat any password that has appeared in a screenshot, paste, log file, or screen-shared session as **already compromised**, regardless of how the receiving channel is described. Rotate the credential the moment the operation that needed it is done. For Railway Postgres: dashboard → Postgres service → Variables → `POSTGRES_PASSWORD` → regenerate. Railway restarts the DB and propagates the new value through `${{Postgres.DATABASE_URL}}` references to dependent services.
+- Lesson: build the rotation step into the runbook, not the discipline. RAILWAY-DEPLOY.md should include "rotate `POSTGRES_PASSWORD` after any one-off operation that exposed `DATABASE_PUBLIC_URL`" so it's a checklist item, not something to remember.
+
+---
+
+## Reference: known-good Dockerfile and Railway config
+
 `Dockerfile` (at the **monorepo root**):
+
 ```dockerfile
 FROM node:20-bookworm-slim
 

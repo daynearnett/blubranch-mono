@@ -32,13 +32,37 @@
 - Fix: Always bump BOTH `version` and `ios.buildNumber` in app.json before rebuilding
 - Convention going forward: increment buildNumber for every TestFlight submission
 
-## Build command sequence (known-good)
+> **Update (2026-04-30):** the above advice applies to projects where EAS reads native build metadata from `app.json`. BluBranch's `eas.json` sets `"appVersionSource": "remote"`, which moves `buildNumber` ownership to EAS — EAS auto-increments it on every build, and any value in `app.json#ios.buildNumber` is ignored. Under remote versioning, the rule simplifies to: bump only `version` in `app.json` when you want a new visible version string; do not touch `buildNumber`. See Issue 7 for the discipline that replaced this one.
+
+## Issue 6: API URL hardcoded in eas.json — temporary Railway URL pattern
+- After the API went live on Railway but **before** custom domains (`api-staging.blubranch.com`, `api.blubranch.com`) were set up at the registrar, the mobile app needed to point at the Railway-generated URL (`https://blubranch-production.up.railway.app`) for one TestFlight build.
+- Two structural choices for how to make a URL switch buildable:
+  1. **Per-profile env var in `eas.json`** (BluBranch's current pattern). Each profile defines `EXPO_PUBLIC_API_URL` directly, e.g. `preview` → `https://api-staging.blubranch.com`. The mobile app's `src/lib/api.ts` reads `process.env.EXPO_PUBLIC_API_URL` at build time, no in-app switching. Swapping URLs means editing `eas.json` and rebuilding.
+  2. **APP_ENV flag + in-app URL switcher** (Taist's pattern). `eas.json` sets `APP_ENV=staging|production` per profile; the app has a switch statement (Taist's lives in `app/services/api.ts`) that maps APP_ENV to a hardcoded URL constant. Swapping URLs means editing the app code, not `eas.json`.
+- Decision for this build: temporarily put the Railway URL into `eas.json#build.preview.env.EXPO_PUBLIC_API_URL`, ship a TestFlight build, defer the custom-domain DNS step (RAILWAY-DEPLOY.md step 9). Rationale: ~15 minutes to ship vs. the ~30 minutes for DNS + cert provisioning, and onboarding wasn't going to be tested-and-found-broken in ways the URL would change.
+- **Follow-up debt:** when `api-staging.blubranch.com` is set up, `eas.json#build.preview.env.EXPO_PUBLIC_API_URL` must be reverted to that custom domain. Tracking this as a TODO is fragile because the URL works fine in the build (the test isn't "did I forget to revert"); the only way to notice the staleness later is to check the diff. **Do not commit the temporary Railway URL to `main`** — keep the change on a short-lived branch, or stash it after the build completes, so the next person to build doesn't accidentally inherit a stale URL.
+- Lesson: when a temporary URL needs to be baked into a build, the swap itself is trivial — the discipline is around (a) not letting the temporary value drift to the default branch and (b) building a revert-checklist when the permanent URL is finally available, because there's no automatic signal that the URL is stale.
+
+## Issue 7: Version-bump discipline under `appVersionSource: "remote"`
+- Issue 5 (above) said "increment buildNumber for every TestFlight submission." That was correct for projects with `appVersionSource: "local"` (Taist's convention; native iOS/Android dirs present). BluBranch is **managed Expo** with `appVersionSource: "remote"` — EAS owns `buildNumber` and auto-increments it; whatever is in `app.json#ios.buildNumber` is ignored.
+- Under remote versioning, the actionable rule is just: bump `app.json#version` (e.g. `0.1.2` → `0.1.3`) before each TestFlight submission, leave `buildNumber` alone, let EAS auto-assign it. Two builds at the same `version` will appear in TestFlight as `0.1.3 (3)` and `0.1.3 (4)`.
+- Convention adopted: bump the patch component (`0.1.2 → 0.1.3 → 0.1.4`) for each iteration build. Bump the minor component (`0.1.x → 0.2.0`) at meaningful milestones (e.g. "first build that completes onboarding end-to-end"). Reserve major bumps for production releases.
+- Lesson: which file to bump and which fields to touch are entirely a function of `eas.json#cli.appVersionSource`. Read that field before following any version-bump advice in another doc — including this one.
+
+## Issue 8: Database not seeded → onboarding screens 500 on the backend
+- After the API went live and a TestFlight build was installed on a real device, the worker-onboarding flow (signup → trade selection) failed at trade-selection: the screen called `GET /reference/trades` and got an empty array, so the dropdown had no options.
+- Cause: the deployed Postgres was empty. The Prisma migrations created tables but never populated reference data (trades, skills, benefits). The seed script existed at `packages/db/prisma/seed.ts` but had only ever been run against local Postgres during development.
+- Fix: run the seed against Railway's Postgres once. Documented step in RAILWAY-DEPLOY.md (step 8); the actual mechanics turned out to be more involved than the docs suggested — see RAILWAY-LESSONS.md issues 15 and 16 for the seeding pitfalls.
+- Lesson: a successful API deploy + a running database != a working app. Seed/reference data is its own deploy step, easy to forget because it only runs once per environment. Treat "seed has been run on this environment" as a checklist item independent of "API has been deployed to this environment."
+
+## Build command sequence (known-good, post-onboarding)
 ```bash
 cd apps/mobile
-# 1. Bump version in app.json (version + ios.buildNumber)
-# 2. Build
+# 1. Bump app.json#version (e.g. 0.1.2 -> 0.1.3). Don't touch buildNumber — EAS handles it.
+# 2. (If the API URL changed) edit eas.json env for the right profile.
+# 3. Build
 eas build --platform ios --profile preview
-# 3. Submit (only after build succeeds)
+# 4. Submit (only after build succeeds)
 eas submit --platform ios --profile preview
 ```
 

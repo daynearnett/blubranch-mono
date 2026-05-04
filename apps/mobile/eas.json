@@ -28,7 +28,7 @@
       },
       "channel": "preview",
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://api-staging.blubranch.com"
+        "EXPO_PUBLIC_API_URL": "https://blubranch-production.up.railway.app"
       }
     },
     "production": {
