@@ -93,6 +93,21 @@ If a CR doesn't fit any channel, file in the closest one and Claude Code will no
 - **Fix:** <commit SHA, PR link, or one-line description; filled when status flips to 🟢>
 -->
 
+### BMA-0001 — Test ticket — ignore me.
+
+- **Type:** Enhancement
+- **Severity:** P3
+- **Status:** 🔴 Open
+- **Reporter:** Self
+- **Reported:** 2026-05-14
+- **Channel:** #styling
+- **Platform:** Both
+- **Screen / area:** —
+- **Slack:** —
+- **Description:** Placeholder ticket filed to exercise the CR-handling procedure end-to-end. No real issue; safe to ignore or close as won't-fix once the test is complete.
+- **Notes:** —
+- **Fix:** —
+
 ---
 
 ## In progress

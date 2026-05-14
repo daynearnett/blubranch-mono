@@ -15,10 +15,10 @@ This file is the operational playbook Claude Code follows when filing or editing
 Run from the repo root:
 
 ```bash
-grep -oE 'BMA-[0-9]{4}' docs/CHANGE-REQUESTS.md | sort -u | tail -1
+grep -oP '(?<=^### )BMA-[0-9]{4}' docs/CHANGE-REQUESTS.md | sort -u | tail -1
 ```
 
-Take the result, increment by 1, zero-pad to 4 digits. If the grep returns nothing (first CR ever), use `BMA-0001`.
+The `^### ` lookbehind ensures we only match actual ticket headings, not example IDs that appear in the doc's prose or template comments. Take the result, increment by 1, zero-pad to 4 digits. If the grep returns nothing (first CR ever), use `BMA-0001`.
 
 ### Step 2 — Classify the ticket
 
