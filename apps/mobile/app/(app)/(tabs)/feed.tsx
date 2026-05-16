@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { ApiError, feed, type FeedItem } from '../../../src/lib/api.js';
 import { useAuth } from '../../../src/lib/auth-context.js';
-import { AdaptiveHeader } from '../../../src/components/adaptive-header.js';
+import { TopSearchBar } from '../../../src/components/top-search-bar.js';
 import { JobCard } from '../../../src/components/job-card.js';
 import { PostCard } from '../../../src/components/post-card.js';
 import { QuickApplyModal, type QuickApplyTarget } from '../../../src/components/quick-apply-modal.js';
@@ -58,12 +58,8 @@ export default function FeedTab() {
 
   return (
     <View style={styles.root}>
-      <AdaptiveHeader
-        showSearch
-        actions={[
-          { icon: '🔔', label: 'Alerts' },
-          { icon: '✉️', label: 'Messages' },
-        ]}
+      <TopSearchBar
+        avatarInitials={user ? `${user.firstName[0]}${user.lastName[0]}` : '??'}
       />
       <ScrollView
         contentContainerStyle={styles.scroll}

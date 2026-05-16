@@ -14,7 +14,7 @@ import {
   View,
 } from 'react-native';
 import { TRADE_LIST } from '@blubranch/shared';
-import { AdaptiveHeader } from '../../../src/components/adaptive-header.js';
+import { TopSearchBar } from '../../../src/components/top-search-bar.js';
 import { Chip } from '../../../src/components/ui.js';
 import { JobCard } from '../../../src/components/job-card.js';
 import { JobDetailPane } from '../../../src/components/job-detail-pane.js';
@@ -144,13 +144,7 @@ export default function JobsTab() {
     <View style={[styles.root, isDesktop && styles.rootRow]}>
       {/* Centre column */}
       <View style={{ flex: 1 }}>
-        <AdaptiveHeader
-          showSearch
-          actions={[
-            { icon: '🔔', label: 'Alerts' },
-            { icon: '⚙️', label: 'Filters' },
-          ]}
-        />
+        <TopSearchBar placeholder="Search jobs..." />
         <ScrollView contentContainerStyle={styles.scroll}>
           <ResponsiveContainer>
             {/* Trade filter pills */}

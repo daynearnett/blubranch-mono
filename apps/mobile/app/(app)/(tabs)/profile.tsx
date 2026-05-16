@@ -101,10 +101,6 @@ export default function Profile() {
         </View>
 
         <SectionDivider />
-
-        <View style={styles.signOutRow}>
-          <Button variant="ghost" label="Sign out" onPress={signOut} />
-        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -368,7 +364,6 @@ const styles = StyleSheet.create({
   completenessTitle: { ...typography.bodyBold, color: colors.navy },
   completenessPercent: { ...typography.bodyBold, color: colors.orange },
   completenessHint: { ...typography.small, color: colors.textMuted, marginTop: spacing.sm },
-  signOutRow: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xl },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
