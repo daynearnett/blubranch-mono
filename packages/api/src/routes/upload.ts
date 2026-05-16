@@ -3,6 +3,7 @@ import { mkdir, stat } from 'node:fs/promises';
 import { createReadStream, createWriteStream } from 'node:fs';
 import { extname, join } from 'node:path';
 import { pipeline } from 'node:stream/promises';
+import sharp from 'sharp';
 import type { FastifyInstance } from 'fastify';
 import { requireAuth } from '../auth/middleware.js';
 import { isS3Configured, uploadToS3 } from '../services/s3.js';
@@ -49,8 +50,14 @@ export async function uploadRoutes(app: FastifyInstance): Promise<void> {
 
     const contentType = MIME_BY_EXT[ext] ?? 'application/octet-stream';
 
+    // Strip EXIF/GPS metadata for privacy — rotate based on orientation first
+    const stripped = await sharp(buffer)
+      .rotate() // auto-orient from EXIF before stripping
+      .withMetadata({ orientation: undefined })
+      .toBuffer();
+
     if (isS3Configured()) {
-      const url = await uploadToS3(buffer, ext, contentType);
+      const url = await uploadToS3(stripped, ext, contentType);
       return reply.send({ url, filename: url.split('/').pop() });
     }
 
@@ -58,7 +65,7 @@ export async function uploadRoutes(app: FastifyInstance): Promise<void> {
     const filename = `${id}${ext}`;
     const dest = join(UPLOAD_DIR, filename);
     await pipeline(
-      (async function* () { yield buffer; })(),
+      (async function* () { yield stripped; })(),
       createWriteStream(dest),
     );
     const baseUrl = process.env.PUBLIC_BASE_URL ?? `http://localhost:${process.env.PORT ?? 4000}`;

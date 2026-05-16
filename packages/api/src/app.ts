@@ -3,6 +3,7 @@ import multipart from '@fastify/multipart';
 import sensible from '@fastify/sensible';
 import Fastify, { type FastifyInstance } from 'fastify';
 import { extractUser } from './auth/middleware.js';
+import { registerSecurity } from './lib/security.js';
 import { startExpireCron } from './jobs/expire-cron.js';
 import { applicationRoutes } from './routes/applications.js';
 import { authRoutes } from './routes/auth.js';
@@ -54,6 +55,7 @@ export async function buildApp(): Promise<FastifyInstance> {
     },
   });
   await app.register(sensible);
+  await registerSecurity(app);
   await app.register(multipart, {
     limits: { fileSize: 8 * 1024 * 1024, files: 1 },
   });
