@@ -10,6 +10,7 @@ import { companyRoutes } from './routes/companies.js';
 import { jobRoutes } from './routes/jobs.js';
 import { postRoutes } from './routes/posts.js';
 import { uploadRoutes } from './routes/upload.js';
+import { connectionRoutes } from './routes/connections.js';
 import { userRoutes } from './routes/users.js';
 
 // Origins that may call this API. Native iOS / Android apps don't send the
@@ -68,6 +69,7 @@ export async function buildApp(): Promise<FastifyInstance> {
   await app.register(companyRoutes);
   await app.register(jobRoutes);
   await app.register(applicationRoutes);
+  await app.register(connectionRoutes);
   await app.register(postRoutes);
   await app.register(uploadRoutes);
 

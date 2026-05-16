@@ -5,4 +5,5 @@ export * from './schemas/job.js';
 export * from './schemas/auth.js';
 export * from './schemas/profile.js';
 export * from './schemas/post.js';
+export * from './schemas/connection.js';
 export * from './reference.js';

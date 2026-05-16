@@ -4,6 +4,7 @@ import type {
   AuthResponse,
   CertificationInput,
   CompanyInput,
+  ConnectionRequestInput,
   JobApplyInput,
   JobInput,
   JobUpdate,
@@ -529,4 +530,59 @@ export const posts = {
     >(`/posts/${id}/comments`),
   comment: (id: string, input: PostCommentInput) =>
     request<unknown>(`/posts/${id}/comments`, { method: 'POST', body: JSON.stringify(input) }),
+};
+
+// ── Connections ─────────────────────────────────────────────────
+
+export interface ConnectionUser {
+  id: string;
+  firstName: string;
+  lastName: string;
+  profilePhotoUrl: string | null;
+  isVerified: boolean;
+  headline: string | null;
+  city: string | null;
+  state: string | null;
+  trade: string | null;
+}
+
+export interface ConnectionItem {
+  connectionId: string;
+  connectedAt: string;
+  user: ConnectionUser;
+}
+
+export interface PendingInvite {
+  connectionId: string;
+  createdAt: string;
+  user: ConnectionUser;
+}
+
+export interface ConnectionsListResponse {
+  items: ConnectionItem[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
+export type NetworkSuggestion = ConnectionUser & { score: number };
+
+export const connections = {
+  list: (params?: { search?: string; sort?: string; page?: number }) => {
+    const q = new URLSearchParams();
+    if (params?.search) q.set('search', params.search);
+    if (params?.sort) q.set('sort', params.sort);
+    if (params?.page) q.set('page', String(params.page));
+    return request<ConnectionsListResponse>(`/connections?${q.toString()}`);
+  },
+  pending: () => request<PendingInvite[]>('/connections/pending'),
+  request: (input: ConnectionRequestInput) =>
+    request<{ id: string }>('/connections/request', { method: 'POST', body: JSON.stringify(input) }),
+  accept: (id: string) =>
+    request<{ id: string }>(`/connections/${id}/accept`, { method: 'PUT' }),
+  decline: (id: string) =>
+    request<void>(`/connections/${id}`, { method: 'DELETE' }),
+  remove: (id: string) =>
+    request<void>(`/connections/${id}`, { method: 'DELETE' }),
+  suggestions: () => request<NetworkSuggestion[]>('/network/suggestions'),
 };
