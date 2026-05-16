@@ -34,7 +34,7 @@ export function TopSearchBar({
 
       <Pressable
         style={styles.searchPill}
-        onPress={() => {/* TODO: navigate to search screen */}}
+        onPress={() => router.push('/(app)/search')}
         accessibilityLabel="Search"
         accessibilityRole="search"
       >

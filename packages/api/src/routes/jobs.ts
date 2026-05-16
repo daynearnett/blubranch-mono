@@ -2,6 +2,7 @@ import {
   jobInputSchema,
   jobSearchQuerySchema,
   jobUpdateSchema,
+  searchQuerySchema,
 } from '@blubranch/shared';
 import { Prisma } from '@blubranch/db';
 import type { FastifyInstance } from 'fastify';
@@ -357,4 +358,183 @@ export async function jobRoutes(app: FastifyInstance): Promise<void> {
       applicantCount: j._count.applications,
     }));
   });
+
+  // ── POST /jobs/:id/bookmark ─────────────────────────────────────
+  app.post<{ Params: { id: string } }>(
+    '/jobs/:id/bookmark',
+    { preHandler: requireAuth },
+    async (request, reply) => {
+      const userId = request.user!.id;
+      const jobId = request.params.id;
+      try {
+        await prisma.bookmarkedJob.create({ data: { userId, jobId } });
+        return reply.code(201).send({ bookmarked: true });
+      } catch (err) {
+        if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+          return reply.send({ bookmarked: true });
+        }
+        throw err;
+      }
+    },
+  );
+
+  // ── DELETE /jobs/:id/bookmark ───────────────────────────────────
+  app.delete<{ Params: { id: string } }>(
+    '/jobs/:id/bookmark',
+    { preHandler: requireAuth },
+    async (request, reply) => {
+      const userId = request.user!.id;
+      try {
+        await prisma.bookmarkedJob.delete({
+          where: { userId_jobId: { userId, jobId: request.params.id } },
+        });
+      } catch (err) {
+        if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2025') {
+          // Already removed
+        } else {
+          throw err;
+        }
+      }
+      return reply.code(204).send();
+    },
+  );
+
+  // ── GET /users/me/saved-jobs ────────────────────────────────────
+  app.get('/users/me/saved-jobs', { preHandler: requireAuth }, async (request, reply) => {
+    const bookmarks = await prisma.bookmarkedJob.findMany({
+      where: { userId: request.user!.id },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        job: {
+          include: {
+            company: { select: { id: true, name: true, logoUrl: true } },
+            trade: { select: { id: true, name: true, slug: true } },
+          },
+        },
+      },
+    });
+    return reply.send(
+      bookmarks.map((b) => ({
+        ...b.job,
+        payMin: Number(b.job.payMin),
+        payMax: Number(b.job.payMax),
+        savedAt: b.createdAt,
+      })),
+    );
+  });
+
+  // ── GET /search ─────────────────────────────────────────────────
+  app.get<{ Querystring: Record<string, string> }>(
+    '/search',
+    { preHandler: requireAuth },
+    async (request, reply) => {
+      const parsed = searchQuerySchema.safeParse(request.query);
+      if (!parsed.success) return reply.code(400).send({ error: 'BadRequest' });
+      const { q, tab, page, limit } = parsed.data;
+      const userId = request.user!.id;
+
+      // Log search
+      await prisma.searchLog.create({ data: { userId, query: q } }).catch(() => {});
+
+      if (tab === 'jobs') {
+        const where = {
+          status: 'open' as const,
+          OR: [
+            { title: { contains: q, mode: 'insensitive' as const } },
+            { description: { contains: q, mode: 'insensitive' as const } },
+          ],
+        };
+        const [results, total] = await Promise.all([
+          prisma.job.findMany({
+            where,
+            skip: (page - 1) * limit,
+            take: limit,
+            orderBy: { createdAt: 'desc' },
+            include: {
+              company: { select: { id: true, name: true, logoUrl: true } },
+              trade: { select: { id: true, name: true, slug: true } },
+            },
+          }),
+          prisma.job.count({ where }),
+        ]);
+        return reply.send({
+          tab,
+          items: results.map((j) => ({
+            ...j,
+            payMin: Number(j.payMin),
+            payMax: Number(j.payMax),
+          })),
+          total,
+          page,
+          limit,
+        });
+      }
+
+      if (tab === 'people') {
+        const where = {
+          OR: [
+            { firstName: { contains: q, mode: 'insensitive' as const } },
+            { lastName: { contains: q, mode: 'insensitive' as const } },
+          ],
+        };
+        const [results, total] = await Promise.all([
+          prisma.user.findMany({
+            where,
+            skip: (page - 1) * limit,
+            take: limit,
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              profilePhotoUrl: true,
+              isVerified: true,
+              workerProfile: { select: { headline: true, city: true, state: true } },
+              trades: { include: { trade: true }, take: 1 },
+            },
+          }),
+          prisma.user.count({ where }),
+        ]);
+        return reply.send({
+          tab,
+          items: results.map((u) => ({
+            id: u.id,
+            firstName: u.firstName,
+            lastName: u.lastName,
+            profilePhotoUrl: u.profilePhotoUrl,
+            isVerified: u.isVerified,
+            headline: u.workerProfile?.headline ?? null,
+            trade: u.trades[0]?.trade?.name ?? null,
+          })),
+          total,
+          page,
+          limit,
+        });
+      }
+
+      return reply.send({ tab, items: [], total: 0, page, limit });
+    },
+  );
+
+  // ── GET /search/recent ──────────────────────────────────────────
+  app.get('/search/recent', { preHandler: requireAuth }, async (request, reply) => {
+    const logs = await prisma.searchLog.findMany({
+      where: { userId: request.user!.id },
+      orderBy: { createdAt: 'desc' },
+      take: 10,
+      distinct: ['query'],
+    });
+    return reply.send(logs.map((l) => ({ id: l.id, query: l.query, createdAt: l.createdAt })));
+  });
+
+  // ── DELETE /search/recent/:id ───────────────────────────────────
+  app.delete<{ Params: { id: string } }>(
+    '/search/recent/:id',
+    { preHandler: requireAuth },
+    async (request, reply) => {
+      await prisma.searchLog
+        .deleteMany({ where: { id: request.params.id, userId: request.user!.id } })
+        .catch(() => {});
+      return reply.code(204).send();
+    },
+  );
 }

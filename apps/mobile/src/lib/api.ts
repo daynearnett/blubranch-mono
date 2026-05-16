@@ -498,6 +498,11 @@ export const jobs = {
     }),
   myApplications: () => request<MyApplication[]>('/users/me/applications'),
   myJobs: () => request<EmployerJob[]>('/users/me/jobs'),
+  bookmark: (id: string) =>
+    request<{ bookmarked: boolean }>(`/jobs/${id}/bookmark`, { method: 'POST' }),
+  unbookmark: (id: string) =>
+    request<void>(`/jobs/${id}/bookmark`, { method: 'DELETE' }),
+  savedJobs: () => request<JobSummary[]>('/users/me/saved-jobs'),
 };
 
 export const companies = {
@@ -585,4 +590,33 @@ export const connections = {
   remove: (id: string) =>
     request<void>(`/connections/${id}`, { method: 'DELETE' }),
   suggestions: () => request<NetworkSuggestion[]>('/network/suggestions'),
+};
+
+// ── Search ──────────────────────────────────────────────────────
+
+export interface SearchResult<T> {
+  tab: string;
+  items: T[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
+export interface RecentSearch {
+  id: string;
+  query: string;
+  createdAt: string;
+}
+
+export const search = {
+  query: <T = unknown>(params: { q: string; tab?: string; page?: number }) => {
+    const qs = new URLSearchParams();
+    qs.set('q', params.q);
+    if (params.tab) qs.set('tab', params.tab);
+    if (params.page) qs.set('page', String(params.page));
+    return request<SearchResult<T>>(`/search?${qs.toString()}`);
+  },
+  recent: () => request<RecentSearch[]>('/search/recent'),
+  deleteRecent: (id: string) =>
+    request<void>(`/search/recent/${id}`, { method: 'DELETE' }),
 };

@@ -6,6 +6,7 @@
 // Featured variant adds an orange top stripe + "FEATURED" badge.
 
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Bookmark } from 'lucide-react-native';
 import { Badge } from './ui.js';
 import { colors, radius, spacing, typography } from '../theme.js';
 import type { FeedJobItem, JobSummary } from '../lib/api.js';
@@ -28,11 +29,12 @@ interface Props {
   job: JobSummary | FeedJobItem;
   onPress?: () => void;
   onApplyPress?: () => void;
-  /** Override featured styling (e.g. inside the feed where every card is compact) */
+  onBookmarkPress?: () => void;
+  isBookmarked?: boolean;
   compact?: boolean;
 }
 
-export function JobCard({ job, onPress, onApplyPress, compact }: Props) {
+export function JobCard({ job, onPress, onApplyPress, onBookmarkPress, isBookmarked, compact }: Props) {
   const featured = job.isFeatured && !compact;
   const initials = job.company.name
     .split(/\s+/)
@@ -69,7 +71,17 @@ export function JobCard({ job, onPress, onApplyPress, compact }: Props) {
             </Text>
           </View>
           {typeof job.distanceMiles === 'number' && job.distanceMiles >= 0 ? (
-            <Text style={styles.distance}>{job.distanceMiles.toFixed(1)} mi away</Text>
+            <Text style={styles.distance}>{job.distanceMiles.toFixed(1)} mi</Text>
+          ) : null}
+          {onBookmarkPress ? (
+            <Pressable onPress={onBookmarkPress} style={styles.bookmarkBtn}>
+              <Bookmark
+                color={isBookmarked ? colors.orange : colors.textMuted}
+                size={18}
+                strokeWidth={1.8}
+                fill={isBookmarked ? colors.orange : 'none'}
+              />
+            </Pressable>
           ) : null}
         </View>
 
@@ -140,6 +152,7 @@ const styles = StyleSheet.create({
   companyName: { ...typography.bodyBold, color: colors.textPrimary },
   location: { ...typography.caption, color: colors.textSecondary, marginTop: 2 },
   distance: { ...typography.caption, color: colors.primary, fontWeight: '600' },
+  bookmarkBtn: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
   title: { ...typography.h3, color: colors.primaryDark, marginBottom: spacing.xs },
   pay: { ...typography.bodyBold, color: colors.primary, marginBottom: spacing.sm },
   tagRow: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: spacing.md },
