@@ -17,6 +17,9 @@ export async function postRoutes(app: FastifyInstance): Promise<void> {
       data: {
         userId: request.user!.id,
         content: data.content,
+        audience: data.audience ?? 'anyone',
+        locationTag: data.locationTag ?? null,
+        tradeTag: data.tradeTag ?? null,
         photos: data.photoUrls
           ? {
               create: data.photoUrls.map((url, i) => ({ photoUrl: url, sortOrder: i })),

@@ -1,15 +1,19 @@
 // Social feed post card (Mockup screen 4 — first item).
 import { useState } from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Heart, MessageCircle, Share2 } from 'lucide-react-native';
 import { Badge } from './ui.js';
+import { VerifiedBadge } from './verified-badge.js';
 import { colors, radius, spacing, typography } from '../theme.js';
 import { posts as postsApi, type FeedPost } from '../lib/api.js';
 
 export function PostCard({ post: initial }: { post: FeedPost }) {
   const [post, setPost] = useState(initial);
   const [busy, setBusy] = useState(false);
+  const [expanded, setExpanded] = useState(false);
   const initials = `${post.user.firstName[0] ?? ''}${post.user.lastName[0] ?? ''}`.toUpperCase();
   const elapsed = relativeTime(new Date(post.createdAt));
+  const showSeeMore = post.content.length > 280 && !expanded;
 
   const onLikePress = async () => {
     if (busy) return;
@@ -57,7 +61,14 @@ export function PostCard({ post: initial }: { post: FeedPost }) {
         </View>
       </View>
 
-      <Text style={styles.content}>{post.content}</Text>
+      <Text style={styles.content} numberOfLines={expanded ? undefined : 4}>
+        {post.content}
+      </Text>
+      {showSeeMore ? (
+        <Pressable onPress={() => setExpanded(true)}>
+          <Text style={styles.seeMore}>see more</Text>
+        </Pressable>
+      ) : null}
 
       {post.photos.length > 0 ? (
         <Image source={{ uri: post.photos[0]!.photoUrl }} style={styles.heroPhoto} />
@@ -65,17 +76,22 @@ export function PostCard({ post: initial }: { post: FeedPost }) {
 
       <View style={styles.engagementRow}>
         <Pressable onPress={onLikePress} style={styles.engagementBtn} disabled={busy}>
-          <Text style={[styles.engagementIcon, post.likedByMe && styles.engagementIconActive]}>
-            👍
+          <Heart
+            color={post.likedByMe ? colors.orange : colors.textMuted}
+            size={18}
+            strokeWidth={post.likedByMe ? 2.5 : 1.8}
+            fill={post.likedByMe ? colors.orange : 'none'}
+          />
+          <Text style={[styles.engagementLabel, post.likedByMe && styles.engagementLabelActive]}>
+            {post.likeCount}
           </Text>
-          <Text style={styles.engagementLabel}>{post.likeCount}</Text>
         </Pressable>
         <View style={styles.engagementBtn}>
-          <Text style={styles.engagementIcon}>💬</Text>
+          <MessageCircle color={colors.textMuted} size={18} strokeWidth={1.8} />
           <Text style={styles.engagementLabel}>{post.commentCount}</Text>
         </View>
         <View style={styles.engagementBtn}>
-          <Text style={styles.engagementIcon}>↗</Text>
+          <Share2 color={colors.textMuted} size={18} strokeWidth={1.8} />
           <Text style={styles.engagementLabel}>Share</Text>
         </View>
       </View>
@@ -116,7 +132,8 @@ const styles = StyleSheet.create({
   name: { ...typography.bodyBold, color: colors.textPrimary },
   headline: { ...typography.caption, color: colors.textSecondary, marginTop: 2 },
   elapsed: { ...typography.caption, color: colors.textSecondary },
-  content: { ...typography.body, color: colors.textPrimary, marginBottom: spacing.sm },
+  content: { ...typography.body, color: colors.textPrimary, marginBottom: spacing.sm, lineHeight: 22 },
+  seeMore: { ...typography.bodyBold, color: colors.orange, marginBottom: spacing.sm },
   heroPhoto: {
     width: '100%',
     aspectRatio: 16 / 9,
@@ -132,7 +149,6 @@ const styles = StyleSheet.create({
     gap: spacing.lg,
   },
   engagementBtn: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
-  engagementIcon: { fontSize: 16, color: colors.textSecondary },
-  engagementIconActive: { color: colors.primary },
-  engagementLabel: { ...typography.small, color: colors.textSecondary },
+  engagementLabel: { ...typography.small, color: colors.textMuted },
+  engagementLabelActive: { color: colors.orange },
 });

@@ -4,12 +4,14 @@ import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
+import { Edit3 } from 'lucide-react-native';
 import { ApiError, feed, type FeedItem } from '../../../src/lib/api.js';
 import { useAuth } from '../../../src/lib/auth-context.js';
 import { TopSearchBar } from '../../../src/components/top-search-bar.js';
@@ -83,6 +85,15 @@ export default function FeedTab() {
             </View>
           ) : (
             <View style={styles.feed}>
+              <Pressable style={styles.composeStub} onPress={() => router.push('/(app)/(tabs)/post')}>
+                <View style={styles.composeAvatar}>
+                  <Text style={styles.composeAvatarText}>
+                    {user ? `${user.firstName[0]}${user.lastName[0]}` : '??'}
+                  </Text>
+                </View>
+                <Text style={styles.composePlaceholder}>Share your work or a milestone...</Text>
+                <Edit3 color={colors.orange} size={18} strokeWidth={2} />
+              </Pressable>
               {items.map((item, i) => {
                 if (item.kind === 'post') {
                   return <PostCard key={`p-${item.data.id}`} post={item.data} />;
@@ -158,4 +169,25 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
     marginTop: spacing.sm,
   },
+  composeStub: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    padding: spacing.md,
+    backgroundColor: colors.background,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginBottom: spacing.lg,
+  },
+  composeAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.navy,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  composeAvatarText: { color: colors.textInverse, fontSize: 12, fontWeight: '700' },
+  composePlaceholder: { ...typography.body, color: colors.textMuted, flex: 1 },
 });

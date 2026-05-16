@@ -1,10 +1,30 @@
 // Post tab — branches by role:
 //   • employer → starts the 6-step posting wizard (Mockup 7A→7F)
-//   • worker   → placeholder until the post-composer ships in Phase 4
+//   • worker   → post composer (S16)
 import { useRouter } from 'expo-router';
-import { useEffect } from 'react';
-import { Placeholder } from '../../../src/components/placeholder.js';
+import { useEffect, useState } from 'react';
+import {
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Camera, ChevronDown, Globe, MapPin, Users, Wrench, X } from 'lucide-react-native';
+import { Badge, Button, Chip } from '../../../src/components/ui.js';
+import { ApiError, me, posts } from '../../../src/lib/api.js';
 import { useAuth } from '../../../src/lib/auth-context.js';
+import { colors, radius, spacing, typography } from '../../../src/theme.js';
+
+const MAX_CHARS = 3000;
+const WARN_CHARS = 2500;
+
+type Audience = 'anyone' | 'connections';
 
 export default function PostTab() {
   const router = useRouter();
@@ -16,13 +36,277 @@ export default function PostTab() {
     }
   }, [user, router]);
 
-  // Workers and unauthed users get the same placeholder for now.
+  if (user?.role === 'employer' || user?.role === 'admin') return null;
+
+  return <PostComposer />;
+}
+
+function PostComposer() {
+  const router = useRouter();
+  const { user } = useAuth();
+  const [content, setContent] = useState('');
+  const [audience, setAudience] = useState<Audience>('anyone');
+  const [showAudiencePicker, setShowAudiencePicker] = useState(false);
+  const [locationTag, setLocationTag] = useState<string | null>(null);
+  const [tradeTag, setTradeTag] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  // Pre-fill from profile
+  useEffect(() => {
+    me.get()
+      .then((data) => {
+        if (data.workerProfile?.city && data.workerProfile?.state) {
+          setLocationTag(`${data.workerProfile.city}, ${data.workerProfile.state}`);
+        }
+        if (data.trades.length > 0) {
+          setTradeTag(data.trades[0]!.name);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const charCount = content.length;
+  const canPost = content.trim().length > 0 && charCount <= MAX_CHARS;
+
+  const handlePost = async () => {
+    if (!canPost) return;
+    setBusy(true);
+    try {
+      await posts.create({
+        content: content.trim(),
+        audience,
+        locationTag,
+        tradeTag,
+      });
+      setContent('');
+      router.navigate('/(app)/(tabs)/feed');
+    } catch (err) {
+      Alert.alert('Error', err instanceof ApiError ? err.message : 'Could not create post');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const initials = user ? `${user.firstName[0]}${user.lastName[0]}` : '??';
+
   return (
-    <Placeholder
-      icon="📸"
-      title="Create a post"
-      comingIn="Coming in Phase 4"
-      body="Workers' post composer ships next. Employers — tap Post to start a job listing."
-    />
+    <SafeAreaView style={styles.safe} edges={['top']}>
+      <View style={styles.topBar}>
+        <Pressable onPress={() => router.back()} style={styles.closeBtn}>
+          <X color={colors.navy} size={22} strokeWidth={2} />
+        </Pressable>
+        <Text style={styles.topBarTitle}>Create post</Text>
+        <Button
+          label={busy ? 'Posting…' : 'Post'}
+          loading={busy}
+          disabled={!canPost}
+          onPress={handlePost}
+          style={styles.postBtn}
+        />
+      </View>
+
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <ScrollView contentContainerStyle={styles.content}>
+          <View style={styles.authorRow}>
+            <View style={styles.avatar}>
+              <Text style={styles.avatarText}>{initials}</Text>
+            </View>
+            <View>
+              <Text style={styles.authorName}>
+                {user?.firstName} {user?.lastName}
+              </Text>
+              <Pressable
+                style={styles.audienceBtn}
+                onPress={() => setShowAudiencePicker(!showAudiencePicker)}
+              >
+                {audience === 'anyone' ? (
+                  <Globe color={colors.textMuted} size={12} strokeWidth={2} />
+                ) : (
+                  <Users color={colors.textMuted} size={12} strokeWidth={2} />
+                )}
+                <Text style={styles.audienceLabel}>
+                  {audience === 'anyone' ? 'Anyone' : 'Connections only'}
+                </Text>
+                <ChevronDown color={colors.textMuted} size={12} strokeWidth={2} />
+              </Pressable>
+            </View>
+          </View>
+
+          {showAudiencePicker ? (
+            <View style={styles.audiencePicker}>
+              <Pressable
+                style={[styles.audienceOption, audience === 'anyone' && styles.audienceOptionActive]}
+                onPress={() => { setAudience('anyone'); setShowAudiencePicker(false); }}
+              >
+                <Globe color={audience === 'anyone' ? colors.orange : colors.textMuted} size={16} strokeWidth={2} />
+                <Text style={[styles.audienceOptionLabel, audience === 'anyone' && styles.audienceOptionLabelActive]}>
+                  Anyone
+                </Text>
+              </Pressable>
+              <Pressable
+                style={[styles.audienceOption, audience === 'connections' && styles.audienceOptionActive]}
+                onPress={() => { setAudience('connections'); setShowAudiencePicker(false); }}
+              >
+                <Users color={audience === 'connections' ? colors.orange : colors.textMuted} size={16} strokeWidth={2} />
+                <Text style={[styles.audienceOptionLabel, audience === 'connections' && styles.audienceOptionLabelActive]}>
+                  Connections only
+                </Text>
+              </Pressable>
+            </View>
+          ) : null}
+
+          <TextInput
+            style={styles.textInput}
+            placeholder="Share your work, ask a question, or celebrate a milestone..."
+            placeholderTextColor={colors.textMuted}
+            multiline
+            value={content}
+            onChangeText={setContent}
+            maxLength={MAX_CHARS}
+            textAlignVertical="top"
+          />
+
+          {charCount >= WARN_CHARS ? (
+            <Text style={[styles.charCount, charCount > MAX_CHARS && styles.charCountOver]}>
+              {charCount}/{MAX_CHARS}
+            </Text>
+          ) : null}
+
+          <View style={styles.tagRow}>
+            {locationTag ? (
+              <Pressable style={styles.tag} onPress={() => setLocationTag(null)}>
+                <MapPin color={colors.orange} size={12} strokeWidth={2} />
+                <Text style={styles.tagLabel}>{locationTag}</Text>
+                <X color={colors.textMuted} size={10} strokeWidth={2} />
+              </Pressable>
+            ) : null}
+            {tradeTag ? (
+              <Pressable style={styles.tag} onPress={() => setTradeTag(null)}>
+                <Wrench color={colors.orange} size={12} strokeWidth={2} />
+                <Text style={styles.tagLabel}>{tradeTag}</Text>
+                <X color={colors.textMuted} size={10} strokeWidth={2} />
+              </Pressable>
+            ) : null}
+          </View>
+        </ScrollView>
+
+        <View style={styles.toolbar}>
+          <Pressable style={styles.toolbarBtn}>
+            <Camera color={colors.navy} size={22} strokeWidth={1.8} />
+          </Pressable>
+          <Pressable
+            style={styles.toolbarBtn}
+            onPress={() => {
+              if (!locationTag) {
+                me.get()
+                  .then((data) => {
+                    if (data.workerProfile?.city && data.workerProfile?.state) {
+                      setLocationTag(`${data.workerProfile.city}, ${data.workerProfile.state}`);
+                    }
+                  })
+                  .catch(() => {});
+              }
+            }}
+          >
+            <MapPin color={locationTag ? colors.orange : colors.navy} size={22} strokeWidth={1.8} />
+          </Pressable>
+        </View>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  safe: { flex: 1, backgroundColor: colors.background },
+  topBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.divider,
+  },
+  closeBtn: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
+  topBarTitle: { ...typography.h3, color: colors.navy },
+  postBtn: { height: 36, paddingHorizontal: spacing.lg, borderRadius: radius.pill },
+  content: { padding: spacing.lg, flexGrow: 1 },
+  authorRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginBottom: spacing.lg },
+  avatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.navy,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarText: { color: colors.textInverse, fontSize: 14, fontWeight: '700' },
+  authorName: { ...typography.bodyBold, color: colors.navy },
+  audienceBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 2,
+    paddingVertical: 2,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  audienceLabel: { ...typography.small, color: colors.textMuted },
+  audiencePicker: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
+    padding: spacing.sm,
+    marginBottom: spacing.md,
+    gap: spacing.xs,
+  },
+  audienceOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.sm,
+  },
+  audienceOptionActive: { backgroundColor: colors.chipBgActive },
+  audienceOptionLabel: { ...typography.body, color: colors.textPrimary },
+  audienceOptionLabelActive: { color: colors.orange, fontWeight: '600' },
+  textInput: {
+    ...typography.body,
+    color: colors.textPrimary,
+    minHeight: 160,
+    fontSize: 16,
+    lineHeight: 24,
+  },
+  charCount: { ...typography.small, color: colors.textMuted, textAlign: 'right', marginTop: spacing.xs },
+  charCountOver: { color: colors.danger },
+  tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.md },
+  tag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
+    borderRadius: radius.pill,
+    backgroundColor: colors.chipBgActive,
+  },
+  tagLabel: { ...typography.small, color: colors.orange, fontWeight: '600' },
+  toolbar: {
+    flexDirection: 'row',
+    borderTopWidth: 1,
+    borderTopColor: colors.divider,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    gap: spacing.lg,
+  },
+  toolbarBtn: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+});
