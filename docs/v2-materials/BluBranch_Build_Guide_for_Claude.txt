@@ -1,0 +1,1744 @@
+================================================================================
+BLUBRANCH BUILD GUIDE — FOR CLAUDE CODE
+================================================================================
+For use by Claude Code when rebuilding the BluBranch app from v2 mockups.
+
+This guide is layered:
+  - PART 0  ORIENTATION         (who you are, what you're building, how to act)
+  - PART 1  PRODUCT FOUNDATION  (what BluBranch is, who it's for, why it exists)
+  - PART 2  DESIGN SYSTEM       (colors, type, components, patterns)
+  - PART 3  TECHNICAL FOUNDATION (stack, conventions, data model, infra)
+  - PART 4  GLOBAL BEHAVIORS    (auth, navigation, verification, etc.)
+  - PART 5  PER-SCREEN BRIEFS   (all 27 screens with implementation context)
+  - PART 6  CROSS-CUTTING RISKS (legal, performance, accessibility, abuse)
+  - PART 7  KNOWN BUGS FROM V1  (must fix during rebuild)
+  - PART 8  BUILD ORDER         (recommended sequence, P0 → P3)
+
+Read all of Part 0–4 BEFORE touching any screen. The per-screen briefs assume
+you've read the foundations.
+
+================================================================================
+PART 0 — ORIENTATION FOR YOU, CLAUDE CODE
+================================================================================
+
+WHO YOU ARE
+You are Claude Code, working with a non-technical-lead founder (the user's
+business partner) to rebuild BluBranch from a v1 alpha into a v2 production
+beta. The user (founder #1) has provided you mockups and this guide. Founder
+#2 is your direct collaborator. He will run the commands, review your PRs,
+and answer product questions when this guide is silent.
+
+WHO IS NOT IN THE LOOP
+Founder #1 (the one who made this guide) is busy with regulatory and business
+work. Do not assume he is available for back-and-forth. This guide is his
+voice. If this guide and Founder #2 disagree on something product-related,
+TRUST THIS GUIDE and surface the conflict explicitly.
+
+HOW TO ACT
+- Default to shipping. This is a beta with two users (the founders). Done
+  beats perfect. But "done" still means "no data corruption, no broken auth,
+  no public security holes."
+- Ask before destroying. If you would delete a table, drop a column, change
+  an auth scheme, or rename anything user-facing, stop and confirm.
+- Don't invent product decisions. If the mockup is ambiguous, pick the
+  smallest interpretation and flag it as a TODO. Don't add features.
+- Verify what the codebase actually is before you touch it. The user is not
+  sure what state v1 is in. Read package.json, prisma/schema.prisma, the
+  router setup, and the env file FIRST. Then decide whether to refactor in
+  place, rewrite the frontend, or start fresh.
+- Use the v3 ticket backlog (BluBranch_Tickets_v3.md, in the same folder as
+  this guide) as the master to-do list. This guide explains WHY; the tickets
+  enumerate WHAT.
+- Write tests for anything that touches money, auth, or verification status.
+  Everything else can ship with manual QA.
+
+WHEN TO STOP AND ASK FOUNDER #2
+- DB schema changes that aren't pure additions
+- Anything involving payments, Stripe, or money flow
+- Anything that sends real email or SMS to non-founder users
+- Adding a third-party SDK or paid API
+- Anything that would expose user data publicly (a robots-allowed page, an
+  unauthenticated API endpoint, an embedded analytics pixel)
+
+================================================================================
+PART 1 — PRODUCT FOUNDATION
+================================================================================
+
+WHAT BLUBRANCH IS
+A professional network for blue-collar tradespeople. Think "LinkedIn for
+electricians, plumbers, HVAC techs, carpenters, welders, ironworkers, masons,
+roofers, and the apprentices/foremen/contractors who hire them."
+
+THE POSITIONING (memorize this; everything else follows)
+"The professional network built for the Blue Collar."
+
+It is NOT:
+- A gig marketplace (Thumbtack, TaskRabbit) — those are consumer→worker
+- A staffing app (Workrise, Trade Hounds) — those are temp-labor focused
+- A general job board (Indeed, ZipRecruiter) — those have no profile/network
+- LinkedIn — which is white-collar by tone, vocabulary, and prestige signals
+
+It IS:
+- A real professional identity for tradespeople (verified license, real work
+  history, photos of actual work)
+- A network they can grow with people they trust (crews, foremen, unions)
+- A jobs board where employers compete for verified workers, not the other
+  way around
+- A trusted directory employers actually use because licenses are verified
+
+THE TWO CORE USERS
+
+  WORKER (90% of users, always free)
+  - Trade professional, 18–60, mostly male, mostly mobile-first
+  - Has a phone, has a trade, may or may not be in a union
+  - Skeptical of social media but uses Facebook Groups, Instagram, YouTube
+  - Doesn't want to fill out a resume. Wants employers to find HIM.
+  - Cares about: pay, distance, day vs. night shift, union status, the crew
+  - Doesn't care about: clout, follower counts, "thought leadership"
+
+  EMPLOYER (the revenue side, paid)
+  - Small-to-mid contractors, shop owners, service companies, GC schedulers
+  - Posts jobs and searches the directory
+  - Pricing tiers (see Part 4 — Monetization): $49 Basic / $129 Pro /
+    $299/mo Unlimited
+  - May also be a worker user; same person, two modes (handle gracefully)
+
+TONE OF VOICE — CRITICAL
+- Plain. Direct. Confident. No corporate-speak.
+- "Find local trade jobs" ✓     not "Discover opportunities tailored for you"
+- "Get verified. Get hired."  ✓ not "Unlock career advancement"
+- "No fluff." ✓                 not "Streamlined workflows"
+- Use trade vocabulary correctly: journeyman, apprentice, foreman, master,
+  service call, conduit, panel, IBEW Local, etc. Wrong vocabulary will get
+  the app rejected by trade users instantly.
+
+WHAT WE'RE OPTIMIZING FOR (beta-stage priorities, in order)
+  1. The founders can use it daily without rage-quitting
+  2. A real Chicago electrician can sign up, get verified, and apply to one
+     real job without help
+  3. A real Chicago contractor can post a paid job and receive at least one
+     application
+  4. No PII or payment data leaks
+  5. Looks good in a screen recording (for fundraising / partner outreach)
+
+NOT priorities for v2:
+  - Scale beyond ~1,000 users
+  - SEO
+  - Native apps (web-mobile-responsive is fine)
+  - Internationalization
+
+================================================================================
+PART 2 — DESIGN SYSTEM
+================================================================================
+
+BRAND COLORS (use these exact hex values)
+  --bb-navy:        #0F2D52   primary brand, headings, dark UI
+  --bb-navy-dark:   #0A2240   deep accents, hero gradients
+  --bb-navy-mid:    #1A4A7A   secondary navy, dividers on dark
+  --bb-orange:      #E85D20   CTAs, accents, FAB, brand "Branch"
+  --bb-orange-warm: #993C1D   text on light orange (use sparingly)
+  --bb-green:       #1B5E20   verified badge ONLY — do not reuse for success
+  --bb-amber:       #FAC775   urgency, "promoted" tag bg, company logo bg
+  --bb-amber-text:  #412402   text on amber backgrounds
+  --bb-red:         #C0392B   destructive actions only (sign out, delete)
+
+NEUTRAL COLORS
+  --bb-surface:     #F5F7FA   page background, off-canvas
+  --bb-card-bg:     #FFFFFF   card surfaces
+  --bb-divider:     #F1EFE8   thick separators between sections
+  --bb-text:        #0F2D52   primary text (same as brand navy)
+  --bb-text-body:   #2A3F58   body text
+  --bb-text-muted:  #5C7A9B   metadata, hints, secondary
+  --bb-text-light:  #8FB3D4   text on navy backgrounds
+  --bb-border:      rgba(15,45,82,0.18)   default 1px border
+  --bb-border-soft: rgba(15,45,82,0.08)   row separators
+
+LOGO
+- Wordmark: "BluBranch" — "Blu" in navy/white, "Branch" in orange
+- Font weight: 700 always
+- Never split with a space, never abbreviate to "BB", never use just "Blu"
+- Tagline (lockup-optional): "The professional network built for the Blue Collar."
+
+TYPOGRAPHY
+- Font stack: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif
+  (No webfont. Native system font on every platform. Faster, more native feel.)
+- Sizes (mobile-first, rem-friendly):
+    h1 (page title):       22px / 700 / -0.02em / line-height 1.2
+    h2 (section header):   17px / 700
+    h3 (card title):       15px / 700
+    body:                  13px / 400 / line-height 1.5
+    small/metadata:        12px / 400 / color: muted
+    micro/tag:             10–11px / 600 / often uppercase tracking 0.04em
+
+SPACING SCALE
+- 4px, 6px, 8px, 10px, 12px, 14px, 16px, 18px, 22px, 26px
+- Default screen padding: 16px horizontal, 14–18px section vertical
+- Default card padding: 12–14px
+- 6px thick "section break" divider between major card groups
+
+CORNERS / RADIUS
+- Buttons: 18px (pill) for inline, 24px for primary CTAs, 10–12px for cards
+- Cards: 8–10px
+- Avatars: 50% (circle)
+- Tags/badges: 4–6px
+- Input fields: 8px
+
+COMPONENT LIBRARY (build these as reusable components)
+
+  1. <PhoneFrame>          ONLY used in mockups, not production. Drop in v2.
+  2. <StatusBar>           ONLY used in mockups, not production. Drop in v2.
+  3. <TopSearch>           Sticky top bar: avatar, search pill, msg icon.
+                           See Part 4 — Global Navigation.
+  4. <BottomNav>           Sticky bottom: Feed / Network / Post(FAB) / Jobs / Me
+  5. <VerifiedBadge>       Green circle + white checkmark. THREE sizes:
+                             mini (12px) — inline with name in lists/posts
+                             small (18px) — on profile name row
+                             large (26px) — on avatar corner of own profile
+                           NEVER omit this badge from a verified user anywhere.
+  6. <Avatar>              Initials on colored bg, optional verified dot
+                           Color is derived from user id (deterministic).
+  7. <PrimaryButton>       Orange bg, white text, 18–24px radius, weight 700
+  8. <SecondaryButton>     White bg, navy text, navy border, same dims
+  9. <ConnectButton>       Specific variant — pill, navy outline, white bg
+ 10. <FilterPill>          Horizontal scrollable strip. Active = navy filled.
+ 11. <Card>                White bg, 0.5px border, 8px radius, 12–14px pad
+ 12. <SectionDivider>      6px thick band of --bb-divider
+ 13. <FormField>           Label (12px/700 navy) + input (8px radius)
+ 14. <SearchPill>          Rounded search bar with magnifier icon
+ 15. <ProgressBar>         3px thin, --bb-orange fill on rgba navy
+
+ICONS
+- Use Lucide (lucide-react or lucide CDN) for all icons. Already used in v2
+  mockups. Stroke width 1.8–2, line-cap round, line-join round.
+- NO emoji in production UI. The v1 app used iOS emoji for the bottom nav;
+  that was wrong and looked unprofessional.
+- Icon sizes: 14–22px depending on context. Match font size of nearby label.
+
+CRITICAL DESIGN INVARIANTS
+- The verified badge must appear consistently EVERYWHERE a verified user is
+  shown (profile, post bylines, search results, connection lists, messages).
+  Inconsistency here destroys trust in verification.
+- Bottom nav stays visible on all primary screens. It disappears on modal/
+  flow screens (signup, apply, settings detail).
+- "Open to work" is an orange pill button on the user's own profile only.
+  Never auto-enable it. User must opt in.
+- Promoted/featured jobs get an orange left-border on the card AND a
+  "Promoted" tag. Both. Never just one.
+
+================================================================================
+PART 3 — TECHNICAL FOUNDATION
+================================================================================
+
+STACK ASSUMPTIONS
+You'll find out the actual stack when you read the v1 codebase, but here's
+what we recommend if you have any latitude:
+
+  Frontend:  Next.js 14+ (App Router) + TypeScript + Tailwind
+             React Server Components where they make sense
+             shadcn/ui for primitive components (then customize to match
+             design system)
+  Backend:   Next.js API routes OR a separate Node service — whichever the
+             v1 uses, keep it
+  Database:  PostgreSQL via Prisma. The v1 uses Prisma; keep it.
+  Auth:      NextAuth.js with Email + (eventually) Google OAuth
+             SMS via Twilio for phone verification
+  Hosting:   Vercel for web, Railway or Render for the DB
+  Storage:   S3 or Cloudflare R2 for photo uploads
+  Payments:  Stripe for employer subscriptions (do NOT build until P0/P1
+             work is done; ticket says P2)
+
+ENV VARS (the codebase needs these; check what's actually configured)
+  DATABASE_URL
+  NEXTAUTH_SECRET
+  NEXTAUTH_URL
+  RESEND_API_KEY  (or SENDGRID_API_KEY) — for email verification
+  TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER — for SMS
+  STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET — for employer payments (later)
+  S3_BUCKET, S3_ACCESS_KEY, S3_SECRET_KEY, S3_REGION — for photos
+  GEOCODER_API_KEY (Mapbox or similar) — for location autocomplete
+
+DATA MODEL (target schema; v1 may differ — reconcile carefully)
+
+  User
+    id, email, emailVerified, passwordHash, phone, phoneVerified,
+    firstName, lastName, createdAt, updatedAt
+
+  Profile (1:1 with User; separate so we can soft-delete or hide profiles)
+    id, userId, trade, tradeYears, currentCompany, currentTitle,
+    headline, about, location (city), state, zip, lat, lng,
+    avatarUrl, bannerUrl, openToWork (bool), profileCompleteness (computed)
+
+  License
+    id, userId, type (e.g. "IL Journeyman Electrician"), number, issuingState,
+    expiresAt, verified (bool), verifiedAt, verifiedBy (system/manual)
+
+  WorkPlace (verified employment, separate from currentCompany text)
+    id, userId, companyName, role, startDate, endDate, current (bool),
+    verified (bool), verifiedAt, verificationMethod (email/manual)
+
+  Skill (many-to-many via UserSkill)
+    id, name, trade (which trade it belongs to)
+
+  Connection
+    id, userIdA, userIdB, status (pending/accepted/rejected),
+    requestedAt, respondedAt
+    NOTE: enforce A < B at insert time to avoid duplicates
+
+  Post
+    id, userId, body, mediaUrls[], audience (anyone/connections),
+    location, tradeTag, createdAt
+
+  PostLike, PostComment, PostShare — standard
+
+  Job (employer-posted)
+    id, employerId (User with employer role), companyName,
+    title, description, payMin, payMax, payUnit (hr/yr),
+    location, lat, lng, jobType (FT/PT/contract), unionLocal,
+    urgent (bool), promoted (bool), promotedUntil, status (draft/live/closed),
+    createdAt, expiresAt
+
+  Application
+    id, jobId, userId, status (submitted/viewed/shortlisted/passed/hired),
+    submittedAt
+    NOTE: must require phoneVerified=true at submission time
+
+  Conversation, Message — direct messaging between users
+
+  EmployerSubscription
+    id, userId, tier (basic/pro/unlimited), stripeSubscriptionId,
+    status (active/canceled/past_due), currentPeriodEnd
+
+CRITICAL DATA RULES
+- Email and phone uniqueness is enforced at the DB level (UNIQUE constraint).
+- Phone verification is required BEFORE a user can apply to a job, not
+  before signup. v1 has this backwards (forces phone at signup, fails late).
+- A "verified" user means: license verified OR workplace verified. Either
+  alone qualifies for the green badge. Both is ideal.
+- Don't soft-delete users; hard-delete on request (GDPR-friendly). Cascade
+  to posts, applications, messages. Keep job postings (anonymize the
+  employer reference).
+- location should be normalized: never trust raw user input for searching.
+  Use a geocoder, store lat/lng, search by radius.
+
+API CONVENTIONS
+- REST routes under /api/, kebab-case (e.g. /api/jobs/:id/apply)
+- Always return JSON. Errors have shape: { error: { code, message } }
+- Auth via NextAuth session cookie. Server actions can call getServerSession.
+- Rate limit aggressively on: signup, login, password reset, application
+  submit, message send. Use Upstash Redis or similar.
+- All write endpoints require CSRF token (NextAuth handles for session-based)
+
+PERFORMANCE TARGETS (beta, but enforce)
+- Largest Contentful Paint on Feed: < 2.5s on 4G
+- DB query budget per page: < 5 queries
+- N+1 detection: install prisma-query-event-handler in dev
+- Image uploads must be resized server-side (max 1600px wide, JPEG 80%)
+
+================================================================================
+PART 4 — GLOBAL BEHAVIORS (apply across many screens)
+================================================================================
+
+AUTH FLOW
+- Email + password (NO username, NO phone-first signup)
+- Email verification required before account is "active" (i.e. before
+  bottom-nav appears). Until verified, user sees a single screen prompting
+  re-entry of the 6-digit code.
+- 6-digit codes expire in 10 min, max 5 attempts, resend rate-limited
+  to 60s.
+- Password rules: 6+ chars, must contain a digit OR symbol. (We picked
+  permissive on purpose for trade users; pair with strong bcrypt + rate
+  limiting + breach-password check via HIBP API.)
+- Session: long-lived (30 days), refreshed on activity.
+
+NAVIGATION
+- Bottom nav is the source of truth for primary destinations:
+    Feed | Network | Post(FAB, center) | Jobs | Me
+- Top bar on primary screens: my avatar (left, links to /me), search pill
+  (center, links to /search), messages icon (right, links to /messages)
+- Back navigation everywhere except primary tab roots. Hardware back must
+  work on mobile (don't trap user with nav-stack bugs).
+- Settings (gear) lives inside profile pages, NOT in the top bar. Some
+  mockups show a gear on top bars — those are wrong; treat as a profile
+  link.
+
+VERIFICATION SYSTEM (this is the killer feature; nail it)
+
+  Two paths, EITHER one qualifies a user as "verified":
+
+  Path A — License Verification
+  - User enters license type + number + state
+  - We check against state licensing board where API exists (IL, CA, NY,
+    TX have public lookups). For others, manual queue (founder reviews
+    within 24h in beta).
+  - On approval: set license.verified=true and user.verified=true,
+    send notification.
+
+  Path B — Workplace Verification
+  - User enters company email matching domain we've vetted
+  - We send confirmation email to that address with one-click verify link
+  - On click: set workplace.verified=true and user.verified=true.
+
+  The green-circle-checkmark badge appears anywhere a verified user shows:
+  - Avatar corner (their own profile, big)
+  - Inline next to name (post bylines, search results, connection lists,
+    messages, network suggestions)
+  - DO NOT show the badge before verification completes. Pre-verification
+    users get the avatar with no dot.
+
+  If a user's license expires or workplace verification is revoked, the
+  badge disappears immediately. Send an email and a banner notification.
+
+OPEN TO WORK
+- Off by default. Worker opts in from profile or settings.
+- Toggle exposes user in employer searches and shows a small orange ring
+  around avatar in some surfaces (NOT a full banner — keep it discreet).
+- Audience selection: "Recruiters only" or "Everyone, including my current
+  employer" — default to recruiters-only.
+
+CONNECTIONS
+- Symmetric (LinkedIn-style), not asymmetric (Twitter-style)
+- 1st degree = direct connection
+- 2nd degree = friend-of-a-friend
+- 3rd+ = not shown (we only show 1st & 2nd in suggestions/searches)
+- Invitation flow: request → notify → accept/dismiss. Dismissed requests
+  don't notify the sender.
+- Connection limit: 30,000 (LinkedIn-style; functionally infinite for our
+  users)
+
+MESSAGING
+- Direct only (no group chats in v2)
+- Employer messages are visually flagged with an "EMPLOYER" tag and an
+  orange dot for unread
+- Workers can mute employer messages
+- No read-receipts in v2 (privacy default; revisit later)
+- Rate limit: 50 messages/day per user to non-connections
+
+EMPLOYER MODE
+- An employer is a User with an EmployerSubscription
+- Employer-only screens (job posting flow, applicant management) are not
+  in the v2 mockups — those are tracked separately. Defer for now.
+- An employer user still has a worker-side profile. Some are dual-role
+  (a foreman who hires AND who is a worker). Build for this.
+
+MONETIZATION (DO NOT BUILD UNTIL FOUNDERS GIVE GO-AHEAD)
+- Workers: free forever, no upsells, no premium tier. This is the brand
+  promise. Do not add upsells anywhere on worker surfaces, even "optional"
+  ones.
+- Employers:
+    Basic        $49 / single job, 30 days
+    Pro          $129 / single job, 30 days, promoted slot
+    Unlimited    $299 / month, unlimited jobs + promoted
+- Payment via Stripe Checkout (hosted page; do not handle card data
+  ourselves).
+
+LOCATION / GEO
+- Default radius: 25 miles from user's home zip
+- Always normalize via Mapbox/Google Geocoder. Store lat/lng, not strings.
+- Distance shown on jobs board ("4.2 mi") is calculated client-side from
+  user's stored lat/lng to job's lat/lng. Round to one decimal.
+
+NOTIFICATIONS (defer beyond essentials)
+- v2 must support: email verification, password reset, new connection,
+  new message, application status change, license verification result
+- Skip push notifications for v2 (web app, no native shell)
+- Allow users to turn off non-essential email in /settings/notifications
+
+ANALYTICS / TELEMETRY
+- Use PostHog (self-hosted or cloud free tier) for product analytics
+- DO NOT add Google Analytics. The audience is privacy-skeptical and we
+  control no ad spend that would justify it.
+- Capture: signup_complete, verify_complete, job_apply, job_post,
+  message_send, connection_accept
+- Strip PII from event properties.
+
+ACCESSIBILITY
+- WCAG 2.1 AA minimum
+- All buttons have visible focus states (we removed default outline in
+  design — restore it for :focus-visible)
+- Form inputs have associated labels (not placeholder-only)
+- Color contrast: text on orange MUST be white (passes); text on amber
+  MUST be #412402 (passes)
+- The verified badge is a visual signal; always pair with a `title` or
+  `aria-label` of "Verified".
+
+================================================================================
+PART 5 — PER-SCREEN BRIEFS
+================================================================================
+
+Each screen brief covers:
+  PURPOSE        — what this screen does in one line
+  HIDDEN CONTEXT — what isn't obvious from the mockup
+  BEYOND MOCKUP  — work needed that's not shown
+  RISKS          — what can go wrong; what to test
+  DEPENDENCIES   — other screens or systems this relies on
+
+--------------------------------------------------------------------------------
+SCREEN 01 — Welcome Slide 1: Find Local Trade Jobs
+--------------------------------------------------------------------------------
+PURPOSE
+Entry point for new users. Sells the jobs benefit on slide 1 of a 3-slide
+carousel before signup.
+
+HIDDEN CONTEXT
+- Carousel auto-advances every 5s, but ALSO swipeable left/right and the
+  dots are tappable. Pause auto-advance on user interaction.
+- The "Skip" link goes straight to Screen 4 (signup name). It does NOT
+  open a separate login flow — login is at the bottom of every slide
+  ("Log in to existing account").
+- The mockup PLUMBER card with $42-48/hr is decorative, not real data.
+  Render as a static illustration, not a query.
+
+BEYOND MOCKUP
+- Need an "@/components/WelcomeCarousel" with auto-advance + swipe + dots
+- Skip and Login states need to remember "intent" if user goes through
+  signup then later wants to log in
+- First-visit detection: cookie-based. Returning users skip the carousel
+  on second visit and land directly on the login screen.
+
+RISKS
+- iOS Safari momentum-scroll can fight a carousel. Use a battle-tested
+  library (Embla, Keen Slider) — DON'T hand-roll.
+- Auto-advance is annoying if the user is reading. Pause on hover/touch.
+- The illustration is SVG — make sure it doesn't break in dark mode if
+  we add it later (it shouldn't; backgrounds are explicit colors).
+
+DEPENDENCIES
+- Routes to: Screen 4 (signup) or login screen (not in v2 mockups; basic
+  email+password form is fine)
+
+--------------------------------------------------------------------------------
+SCREEN 02 — Welcome Slide 2: Connect with Verified Tradespeople
+--------------------------------------------------------------------------------
+PURPOSE
+Sells the network benefit on slide 2.
+
+HIDDEN CONTEXT
+- The IBEW and HVAC badges in the illustration are decorative. Don't link
+  them anywhere.
+- Same carousel as slide 1 — same component, just different content.
+
+BEYOND MOCKUP
+- Nothing beyond Screen 1's setup.
+
+RISKS
+- Wording matters. "Verified" is our key word — never weaken it to
+  "trusted" or "approved."
+
+DEPENDENCIES
+- Same as Screen 1.
+
+--------------------------------------------------------------------------------
+SCREEN 03 — Welcome Slide 3: Build a Profile That Gets You Hired
+--------------------------------------------------------------------------------
+PURPOSE
+Sells the profile-as-resume benefit on slide 3. Last slide before CTA
+swaps from "Create a free account" to "Get started — it's free."
+
+HIDDEN CONTEXT
+- The third slide's CTA changes microcopy. Subtle, intentional. Keep it.
+- "Jake R." + the "Verified" badge in the card is decorative — not a real
+  profile.
+
+BEYOND MOCKUP
+- Track which slide the user converted from in analytics (slide_index in
+  the signup event). Helpful for tuning the carousel later.
+
+RISKS
+- Don't add a 4th slide. Three is the limit; more reduces signups.
+
+DEPENDENCIES
+- Same as Screens 1–2.
+
+--------------------------------------------------------------------------------
+SCREEN 04 — Onboarding: Add Your Name
+--------------------------------------------------------------------------------
+PURPOSE
+Step 1 of signup. Collect first + last name only.
+
+HIDDEN CONTEXT
+- Progress bar at 15% — we have ~6 logical steps total. Don't recalculate
+  per screen; treat 15/30/45/60/85/100 as fixed waypoints.
+- The X in the top-left dismisses signup ENTIRELY and returns to Screen 1.
+  Show a confirm dialog: "Quit signup? Your progress will be lost."
+- The back arrow in subsequent steps goes BACK one step (not all the way
+  out).
+- "Continue" button stays disabled until both fields have non-whitespace
+  content of length ≥ 2.
+
+BEYOND MOCKUP
+- Name validation: strip leading/trailing whitespace, reject if contains
+  digits or special chars beyond apostrophe and hyphen (O'Brien, Smith-
+  Jones are valid; "John123" is not).
+- Store progress in localStorage so a tab refresh doesn't kill signup.
+  Clear the cache once signup is complete.
+- We need an explicit "signup intent" record server-side once we have an
+  email; until then, it's all client state.
+
+RISKS
+- Don't auto-capitalize. Some trade names are stylized. Let the user type
+  what they want.
+- Don't enforce a min length of 3+ — Asian-language names can be 2 chars.
+- This screen has no PII server-side yet; nothing to leak. Good.
+
+DEPENDENCIES
+- Next: Screen 5 (email+password)
+
+--------------------------------------------------------------------------------
+SCREEN 05 — Onboarding: Email & Password
+--------------------------------------------------------------------------------
+PURPOSE
+Step 2. Collect email + password and the terms-acceptance checkbox.
+
+HIDDEN CONTEXT
+- The Terms checkbox is shown PRE-CHECKED in the mockup. That is wrong
+  for legal reasons. Default to unchecked. Button stays disabled until
+  it's checked.
+- "Send verification code" — yes, we send the code on submit of this
+  screen, before the user fills anything else out. If signup is abandoned,
+  we just have an unverified email in the DB; reaper job cleans up after
+  72h.
+- The eye/show-password icon (not shown in mockup) — add it. Trade users
+  on construction sites with gloves will fat-finger passwords constantly.
+- Email duplicate check happens HERE, not at the end. If the email is
+  taken, show inline error "An account with this email already exists.
+  Log in instead?" with a "Log in" link.
+
+BEYOND MOCKUP
+- Password strength meter (simple — Weak/OK/Strong based on length + char
+  variety). Visual feedback only; do not block on it.
+- HIBP (haveibeenpwned) API check on submit. If pwned, warn user but
+  allow continue. This is a strong UX win at low cost.
+- Terms and Privacy links open in-app modal, not new tab. Drafted versions
+  should exist in /legal/terms.mdx and /legal/privacy.mdx; if they don't
+  yet, create stubs and TODO them.
+
+RISKS
+- Don't store password client-side ever. Hash server-side with bcrypt
+  (cost 12).
+- The verification code generation is server-side. Don't generate it
+  client-side and POST it.
+- Rate-limit /api/auth/send-verification per IP and per email.
+- The Terms acceptance must be recorded with a timestamp and the version
+  of the terms accepted. Future-proofs us if terms change.
+
+DEPENDENCIES
+- Next: Screen 6 (email verification code entry)
+- Requires: Resend/Sendgrid configured
+
+--------------------------------------------------------------------------------
+SCREEN 06 — Onboarding: Email Verification (6-digit code)
+--------------------------------------------------------------------------------
+PURPOSE
+Step 3. User enters the 6-digit code from their email.
+
+HIDDEN CONTEXT
+- 6 boxes auto-advance focus on type, auto-back on backspace.
+- Code is numeric only. Force numeric keyboard on mobile (inputmode=numeric).
+- The "Resend code in 0:42" is a countdown to 60s. Tap to resend (after
+  countdown). Resending invalidates the previous code.
+- Auto-submit when all 6 digits entered. Show a loading state. Failure
+  state: shake the boxes red briefly, clear them, focus first box.
+
+BEYOND MOCKUP
+- Paste handling: if user pastes "428137" into any box, distribute one
+  digit per box. Use HTMLInputElement.addEventListener('paste', ...).
+- Auto-fill from SMS — NOT applicable here (this is email, not SMS).
+- "Privacy is important" card opens a small disclosure: "We never share
+  your email. We use it to send verifications and important account
+  notices only."
+- 24h after the code is generated, if not used, expire it and force
+  a re-send.
+
+RISKS
+- The most failure-prone screen in signup. Test with: Gmail, Outlook,
+  iCloud, Yahoo, common ISP emails. Some go to spam.
+- Make sure the from-address has SPF/DKIM/DMARC set up on the sending
+  domain. Email reputation matters.
+- If user is signing up on desktop but their email is on phone, the
+  code-typing flow is painful. Make sure focus state and box sizes are
+  comfortable on desktop too.
+- Max attempts: 5 per code. Lock with a 15-min cooldown.
+
+DEPENDENCIES
+- Next: Screen 7 (location)
+- Requires: working email delivery
+
+--------------------------------------------------------------------------------
+SCREEN 07 — Onboarding: Location with iOS Permission Popup
+--------------------------------------------------------------------------------
+PURPOSE
+Step 4. Capture user's location. Tries device geolocation first.
+
+HIDDEN CONTEXT
+- The iOS-style popup is the SYSTEM popup that fires when we call
+  navigator.geolocation.getCurrentPosition(). We don't render this
+  ourselves — we trigger it.
+- We CAN'T pop the geolocation prompt on page load — browsers block that.
+  Trigger on user interaction (e.g. a "Use my current location" button)
+  OR after a 1s delay if we want it auto.
+- The form is still usable if user denies permission — that's why the
+  text fields exist as fallback.
+- We need autocomplete on City + State, not free-text. Use Mapbox Places
+  API (free tier is plenty for beta).
+- ZIP-to-city lookup: if user types a valid US ZIP, auto-fill city/state
+  from a static lookup table (we have 41k zips; bundle a JSON or use a
+  free API).
+
+BEYOND MOCKUP
+- "Continue" disabled until either (city + state) OR (valid ZIP) is set.
+- Store lat/lng from the geocoder, not just the strings.
+- This is the first time we hit a third-party API in signup. Handle
+  timeouts gracefully (fall back to manual entry).
+
+RISKS
+- Privacy: do NOT show the user's exact lat/lng anywhere or send to
+  analytics. Bucket to ZIP-level for any reporting.
+- Geocoder costs money at scale. For beta, fine. Add daily-budget alerts.
+- The popup language quoted in the mockup ("Your location is used to show
+  jobs and tradespeople near you.") is the iOS NSLocationWhenInUseUsage-
+  Description string. Match it in our config OR in our web pre-prompt.
+- Geolocation works on HTTPS only. Local dev must run on https or
+  localhost.
+
+DEPENDENCIES
+- Next: Screen 8 (trade + company)
+- Requires: Mapbox or Google Geocoder API key
+
+--------------------------------------------------------------------------------
+SCREEN 08 — Onboarding: Trade, Company & Role
+--------------------------------------------------------------------------------
+PURPOSE
+Step 5 (final). Capture trade + current company + current job title.
+
+HIDDEN CONTEXT
+- Trade is AUTOCOMPLETE from a curated list. The list is fixed
+  ("Electrician", "Plumber", "HVAC Tech", "Carpenter", "Welder", etc.).
+  ~40 trades total. Source list to seed: see /docs/trades.json (build
+  this; pull from BLS occupational codes for credibility).
+- Sub-trades are a future-feature. v2: pick a primary trade, add detail
+  later via the skill tags on the full profile.
+- Company is FREE-TEXT autocomplete — query our DB for companies already
+  seen + a fallback "Use [whatever they typed]" option.
+- Job title is also autocomplete: "Journeyman", "Apprentice", "Foreman",
+  "Master", etc. Trade-aware: if trade is Electrician, the suggestions
+  are electrician roles, not plumber roles.
+- After this screen, signup completes and the user lands on Screen 9
+  (their new empty profile) with a celebratory tone.
+
+BEYOND MOCKUP
+- The mockup shows "Create my account" as the CTA. The button label
+  could also be "Finish & see your profile" — they're equivalent. Pick
+  one and stick with it.
+- Save partial data: if user types trade then quits, we keep that to
+  rehydrate the signup state next visit.
+- Skill list (shown on later profile screens) is PERSONALIZED to trade.
+  We need /api/skills?trade=Electrician returning relevant skills only.
+
+RISKS
+- Trade list quality is product-critical. If we list "Electrician" but
+  not "Electrical Lineman", linemen get frustrated. Audit the list with
+  Founder #2 before launch.
+- Free-text company means we'll get typos and dupes. Deduplication is a
+  later problem; just store cleanly for now (trim, lowercase for lookup
+  but display as typed).
+- Don't auto-assign IBEW or union local based on trade. Unions are
+  separate metadata, added later in profile enrichment.
+
+DEPENDENCIES
+- Next: Screen 9 (new profile landing)
+- Requires: trades.json seed, skills table seeded
+
+--------------------------------------------------------------------------------
+SCREEN 09 — New Profile: Empty State with Verify Card
+--------------------------------------------------------------------------------
+PURPOSE
+First view of own profile after signup. Empty, with a prominent "Verify
+now" prompt.
+
+HIDDEN CONTEXT
+- "Empty state" doesn't mean blank — it means the user has only what we
+  collected in signup (name, trade, company, job title, location). About,
+  Skills, Licenses, Photos, Experience sections are missing.
+- The dashed-border avatar is a "tap to add" state. Replace with normal
+  avatar once a photo is uploaded.
+- "Verify now" card is dismissible (X). If dismissed, it doesn't reappear
+  for 7 days, then again at 30 days. Store dismissal timestamp.
+- The "Open to work" button is on EVERYONE'S profile, including new users.
+  Tapping it opens a modal asking "Who can see you're open to work?" with
+  recruiter-only as default.
+
+BEYOND MOCKUP
+- The "Enhance profile" button below the verify card is a different
+  experience — opens a wizard to add About, then Skills, then Photos,
+  then Experience in sequence. Treat as a separate flow.
+- The "Show employers you're open to work" card at the bottom is a
+  different surface than the "Open to work" button at the top. Bottom
+  card is more educational; tapping it opens the same modal.
+- Banner image: default to a gradient (the v2 design uses #5B8DC4 solid;
+  could ship as a gradient navy → mid-navy for a richer feel).
+
+RISKS
+- This is the highest-abandonment screen in onboarding. New users see an
+  empty profile and feel like they did something wrong. Copy MUST
+  reassure: "You're all set. Now let's make your profile work for you."
+  Consider an inline tooltip on first visit.
+- Don't show the verified badge here — the user isn't verified yet.
+- "312 connections" shown on later mockups is fake; new user has 0.
+
+DEPENDENCIES
+- Routes to: verifications flow (Screen 11), profile editor, enhance
+  wizard
+
+--------------------------------------------------------------------------------
+SCREEN 10 — New Profile: Suggested Enrichment Cards
+--------------------------------------------------------------------------------
+PURPOSE
+Below-the-fold view of the new profile. Shows 4 "Suggested for you" cards
+prompting profile completion.
+
+HIDDEN CONTEXT
+- These cards are RANKED by impact-on-completeness, not by hard-coded
+  order. The algorithm:
+    1. Photo (highest impact)
+    2. Skills
+    3. License (verification)
+    4. Experience
+  If user already has one, skip it and show the next one. Always show ≤ 4.
+- Each card is independently dismissible. Dismissed cards reappear after
+  14 days unless completed.
+- "Private to you" label is important — users worry employers see what
+  we're nagging them about. They don't.
+
+BEYOND MOCKUP
+- The completeness percentage isn't shown in v2 mockups but it's worth
+  tracking server-side (drives the ranking above).
+- After all 4 are completed, the entire section disappears.
+
+RISKS
+- Don't be pushy. If users dismiss the same card 3 times, hide it
+  permanently.
+- Adding photos requires storage setup. If S3 isn't configured, fail
+  gracefully with a "Photo uploads are temporarily disabled" message —
+  never a 500.
+
+DEPENDENCIES
+- Photo upload pipeline (S3, image resize)
+- Skills table (seeded)
+- Verifications flow (Screen 11)
+
+--------------------------------------------------------------------------------
+SCREEN 11 — Verifications: Trade License & Workplace
+--------------------------------------------------------------------------------
+PURPOSE
+Hub for the verification system. User picks license OR workplace path.
+
+HIDDEN CONTEXT
+- The "3x more views" stat is a marketing claim, not data we currently
+  have. Once we have real data, replace. For now, OK to ship as-is.
+- Tapping "Verify your trade license" opens a multi-step modal:
+    1. Pick license type (filtered by trade)
+    2. Enter license number + state
+    3. Submit; show "Checking…" state
+    4. If auto-verifiable (IL/CA/NY/TX), result in 5–30s
+    5. Otherwise, "We'll review within 24h" + creates manual queue entry
+- Tapping "Verify your workplace" opens a similar modal:
+    1. Enter company email matching the company name from signup
+    2. We send a magic link to that email
+    3. User clicks link → workplace.verified = true → green badge granted
+
+BEYOND MOCKUP
+- The manual-review queue needs a founder-facing admin page (not in v2
+  mockups — separate ticket).
+- Email-domain matching: if user is at "Apex Electric Co." and types
+  bob@apex-electric.com, we should accept that as plausible. Don't be
+  strict on exact match — use simple fuzzy matching (Levenshtein < 3 on
+  the domain root).
+- Both paths in parallel are fine — user can do both. We grant verified
+  status on either.
+
+RISKS
+- Fraud: someone enters a fake license. Mitigations:
+    1. Hit the state board API where available (real check)
+    2. Manual review with photo of license card for states without API
+    3. Lifetime ban for proven fraud (record reason in user record)
+- A worker who later changes employer needs to re-verify the new
+  workplace. The old verification persists if the license is also
+  verified, otherwise badge drops.
+- License expiration: nightly job checks expiry, sends warning email at
+  30 days, again at 7 days, drops badge at 0 days.
+
+DEPENDENCIES
+- State board integrations (IL, CA, NY, TX) — defer if not ready
+- Email delivery
+- Admin manual-review queue (separate build)
+
+--------------------------------------------------------------------------------
+SCREEN 12 — Enriched Profile: About Tab
+--------------------------------------------------------------------------------
+PURPOSE
+What a fully-built-out profile looks like. About tab is the default view.
+
+HIDDEN CONTEXT
+- The verified badge appears in TWO places on this screen:
+    1. On the avatar (large)
+    2. Inline next to the name (small)
+  Both are required for verified users.
+- The headline format is computed: "{title} · {yrs} yrs · {union local}"
+  if all data exists. Falls back gracefully:
+    "Journeyman Electrician · 8 yrs · IBEW Local 134"  (full)
+    "Journeyman Electrician · 8 yrs"                    (no union)
+    "Journeyman Electrician"                            (no yrs)
+- Tabs at the top (About / Portfolio / Posts) are SCROLL-PRESERVED — if
+  you scroll down on About and tap Portfolio, then back to About, you
+  return to where you were.
+- "See more" on the About body expands inline. No modal.
+- Edit pencils next to each section open per-section editors (not a
+  big "edit my profile" page).
+
+BEYOND MOCKUP
+- Profile is shareable (deep-linkable). URL: /u/{slug} where slug is
+  firstname-lastname-shortid. Slug is set at signup; if collision, append
+  -2, -3, etc.
+- Public vs. private view: when an unauthenticated visitor hits the URL,
+  show a limited view (name, headline, verified badge, trade, location)
+  with a "Sign up to see more" CTA. NEVER expose email, phone, full
+  experience to non-authed visitors.
+- Search engines: by default, allow indexing of verified profiles only.
+  Unverified profiles get a noindex meta tag.
+
+RISKS
+- The most-scraped surface. Bots will hit /u/* heavily. Rate-limit by IP
+  and add bot detection on the public view (Cloudflare Bot Fight Mode is
+  enough).
+- "Skills" tags need to be trade-relevant. If we let users add arbitrary
+  skills, the directory becomes garbage. v2: pick from curated trade
+  skill list only (no free-add).
+- Endorsements (shown on Screen 13) — opens a vector for fake
+  endorsements between accomplices. Limit to connections only; flag
+  unusual patterns (10+ endorsements in 1 day → manual review).
+
+DEPENDENCIES
+- Skills table seeded
+- License/Workplace verification (Screen 11)
+- Slug generation, public-profile page logic
+
+--------------------------------------------------------------------------------
+SCREEN 13 — Enriched Profile: Portfolio Tab
+--------------------------------------------------------------------------------
+PURPOSE
+Photos of completed work + endorsements from connections.
+
+HIDDEN CONTEXT
+- Photo grid: 3 columns, 5px gap, square crops. Tap to open a fullscreen
+  lightbox with swipe between photos.
+- Captions on each photo (shown in mockup as "Panel", "Conduit", etc.)
+  are user-supplied at upload, capped at 40 chars.
+- Endorsements are short text quotes from 1st-degree connections only.
+  Connection writes endorsement → user must approve before it appears.
+
+BEYOND MOCKUP
+- Photo upload: drag-drop on desktop, file picker on mobile. Multiple
+  selection allowed. Max 20 photos per profile.
+- EXIF stripping: REMOVE GPS, device serial, etc. from photos before
+  storing. Critical privacy.
+- Image moderation: hook up a content-moderation API (AWS Rekognition or
+  similar) to flag NSFW. Don't auto-publish flagged uploads.
+- The "Endorse" action lives on the OTHER user's profile (their portfolio
+  or about tab), not on your own.
+
+RISKS
+- Photo abuse: someone uploads someone else's work and claims it.
+  Mitigations: reverse-image-search prompt in admin, prominent "Report
+  this profile" link, fast takedown SLA (24h).
+- Photo storage costs: with image resize + JPEG-80, average ~200KB per
+  image, ~4MB per fully-built profile. At 10k users that's 40GB; fine
+  for S3 free tier-ish.
+- Endorsement gaming (mentioned above).
+
+DEPENDENCIES
+- S3 / Cloudflare R2 set up
+- Image processing pipeline (sharp library is plenty)
+- Content moderation API
+
+--------------------------------------------------------------------------------
+SCREEN 14 — Enriched Profile: Posts Tab
+--------------------------------------------------------------------------------
+PURPOSE
+Shows the user's own posts in reverse-chron order.
+
+HIDDEN CONTEXT
+- Same post-card shape as the Feed (Screen 15) — REUSE the component.
+- Verified badge appears next to the post author's name (mini size).
+- Edit/delete affordances appear on hover/long-press for own posts. Not
+  shown in mockup; add them.
+
+BEYOND MOCKUP
+- Pagination: 10 posts per "page", infinite scroll, fetch next 10 when
+  user is within 600px of bottom.
+- Deleted posts are soft-deleted in DB (status='deleted', body cleared)
+  so threads stay intact but content is gone. Comments/likes archived.
+- Re-posts: not in v2. The "share" icon in the post action bar opens a
+  link-share sheet (native share API where available).
+
+RISKS
+- Post body is user-generated content. Sanitize HTML aggressively. Use
+  DOMPurify or equivalent. Allow line breaks and URLs only; auto-link
+  URLs.
+- Image posts go through the same upload pipeline as portfolio. Same
+  moderation rules apply.
+- Don't let users post when their email isn't verified. Block at API
+  level, not just UI level.
+
+DEPENDENCIES
+- Post component (Screen 15)
+- Upload pipeline (Screen 13)
+
+--------------------------------------------------------------------------------
+SCREEN 15 — Home Feed
+--------------------------------------------------------------------------------
+PURPOSE
+The home tab. Shows posts from connections + suggested content.
+
+HIDDEN CONTEXT
+- Feed algorithm v2 (simple): show all posts from 1st-degree connections,
+  reverse-chron. Mix in 2nd-degree posts based on engagement. Inject
+  "suggested" cards (Screen 17 patterns) every 5 posts.
+- The compose card at top is a stub — tapping it opens the full composer
+  (Screen 16) as a modal/full-screen.
+- Post audience badge ("1st", "2nd", or none for public) appears next to
+  the name.
+- Tapping the post body expands "see more" if truncated at 4 lines.
+
+BEYOND MOCKUP
+- Pull-to-refresh on mobile.
+- "New posts" pill that appears when fresh content arrives while user is
+  scrolled — tap to scroll to top.
+- Empty state for users with 0 connections: show a "Find your first
+  connections" empty state with a CTA to People You May Know (Screen 19).
+
+RISKS
+- Feed algorithm complexity is a trap. Keep v2 dumb (chrono + degree).
+  Smart ranking is a v3 problem.
+- N+1 queries on the feed. Use a single query that joins posts +
+  authors + likes + comment counts. Test with 100 posts.
+- Real-time freshness: don't poll every 30s. Let the user refresh
+  manually or detect tab-focus and refetch then.
+- Likes/comments are write-heavy. Throttle the "like" button (no
+  double-tap spam).
+
+DEPENDENCIES
+- Connection graph (1st/2nd degree calc)
+- Posts table + indexes (userId, createdAt DESC)
+
+--------------------------------------------------------------------------------
+SCREEN 16 — Post Composer
+--------------------------------------------------------------------------------
+PURPOSE
+The full post creation flow.
+
+HIDDEN CONTEXT
+- Audience selector pill ("Anyone") opens a menu: Anyone (public),
+  Connections only, IBEW Local 134 only (if user is in one).
+- Photo attachments: up to 4 per post. Same upload pipeline as profile
+  photos. Reorderable by drag.
+- Location and trade tag are OPTIONAL. Pre-fill location from user's
+  profile city. Pre-fill trade tag from user's trade.
+- Character limit: 3000 chars. Counter not shown unless > 2500. Soft
+  warning at 2900, hard stop at 3000.
+- The toolbar at the bottom: photo, video, GIF, edit. Video and GIF are
+  v3 — gray them out with a small "soon" badge.
+
+BEYOND MOCKUP
+- Draft auto-save: every 3s while typing, save to localStorage. Restore
+  on next composer open.
+- Mention support (@username): NOT in v2. Skip.
+- Hashtags: NOT in v2. Skip.
+- "Post" button disabled if body is empty AND no media.
+
+RISKS
+- Don't post on submit and then update UI from response. Optimistic
+  update — show the post in the feed instantly, mark as "Posting…",
+  swap on success. Roll back on failure.
+- Image upload during compose: upload AS SOON AS attached, get a URL
+  back, store URL in draft. So submitting is fast.
+- Validate audience server-side. A user submitting "Connections only"
+  via client manipulation should NOT be able to bypass that on the
+  recipient list.
+
+DEPENDENCIES
+- Upload pipeline
+- Audience filter applied to feed reads
+
+--------------------------------------------------------------------------------
+SCREEN 17 — Feed Enrichment: Build-Out Cards & Trade News
+--------------------------------------------------------------------------------
+PURPOSE
+Feed surface for not-yet-completed-profile users. Shows nudges + news.
+
+HIDDEN CONTEXT
+- This screen REPLACES the feed entirely for new users with empty
+  connection graph. Once they have ≥ 5 connections, transition to the
+  real feed (Screen 15) with these cards INJECTED occasionally rather
+  than dominating.
+- "Trade news" cards link to external news articles. We curate the
+  source list. v2: 5–10 trusted sources per trade, scraped daily via a
+  simple cron job + RSS feeds.
+- News links open in an in-app browser/webview (or a new tab on desktop).
+
+BEYOND MOCKUP
+- News content moderation: don't show partisan political content. Stick
+  to industry news. We'll need a manual approve queue at first; automate
+  later.
+- The "Find your crew" card (showing union local matches) links to the
+  IBEW filter view of People You May Know (Screen 19).
+
+RISKS
+- News sources hotlinking their content: respect robots.txt, link to
+  source, don't reproduce article body.
+- Empty news state: if our scraper hasn't fired or all sources are dry,
+  show a "Trending in trades" pill list instead. Never an empty section.
+- The "12 tradespeople from IBEW Local 134" claim must be accurate. Pull
+  it live. Don't fake the number.
+
+DEPENDENCIES
+- News scraper + manual approval queue (separate ticket)
+- Union/local data on user profiles
+- People You May Know (Screen 19)
+
+--------------------------------------------------------------------------------
+SCREEN 18 — Network Landing: Invitations & Union Hook
+--------------------------------------------------------------------------------
+PURPOSE
+The Network tab home. Shows pending invitations, network stats, and PYMK.
+
+HIDDEN CONTEXT
+- Two tabs at top: Grow / Connections (Screen 20). Default to Grow on
+  first visit, remember last-selected after.
+- Invitations are ordered by recency. Show 2–3, then "See all" if more
+  exist. Tapping an invitation opens the sender's profile.
+- The accept/dismiss buttons are inline. Accepting creates a connection
+  (1st degree, symmetric). Dismissing soft-deletes the invitation and
+  does NOT notify the sender.
+- "12 tradespeople from IBEW Local 134" — live query. If 0, hide the
+  banner.
+
+BEYOND MOCKUP
+- Connection limits: a user can send max 50 invitations per week. Excess
+  invitations queue with a friendly error.
+- Invitation messages: optional, capped at 200 chars. Shown in the
+  invitation preview ("Sent: '...'").
+- Mutual connections shown on PYMK cards. Count + 3 face avatars
+  (initials).
+
+RISKS
+- Invitation spam: a new user mass-invites everyone. Mitigations:
+  per-day cap (10), per-week cap (50), require-message after 5th
+  invitation/day, ban accounts with high reject rates.
+- Connection-accept flood: if user accepts 100 invitations in one
+  session, rate-limit silently (queue updates server-side).
+- IBEW Local 134 (or any local) data could be stale. Refresh on user
+  edit.
+
+DEPENDENCIES
+- Connection model + invite system
+- Union/local data on profiles
+
+--------------------------------------------------------------------------------
+SCREEN 19 — People You May Know: Trade & Location Filters
+--------------------------------------------------------------------------------
+PURPOSE
+Full PYMK list with filter pills.
+
+HIDDEN CONTEXT
+- Filters: All, IBEW 134 (or user's union), Chicago (or user's city),
+  Electricians (or user's trade), Past coworkers.
+- "Past coworkers" filter is computed from current/past WorkPlace entries
+  that overlap with other users' WorkPlace entries by company + date
+  range.
+- Algorithm for suggestions (simple): score = mutual_connections * 3 +
+  same_trade * 2 + same_local * 2 + same_city * 1. Top 50 returned.
+- Each card has a dismiss (X) — "don't show me this person again." Tag
+  with reason; we won't suggest them for 90 days.
+
+BEYOND MOCKUP
+- Connecting opens a small modal: "Add a note?" with optional message.
+  Default: just send the invite.
+- After connecting, the card disappears from this list and a small
+  "Pending" indicator briefly appears.
+
+RISKS
+- Privacy: don't expose a user's location/union/employer to non-
+  connections beyond the city level. The card shows "Chicago, IL · IBEW
+  134" — both OK at city/union granularity. NEVER show home address.
+- "Past coworkers" can be uncomfortable if relationships are bad. We can
+  ship without it for v2 if needed; flag for later refinement.
+
+DEPENDENCIES
+- Connection graph + PYMK algorithm
+- Trade/Union/City fields populated on profiles
+
+--------------------------------------------------------------------------------
+SCREEN 20 — Connections List
+--------------------------------------------------------------------------------
+PURPOSE
+User's full list of 1st-degree connections with search + sort.
+
+HIDDEN CONTEXT
+- 312 connections (in mockup) is example data. New users have 0.
+- Sort options: Recent (newest first), First name, Last name, Trade.
+  Default Recent. Remember last-selected.
+- Search: live filter on name (case-insensitive, substring). No server
+  hop needed up to ~5k connections.
+- Each row has a quick-message button. Tapping opens the conversation
+  with that person directly (Screen 27 → individual thread).
+
+BEYOND MOCKUP
+- "Remove connection" affordance: long-press or three-dot menu on a row.
+  Confirm dialog ("Remove [Name] from your connections?"). Removal is
+  symmetric — they're removed from your network and vice versa. No
+  notification sent.
+- Blocking: separate from removing. Blocked users can't see your profile,
+  message you, or appear in your PYMK. Hidden UI element via three-dot
+  menu.
+
+RISKS
+- For users with 5,000+ connections, server-side search becomes
+  necessary. Beyond v2 scope.
+- Quick-message button opens a fresh thread or existing one (need to
+  check first via conversation lookup).
+
+DEPENDENCIES
+- Connection table
+- Conversation/Message tables
+
+--------------------------------------------------------------------------------
+SCREEN 21 — Jobs Board: Filters, Promoted, Trade Match
+--------------------------------------------------------------------------------
+PURPOSE
+The Jobs tab. Lists available jobs with filters.
+
+HIDDEN CONTEXT
+- Filters at top: Trade match (default ON, user's trade only),
+  Pay (range slider), Distance (default 25mi), Union (yes/no/either),
+  Type (FT/PT/Contract). These are sticky — remembered across sessions.
+- "Trade match" green badge on a job means: user's trade matches the
+  job's required trade. Auto-computed.
+- "Strong match" green badge means: trade match AND distance ≤ 10mi AND
+  pay ≥ user's stated min pay. (User can set a min pay in profile;
+  defaults to $0 if unset.)
+- Promoted jobs (employer paid for boost) appear at the TOP of the list
+  with the orange left-border + "Promoted" tag. Max 1 promoted per page.
+- Urgent jobs (employer flagged) get a red "Hiring now" tag.
+- Bookmark icon (right side of each card) saves the job to "Saved jobs"
+  (not in v2 mockups but build the table — bookmarked_jobs).
+
+BEYOND MOCKUP
+- Sort options: Best match (default), Newest, Highest pay. Sort doesn't
+  override promoted-on-top behavior.
+- Job posts that are > 30 days old auto-archive (status='expired').
+- The location pin at top opens a small modal to change the search
+  area (city + radius).
+
+RISKS
+- Misleading promoted slots — make sure "Promoted" tag is visually
+  prominent enough that nobody confuses paid for organic.
+- Pay normalization: jobs are posted in $/hr OR $/yr. Convert and compare
+  consistently. Annual = hourly * 2080 for full-time apples-to-apples.
+- Spam jobs: random employers posting nonsense to test the system.
+  Auto-flag jobs with: nonexistent trade, pay outside reasonable range
+  ($1/hr or $5000/hr), no description body.
+- Distance calc accuracy: use haversine formula on lat/lng. Don't trust
+  city-name matching alone.
+
+DEPENDENCIES
+- Job table
+- Subscription/promotion system (eventually)
+- User's lat/lng (from Screen 7)
+
+--------------------------------------------------------------------------------
+SCREEN 22 — Job Detail: Strong Match & Quick Apply
+--------------------------------------------------------------------------------
+PURPOSE
+Full view of a single job posting.
+
+HIDDEN CONTEXT
+- "Strong match" banner is computed (same rule as Screen 21). If not a
+  strong match, hide the banner entirely or replace with "Good match" /
+  no banner.
+- "Quick Apply" sends application using the user's existing profile +
+  license + email. The phone-verification gate (Screen 23) is the only
+  blocker.
+- The bookmark icon (top right) toggles saved status.
+- Three-dot menu (top right): Report, Share, Block employer.
+
+BEYOND MOCKUP
+- "About the job" and "What you'll do" sections support markdown-style
+  bullets in the employer composer (not in v2 — they'll write plain
+  text; we render bullets where line starts with "- ").
+- Click-through tracking: log job_detail_view events.
+- "Apply" button stays on screen via sticky-bottom if user scrolls past
+  it.
+
+RISKS
+- Employer can edit a job after applies start coming in. Show "Last
+  updated 2h ago" if edited recently — applicants need to know.
+- Companies can have multiple jobs. Tapping the company logo opens a
+  company page (not in v2 mockups — defer).
+- Application limit: a user can apply to the same job only once. Show
+  "Applied" state on the button after submission.
+
+DEPENDENCIES
+- Job + Application tables
+- Phone verification (Screen 23)
+- User profile completeness check (no apply if missing trade/license)
+
+--------------------------------------------------------------------------------
+SCREEN 23 — Apply Flow: Phone Verification Gate
+--------------------------------------------------------------------------------
+PURPOSE
+Step 1 of 2 of the apply flow. Reviews profile, prompts phone verify.
+
+HIDDEN CONTEXT
+- Step 2 of 2 is the actual phone-code-entry screen (similar to Screen 6
+  but with SMS instead of email). Not in v2 mockups; build it analogously.
+- If user is already phone-verified, skip both steps and apply directly,
+  showing a brief confirmation modal: "Application sent to {Company}!"
+- The "your profile" review section is read-only. Edits route the user
+  out to profile editor; their apply intent is preserved.
+- All checkmarks (Name, Trade, License, Email) are green because the
+  user got here via a profile that already has these. If any is missing
+  (rare edge case), show a yellow warning instead and block apply with
+  "Add your license to apply."
+
+BEYOND MOCKUP
+- SMS provider: Twilio. Phone number normalization: store E.164 format
+  (+15551234567). Validate via libphonenumber.
+- After phone verify: application is submitted, user lands on a
+  confirmation screen with "What happens next?" copy and a CTA to view
+  more jobs.
+- Application notifies employer via in-app and email. Email template:
+  "{Name} applied to {Job}. View their profile here."
+
+RISKS
+- Twilio costs money per SMS. Rate-limit: 3 SMS per phone number per
+  hour. Block re-verification of same phone < 24h apart.
+- Phone uniqueness: a phone can be associated with one user at a time.
+  If user 2 tries to verify a phone owned by user 1, block with "This
+  phone is already in use."
+- Application status visibility: workers see their applications in a
+  list (separate ticket — not in v2 mockups). Employers see applicants
+  in their dashboard (also separate).
+
+DEPENDENCIES
+- Twilio configured
+- Phone uniqueness enforcement
+- Application table + email notifications
+
+--------------------------------------------------------------------------------
+SCREEN 24 — Search Landing: Recent & Trending
+--------------------------------------------------------------------------------
+PURPOSE
+The search experience entry point. Shows recent searches + suggestions.
+
+HIDDEN CONTEXT
+- Recent searches are user-specific, stored server-side. Last 10. User
+  can clear individual or all.
+- "Try searching for" pills are personalized by trade. An electrician
+  sees electrician-relevant suggestions; a plumber sees plumber ones.
+- "Trending in trades" pills are global (or city-scoped). Computed
+  from most-frequent search terms in the last 7 days. Refreshed daily.
+- The search input is focused immediately on screen mount with the
+  on-screen keyboard up (mobile).
+
+BEYOND MOCKUP
+- Search-as-you-type: trigger search at 2 chars, debounce 200ms.
+- Search history: pruned to 10 most recent per user. Drop oldest as new
+  ones come in.
+
+RISKS
+- Trending data could be embarrassing if a niche/joke search trends.
+  Build a moderation layer: blocklist + admin reviews top trends.
+- Empty trending state: if no data, fall back to hard-coded popular
+  searches.
+
+DEPENDENCIES
+- SearchLog table (user_id, query, timestamp)
+- Trade-specific suggestion list
+
+--------------------------------------------------------------------------------
+SCREEN 25 — Search Results: Tabs & Filters
+--------------------------------------------------------------------------------
+PURPOSE
+Results page after a search query is entered.
+
+HIDDEN CONTEXT
+- 4 tabs: People, Jobs, Companies, Posts. People is default. Tab counts
+  in parens are live.
+- Filter pills under tabs: "1st & 2nd" (degree), "Verified" only, by
+  city, by union. These filters are tab-specific (People tab has degree
+  filter; Jobs tab doesn't).
+- Each result row in People shows connection degree (1st/2nd) and an
+  action button (Message for 1st, Connect for 2nd/3rd).
+- Companies tab (not shown in mockup detail) lists employer profiles —
+  defer to v3.
+
+BEYOND MOCKUP
+- Pagination: 20 results per page, load more on scroll.
+- Search infrastructure: use PostgreSQL full-text search for v2
+  (tsvector). Elasticsearch/Algolia is overkill for our scale.
+- Search query is logged (SearchLog table) for "Recent" surface.
+
+RISKS
+- Slow searches: index aggressively (name, trade, location, skills as a
+  combined tsvector). Test with 10k seed users.
+- Verified-only filter is a value moment — make sure it actually filters
+  consistently. Test with mixed verified/unverified results.
+- Don't expose 3rd-degree+ users in default search. Privacy.
+
+DEPENDENCIES
+- Full-text index
+- Connection graph
+
+--------------------------------------------------------------------------------
+SCREEN 26 — Settings: Account, Preferences, Sign Out
+--------------------------------------------------------------------------------
+PURPOSE
+Settings hub.
+
+HIDDEN CONTEXT
+- Three sections: Account (profile, security, phone), Preferences
+  (notifications, language), Support (help, feedback). Followed by Sign
+  out (red text, centered).
+- "Profile & visibility" routes to a profile editor for sections beyond
+  the basics: about, headline, banner, etc.
+- "Sign in & security" handles password change, 2FA (defer to v3), and
+  active sessions ("you're logged in on Chrome (MacOS) and Safari
+  (iPhone)").
+- "Send feedback" should email founders directly (founder #1 and #2
+  email) — easy to keep a finger on the pulse during beta.
+
+BEYOND MOCKUP
+- "Delete my account" — must be reachable from settings. Hidden under
+  "Account" or "Sign in & security." Multi-step confirm + 7-day cooling
+  period before actual deletion.
+- Language: English only for v2. Show selector but only one option.
+- App version (shown at bottom: "BluBranch v0.4.2 (beta)") — bump per
+  release. Pull from package.json automatically.
+
+RISKS
+- Sign out must clear local storage + session cookie. Test cross-tab
+  (signing out in one tab logs out in others). Use the BroadcastChannel
+  API or storage events.
+- Account deletion is GDPR-relevant. The 7-day cooling period must
+  pause if the user cancels.
+- Don't put dangerous links (delete account) close to safe ones (edit
+  profile). Use visual separation + red color for destructive actions.
+
+DEPENDENCIES
+- Profile editor
+- Account deletion job + audit log
+
+--------------------------------------------------------------------------------
+SCREEN 27 — Messages: Inbox with Employer Filter
+--------------------------------------------------------------------------------
+PURPOSE
+Direct-message inbox.
+
+HIDDEN CONTEXT
+- Top filter pills: All, Unread (3), Employers, My crew.
+  - "Employers" filters to threads with users marked as having an active
+    EmployerSubscription.
+  - "My crew" is a v3 idea — defer for v2 (gray it out).
+- Unread threads have the orange left-dot and a slightly tinted bg.
+- Compose FAB (top right, orange) opens a new-message flow — pick a
+  connection, type message, send.
+- Tapping a thread opens the conversation view (not in v2 mockups —
+  build a basic version: header with name/avatar + verified badge,
+  scrollable messages, text input at bottom).
+
+BEYOND MOCKUP
+- Real-time updates: use polling every 30s for inbox, or WebSocket if
+  the stack supports it (Next.js + Pusher or Ably is overkill — skip).
+  Polling is fine.
+- Unread counts in bottom nav: the msg icon shows a small orange dot
+  when unread > 0 (some mockups show this).
+- Notification settings: user can mute employer messages OR all
+  non-connections.
+
+RISKS
+- Message spam from employers: rate-limit messages from employer
+  accounts to non-connections (5/day per recipient).
+- Block/report: per-thread three-dot menu. Block hides their messages,
+  removes the connection, prevents future messages.
+- Image attachments in messages: defer to v3. Text only in v2.
+
+DEPENDENCIES
+- Conversation + Message tables
+- Connection table
+- EmployerSubscription table
+
+================================================================================
+PART 6 — CROSS-CUTTING RISKS & FOCUS AREAS
+================================================================================
+
+LEGAL & COMPLIANCE
+- Terms of Service + Privacy Policy MUST be live before any non-founder
+  user signs up. Drafts at /legal/terms.mdx and /legal/privacy.mdx.
+  Founder #1 will review wording (he's Series 66/7 and aware of comms
+  rules — not legal counsel, but practical-enough).
+- GDPR / CCPA: Build the data-export and data-delete endpoints from day
+  one. Even if no European user signs up, US states are moving toward
+  similar rules.
+- Background check / I-9 data: we DO NOT collect this. Mention it in
+  privacy policy to be clear.
+- Equal Employment Opportunity: we DO NOT collect demographic data
+  (race, gender, age). Trade is an occupational category, not
+  demographic.
+
+PAYMENTS
+- Workers free forever. Hard product invariant. Do not introduce ANY
+  paid worker feature without explicit founder sign-off.
+- Employer payments: Stripe Checkout (hosted page). Never touch raw card
+  data. Webhook handler must be idempotent.
+- Refund policy: full refund within 24h of purchase if no applications
+  received. After 24h, no refund. Document in TOS.
+
+PERFORMANCE
+- The slowest screens will be: Home Feed, Jobs Board, Search Results.
+  These need DB indexes + careful query planning.
+- Image-heavy screens (Portfolio, Posts): lazy-load, use srcset for
+  responsive images, compress to JPEG-80.
+- Mobile data usage matters — trade users are sometimes on metered
+  cellular. Don't auto-play any video. Don't preload heavy assets.
+
+ACCESSIBILITY
+- Form labels (not placeholders) for every input.
+- Focus visible on every interactive element.
+- ARIA labels on icon-only buttons (search, message, gear, etc.).
+- Color contrast ≥ 4.5:1 for body text. Test each combo we use.
+
+ABUSE & MODERATION
+- Reporting: every post, profile, job, and message has a "Report" affordance.
+  Reports go to an admin queue (founder-managed in beta).
+- Suspension: an admin flag (User.suspended=true) hides the user from
+  all surfaces, blocks login. Use for proven bad actors.
+- Verified-only protection: a verified user can be un-verified if proven
+  fraud. Their badge drops immediately, profile flagged.
+
+DATA RETENTION
+- Unverified accounts: deleted after 72h of inactivity post-signup
+  failure.
+- Messages: retained indefinitely while accounts exist.
+- Search logs: 90 days, then anonymized to aggregate trends.
+- Logs (server): 30 days, then deleted.
+
+SECURITY HARDENING (build these early)
+- All forms POST with CSRF tokens
+- All API endpoints check session
+- Rate limit auth endpoints (5/min/IP)
+- Bcrypt cost 12 for passwords
+- HTTP Strict Transport Security
+- Content-Security-Policy header (start permissive, tighten later)
+- Sanitize all user input (DOMPurify on rendered HTML, parameterized
+  queries on DB)
+
+================================================================================
+PART 7 — KNOWN BUGS FROM V1 TO FIX DURING REBUILD
+================================================================================
+
+These bugs exist in the v1 alpha. The rebuild MUST not reintroduce them.
+
+P0 — Critical
+- DB raw query failure: "column wp.location does not exist" / "column
+  j.location does not exist". The schema is missing a column the query
+  references. Likely cause: WorkPlace and Job tables need location/lat/
+  lng columns added, OR queries need rewriting to use city+state.
+  Decision: add location, lat, lng to both tables and use in all
+  proximity queries.
+
+- Phone duplicate check happens at END of signup as a popup, killing the
+  user. FIX: phone is checked during apply-flow (Screen 23), not signup.
+  Phone is NOT required at signup at all in v2.
+
+- Email duplicate check is delayed. FIX: check during Screen 5
+  submission and show inline error before sending verification code.
+
+- Bottom nav uses iOS emoji icons. FIX: replace with Lucide SVG icons
+  (Feed, Network, Plus, Jobs, User). Custom-styled per design system.
+
+- No back navigation in onboarding. FIX: every step after Screen 4
+  has a back arrow in the top bar; tapping returns to previous step
+  WITHOUT losing data.
+
+- No profile editing after creation. FIX: ship Screen 11 (verifications)
+  AND a section-by-section profile editor accessible from Screen 12+.
+
+- Welcome carousel doesn't exist in v1. FIX: ship Screens 1–3 first.
+
+- Trade input is free-text in v1. FIX: autocomplete from curated list
+  (Screen 8).
+
+- iOS location popup is bypassed in v1. FIX: implement permission
+  request flow (Screen 7).
+
+- Employer onboarding is identical to worker onboarding in v1. FIX:
+  defer — employer flow is out of v2 scope. But block path: don't ship
+  ambiguous signup that lets employers in via the worker flow.
+
+P1 — Critical
+- Signup data doesn't flow to profile. Name/trade/company entered at
+  signup must appear on the new profile (Screen 9) without re-entry.
+
+- Enrichment cards don't exist. Build per Screen 10.
+
+- Verifications page doesn't exist. Build per Screen 11.
+
+- Verified badge is missing from most surfaces. Implement consistently
+  per the global VerifiedBadge component.
+
+- Profile edit doesn't exist. Build a section-by-section editor.
+
+- Top bar isn't persistent. Build a sticky top bar per Part 4.
+
+- Bottom nav doesn't match the new 5-tab structure (Feed/Network/Post/
+  Jobs/Me). Rebuild per Part 4.
+
+- Settings screen doesn't exist (sign out is buried in Portfolio/Posts).
+  Build per Screen 26.
+
+- Auto-headline isn't generated. Build the "{title} · {yrs} yrs ·
+  {union}" formatter per Screen 12.
+
+- Personalized skills don't exist. Skills are not trade-aware. Fix per
+  Screens 8, 12.
+
+- License verification doesn't exist. Build per Screen 11.
+
+- Strong-match scoring doesn't exist. Build per Screen 21.
+
+- Apply flow with phone gate doesn't exist. Build per Screens 22-23.
+
+- Back nav in onboarding (already mentioned in P0 — confirm).
+
+- Union proximity hook (e.g. "12 from IBEW 134") doesn't exist. Build
+  per Screen 18.
+
+P2 / P3 — see BluBranch_Tickets_v3.md for the full list.
+
+================================================================================
+PART 8 — BUILD ORDER
+================================================================================
+
+Tackle work in this sequence. Within each phase, work front-to-back. Don't
+jump phases.
+
+PHASE 1 — FOUNDATIONS (Week 1)
+  1. Read v1 codebase. Document what exists, what works, what's broken.
+  2. Set up clean DB schema per Part 3. Migrate from v1 where possible.
+  3. Build the design system primitives in a Storybook or showcase page:
+     Button, Card, Avatar, VerifiedBadge, TopSearch, BottomNav,
+     FormField, FilterPill.
+  4. Set up auth (NextAuth + email/password).
+  5. Set up image upload pipeline (S3, sharp for resize, EXIF strip).
+  6. Set up email (Resend or Sendgrid) and SMS (Twilio) sandboxes.
+
+PHASE 2 — ONBOARDING (Week 1-2)
+  7. Screen 1, 2, 3 — Welcome carousel
+  8. Screen 4 — Name
+  9. Screen 5 — Email + password
+ 10. Screen 6 — Email verification
+ 11. Screen 7 — Location + geocoder
+ 12. Screen 8 — Trade + company + role
+ 13. End-to-end test: real founder signs up, lands on a profile.
+
+PHASE 3 — PROFILE (Week 2-3)
+ 14. Screen 9 — Empty new profile
+ 15. Screen 10 — Suggested enrichment cards
+ 16. Screen 11 — Verifications hub
+ 17. License verification (auto for IL, manual queue for others)
+ 18. Workplace verification (email magic link)
+ 19. Screen 12-14 — Enriched profile (About, Portfolio, Posts tabs)
+ 20. Profile editor (section-by-section)
+
+PHASE 4 — NETWORKING (Week 3)
+ 21. Screen 18 — Network landing
+ 22. Screen 19 — People You May Know with filters
+ 23. Screen 20 — Connections list
+ 24. Connection invite/accept/reject flow
+ 25. Connection degree calc (1st, 2nd)
+
+PHASE 5 — FEED (Week 4)
+ 26. Screen 15 — Home feed
+ 27. Screen 16 — Post composer
+ 28. Screen 17 — Feed enrichment cards + trade news scraper
+ 29. Like, comment, share infra
+
+PHASE 6 — JOBS (Week 4-5)
+ 30. Job table + employer-side stub (manual seed for now)
+ 31. Screen 21 — Jobs board with filters + trade match
+ 32. Screen 22 — Job detail
+ 33. Screen 23 — Apply flow with phone verification
+ 34. SMS verification flow
+ 35. Application submission + employer email notification
+
+PHASE 7 — SEARCH & MESSAGES (Week 5)
+ 36. Full-text search index (tsvector on users, jobs, posts)
+ 37. Screen 24 — Search landing
+ 38. Screen 25 — Search results with tabs
+ 39. Screen 27 — Messages inbox
+ 40. Direct message thread (basic — header + scrollable messages + input)
+
+PHASE 8 — SETTINGS, POLISH, LAUNCH (Week 6)
+ 41. Screen 26 — Settings
+ 42. Account deletion flow
+ 43. Bug bash with founder #2 — 50-pass through all surfaces
+ 44. Performance pass — measure LCP, fix slow queries, add indexes
+ 45. Accessibility audit — Lighthouse + manual screen-reader test
+ 46. Soft launch — invite 10 real Chicago electricians (founder #1's
+     network)
+ 47. Iterate based on first-user feedback
+
+EMPLOYER FLOW (separate, parallel track — not in v2 mockups)
+  - Employer signup variant
+  - Job posting form
+  - Stripe Checkout integration
+  - Employer dashboard (applicants list, job edit, post status)
+  - Promoted/featured job purchase
+
+================================================================================
+PART 9 — IF YOU GET STUCK
+================================================================================
+
+If you find yourself unsure of a design decision, here's the priority
+order:
+
+  1. Check this guide.
+  2. Check BluBranch_Tickets_v3.md for explicit acceptance criteria.
+  3. Check the v2 mockup PDF (BluBranch_Mockups_v2.pdf).
+  4. Ask Founder #2 directly (he's running the build).
+  5. Match LinkedIn's behavior — they've solved most professional-
+     network UX patterns. If we're not deliberately different, default
+     to their pattern (back nav, conversation lists, profile sections).
+  6. Pick the simplest interpretation and flag it as TODO.
+
+If you find yourself unsure of a TECHNICAL decision:
+  1. Use the simplest, most-boring tool that works. Postgres > Redis-
+     for-everything. REST > GraphQL. Server-rendered > SPA where simpler.
+  2. Default to security over convenience.
+  3. Default to data integrity over speed. We can optimize later.
+
+If you find yourself adding a feature not in this guide or in the
+tickets: STOP. Ask Founder #2. Scope creep kills 8-week builds.
+
+================================================================================
+END OF GUIDE
+================================================================================
+
+Companion files in the same folder:
+  - BluBranch_Mockups_v2.pdf       — Visual reference for all 27 screens
+  - BluBranch_Tickets_v3.md        — Detailed ticket-by-ticket backlog
+  - BluBranch_Strategy_Brief.md    — One-page product/business strategy
+
+Good luck. Ship something workers don't want to throw their phones at.
+
+================================================================================
