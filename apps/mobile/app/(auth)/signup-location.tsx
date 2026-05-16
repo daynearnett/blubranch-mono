@@ -1,151 +1,139 @@
-// Mockup screen 2C — Sign up step 3 of 3: Location
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useEffect, useState } from 'react';
+import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { MapPin } from 'lucide-react-native';
+import * as Location from 'expo-location';
 import { JOB_AVAILABILITY_OPTIONS, TRAVEL_RADIUS_OPTIONS } from '@blubranch/shared';
 import type { JobAvailability } from '@blubranch/shared';
-import { Button, Chip, Input, ProgressDots } from '../../src/components/ui.js';
-import { ApiError, me } from '../../src/lib/api.js';
-import { useAuth } from '../../src/lib/auth-context.js';
+import { Button, Chip, Input } from '../../src/components/ui.js';
+import { SignupShell } from '../../src/components/signup-shell.js';
 import { useSignup } from '../../src/lib/signup-context.js';
 import { colors, radius, spacing, typography } from '../../src/theme.js';
 
 export default function SignupLocation() {
   const router = useRouter();
-  const { draft, reset } = useSignup();
-  const { register } = useAuth();
-  const [city, setCity] = useState(draft.city);
-  const [state, setState] = useState(draft.state);
-  const [zip, setZip] = useState(draft.zipCode);
-  const [radius_, setRadius] = useState<number>(draft.travelRadiusMiles);
-  const [availability, setAvailability] = useState<JobAvailability>(draft.jobAvailability);
-  const [submitting, setSubmitting] = useState(false);
+  const { draft, update } = useSignup();
+  const [locating, setLocating] = useState(false);
 
-  const onCreate = async () => {
-    if (!city.trim() || !state.trim() || !zip.trim()) {
-      Alert.alert('Almost there', 'City, state, and zip code are required.');
-      return;
-    }
-    setSubmitting(true);
+  useEffect(() => {
+    requestLocation();
+  }, []);
+
+  const requestLocation = async () => {
+    setLocating(true);
     try {
-      // 1. Register the user (returns JWTs + creates worker profile stub).
-      await register({
-        firstName: draft.firstName,
-        lastName: draft.lastName,
-        email: draft.email,
-        phone: draft.phone,
-        password: draft.password,
-        role: draft.role,
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        setLocating(false);
+        return;
+      }
+      const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      const [geo] = await Location.reverseGeocodeAsync({
+        latitude: loc.coords.latitude,
+        longitude: loc.coords.longitude,
       });
-
-      // 2. If worker, persist the trade selections + location.
-      if (draft.role === 'worker') {
-        // Trade IDs only valid if loaded from API. Negative ids = offline fallback.
-        const positiveTradeIds = draft.tradeIds.filter((id) => id > 0);
-        if (positiveTradeIds.length) {
-          await me.setTrades({ tradeIds: positiveTradeIds }).catch(() => undefined);
-        }
-        await me.updateWorkerProfile({
-          experienceLevel: draft.experienceLevel ?? undefined,
-          city,
-          state,
-          zipCode: zip,
-          travelRadiusMiles: radius_,
-          jobAvailability: availability,
-          unionName: draft.unionName || null,
-          // Self-reported license # lives on the worker profile.
-          // The certifications table is reserved for named, verifiable credentials.
-          licenseNumber: draft.certificationNumber.trim() || null,
+      if (geo) {
+        update({
+          city: geo.city ?? '',
+          state: geo.region ?? '',
+          zipCode: geo.postalCode ?? '',
         });
       }
-
-      reset();
-      router.replace('/(app)/profile-create-photo');
-    } catch (err) {
-      const msg = err instanceof ApiError ? err.message : 'Could not create account';
-      Alert.alert('Signup failed', msg);
-    } finally {
-      setSubmitting(false);
+    } catch { /* fallback to manual entry */ } finally {
+      setLocating(false);
     }
   };
 
+  const onContinue = () => {
+    if (!draft.city.trim() || !draft.state.trim() || !draft.zipCode.trim()) {
+      Alert.alert('Almost there', 'City, state, and zip code are required.');
+      return;
+    }
+    router.push('/(auth)/signup-trade');
+  };
+
   return (
-    <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
-      <ScrollView contentContainerStyle={styles.scroll}>
-        <View>
-          <ProgressDots count={3} current={2} />
-          <Text style={styles.title}>Where do you work?</Text>
-          <Text style={styles.subtitle}>Step 3 of 3</Text>
+    <SignupShell progress={60}>
+      <View>
+        <Text style={styles.title}>Where do you work?</Text>
+        <Text style={styles.subtitle}>We'll use this to show jobs near you.</Text>
 
-          <Input label="City" value={city} onChangeText={setCity} />
-          <Input label="State" value={state} onChangeText={setState} autoCapitalize="characters" />
-          <Input
-            label="Zip code"
-            value={zip}
-            onChangeText={setZip}
-            keyboardType="number-pad"
-            maxLength={10}
-          />
-
-          <Text style={styles.fieldLabel}>How far will you travel for work?</Text>
-          <View style={styles.chipWrap}>
-            {TRAVEL_RADIUS_OPTIONS.map((mi) => (
-              <Chip
-                key={mi}
-                label={`Within ${mi} miles`}
-                active={radius_ === mi}
-                onPress={() => setRadius(mi)}
-              />
-            ))}
-          </View>
-
-          <View style={styles.privacyCallout}>
-            <Text style={styles.privacyText}>
-              Your location is only shown as a city/region on your profile — never your exact
-              address. You control your privacy.
+        {!draft.city && (
+          <Pressable style={styles.locationBtn} onPress={requestLocation} disabled={locating}>
+            <MapPin color={colors.orange} size={20} strokeWidth={2} />
+            <Text style={styles.locationBtnText}>
+              {locating ? 'Getting your location...' : 'Use my current location'}
             </Text>
-          </View>
+          </Pressable>
+        )}
 
-          <Text style={styles.fieldLabel}>Job availability</Text>
-          <View style={styles.chipWrap}>
-            {JOB_AVAILABILITY_OPTIONS.map((opt) => (
-              <Chip
-                key={opt.value}
-                label={opt.label}
-                active={availability === opt.value}
-                onPress={() => setAvailability(opt.value as JobAvailability)}
-              />
-            ))}
-          </View>
+        <Input label="City" value={draft.city} onChangeText={(v) => update({ city: v })} />
+        <Input
+          label="State"
+          value={draft.state}
+          onChangeText={(v) => update({ state: v })}
+          autoCapitalize="characters"
+        />
+        <Input
+          label="Zip code"
+          value={draft.zipCode}
+          onChangeText={(v) => update({ zipCode: v })}
+          keyboardType="number-pad"
+          maxLength={10}
+        />
+
+        <Text style={styles.fieldLabel}>How far will you travel for work?</Text>
+        <View style={styles.chipWrap}>
+          {TRAVEL_RADIUS_OPTIONS.map((mi) => (
+            <Chip
+              key={mi}
+              label={`${mi} mi`}
+              active={draft.travelRadiusMiles === mi}
+              onPress={() => update({ travelRadiusMiles: mi })}
+            />
+          ))}
         </View>
 
-        <View>
-          <Button
-            variant="ctaDark"
-            label="Create my BluBranch profile"
-            onPress={onCreate}
-            loading={submitting}
-            style={{ marginTop: spacing.lg }}
-          />
-          <Text style={styles.helper}>Takes about 30 seconds to finish your profile</Text>
+        <View style={styles.privacyCallout}>
+          <Text style={styles.privacyText}>
+            Your location is only shown as a city/region on your profile — never your exact address.
+          </Text>
         </View>
-      </ScrollView>
-    </SafeAreaView>
+
+        <Text style={styles.fieldLabel}>Job availability</Text>
+        <View style={styles.chipWrap}>
+          {JOB_AVAILABILITY_OPTIONS.map((opt) => (
+            <Chip
+              key={opt.value}
+              label={opt.label}
+              active={draft.jobAvailability === opt.value}
+              onPress={() => update({ jobAvailability: opt.value as JobAvailability })}
+            />
+          ))}
+        </View>
+      </View>
+
+      <Button label="Continue" onPress={onContinue} style={{ marginTop: spacing.lg }} />
+    </SignupShell>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.background },
-  scroll: {
-    paddingHorizontal: spacing.xl,
-    paddingTop: spacing.lg,
-    paddingBottom: spacing.xl,
-    flexGrow: 1,
-    justifyContent: 'space-between',
+  title: { ...typography.h2, color: colors.navy, marginBottom: spacing.xs },
+  subtitle: { ...typography.body, color: colors.textMuted, marginBottom: spacing.xl },
+  locationBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.orange,
+    backgroundColor: colors.chipBgActive,
+    marginBottom: spacing.lg,
   },
-  title: { ...typography.h2, color: colors.primaryDark, marginBottom: spacing.xs },
-  subtitle: { ...typography.small, color: colors.textSecondary, marginBottom: spacing.lg },
+  locationBtnText: { ...typography.bodyBold, color: colors.orange },
   fieldLabel: {
     ...typography.small,
     fontWeight: '600',
@@ -159,11 +147,5 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     marginVertical: spacing.sm,
   },
-  privacyText: { ...typography.caption, color: colors.textSecondary },
-  helper: {
-    ...typography.caption,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    marginTop: spacing.sm,
-  },
+  privacyText: { ...typography.small, color: colors.textMuted },
 });

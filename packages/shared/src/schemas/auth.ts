@@ -2,7 +2,6 @@ import { z } from 'zod';
 import { AuthProvider, Role } from '../enums.js';
 
 // ── Register ──────────────────────────────────────────────────
-// Mockup screen 2A — first/last/email/phone/password/role
 export const registerInputSchema = z.object({
   firstName: z.string().min(1, 'First name required').max(100),
   lastName: z.string().min(1, 'Last name required').max(100),
@@ -11,9 +10,11 @@ export const registerInputSchema = z.object({
     .string()
     .min(7, 'Valid phone required')
     .max(20)
-    .regex(/^[+\d][\d\s\-().]+$/, 'Phone must be digits/+/-/() only'),
+    .regex(/^[+\d][\d\s\-().]+$/, 'Phone must be digits/+/-/() only')
+    .optional(),
   password: z.string().min(8, 'Password must be at least 8 characters').max(128),
   role: z.enum(['worker', 'employer']),
+  termsAccepted: z.boolean().optional(),
 });
 export type RegisterInput = z.infer<typeof registerInputSchema>;
 
@@ -56,6 +57,24 @@ export const socialAuthInputSchema = z.object({
 });
 export type SocialAuthInput = z.infer<typeof socialAuthInputSchema>;
 
+// ── Email verification ────────────────────────────────────────
+export const sendVerificationEmailSchema = z.object({
+  email: z.string().email().max(255),
+});
+export type SendVerificationEmailInput = z.infer<typeof sendVerificationEmailSchema>;
+
+export const verifyEmailCodeSchema = z.object({
+  email: z.string().email().max(255),
+  code: z.string().regex(/^\d{6}$/, 'Code must be 6 digits'),
+});
+export type VerifyEmailCodeInput = z.infer<typeof verifyEmailCodeSchema>;
+
+// ── Check email availability ──────────────────────────────────
+export const checkEmailSchema = z.object({
+  email: z.string().email().max(255),
+});
+export type CheckEmailInput = z.infer<typeof checkEmailSchema>;
+
 // ── Auth response ─────────────────────────────────────────────
 export const authResponseSchema = z.object({
   accessToken: z.string(),
@@ -65,11 +84,12 @@ export const authResponseSchema = z.object({
     firstName: z.string(),
     lastName: z.string(),
     email: z.string(),
-    phone: z.string(),
+    phone: z.string().nullable(),
     role: Role,
     authProvider: AuthProvider,
     profilePhotoUrl: z.string().nullable(),
     isVerified: z.boolean(),
+    emailVerified: z.boolean(),
   }),
 });
 export type AuthResponse = z.infer<typeof authResponseSchema>;

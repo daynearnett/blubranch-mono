@@ -88,6 +88,21 @@ export const auth = {
       method: 'POST',
       body: JSON.stringify({ phone, code }),
     }),
+  checkEmail: (email: string) =>
+    request<{ available: boolean }>('/auth/check-email', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    }),
+  sendVerificationEmail: (email: string) =>
+    request<{ sent: boolean; devCode?: string }>('/auth/send-verification-email', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    }),
+  verifyEmailCode: (email: string, code: string) =>
+    request<{ verified: boolean }>('/auth/verify-email-code', {
+      method: 'POST',
+      body: JSON.stringify({ email, code }),
+    }),
 };
 
 // ── Profile ─────────────────────────────────────────────────────
@@ -158,7 +173,7 @@ export interface MeResponse {
   firstName: string;
   lastName: string;
   email: string;
-  phone: string;
+  phone: string | null;
   role: 'worker' | 'employer' | 'admin';
   authProvider: string;
   profilePhotoUrl: string | null;

@@ -7,7 +7,7 @@ Everything here is NEW work not covered by Phases 4–7.
 
 ## Build order (max 8 chunks, in dependency order)
 
-### 1. Schema & design-system foundations
+### 1. ✅ Schema & design-system foundations (423564e)
 Add `License`, `WorkPlace`, `BookmarkedJob`, `SearchLog` tables to Prisma. Add `location`/`lat`/`lng` columns to `Job` and `WorkPlace` (fixes the "wp.location does not exist" bug from Part 7). Add `slug` to `User`, `profileCompleteness` to `WorkerProfile`, `audience`/`locationTag`/`tradeTag` to `Post`, `termsAcceptedAt`/`termsVersion` to `User`. Make `Skill.tradeId` required for trade-aware filtering. Expand trade seed from 12 → ~40 (BLS-sourced); onboarding autocomplete shows top 12 with "View More" to reveal the rest. Swap theme tokens in `theme.ts` to Balint's exact hex values (`--bb-navy: #0F2D52`, `--bb-orange: #E85D20`, etc.), update typography to system-font stack with his size scale, update spacing/radius constants. Build reusable `VerifiedBadge` (3 sizes), `TopSearchBar`, `SectionDivider`, `FilterPill`, `SearchPill`, `ConnectButton`, `ProgressBar` components. Replace emoji tab icons with Lucide SVG icons. Wire up AWS S3 for photo uploads (matching Taist's approach), replacing local filesystem storage.
 
 ### 2. Onboarding rebuild (S1–S8)

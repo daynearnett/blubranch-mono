@@ -1,8 +1,11 @@
 import {
+  checkEmailSchema,
   loginInputSchema,
   refreshInputSchema,
   registerInputSchema,
+  sendVerificationEmailSchema,
   socialAuthInputSchema,
+  verifyEmailCodeSchema,
   verifyPhoneCheckSchema,
   verifyPhoneSendSchema,
 } from '@blubranch/shared';
@@ -11,9 +14,16 @@ import { Prisma } from '@blubranch/db';
 import { signTokenPair, verifyRefreshToken } from '../auth/jwt.js';
 import { hashPassword, verifyPassword } from '../auth/password.js';
 import { checkVerificationCode, sendVerificationCode } from '../auth/twilio.js';
+import {
+  generateVerificationCode as generateEmailCode,
+  checkVerificationCode as checkEmailVerificationCode,
+  sendVerificationEmail,
+} from '../services/email.js';
 import { getPrisma } from '../lib/prisma.js';
 import { serializeUser } from '../lib/serialize.js';
 import { parseBody } from '../lib/validate.js';
+
+const TERMS_VERSION = '1.0';
 
 export async function authRoutes(app: FastifyInstance): Promise<void> {
   const prisma = getPrisma();
@@ -31,11 +41,13 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
           firstName: data.firstName,
           lastName: data.lastName,
           email: data.email.toLowerCase(),
-          phone: data.phone,
+          phone: data.phone ?? null,
           passwordHash,
           role: data.role,
           authProvider: 'email',
-          // Workers always get a stub worker profile + default settings.
+          ...(data.termsAccepted
+            ? { termsAcceptedAt: new Date(), termsVersion: TERMS_VERSION }
+            : {}),
           ...(data.role === 'worker'
             ? {
                 workerProfile: {
@@ -119,6 +131,42 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
     }
     // Mark any user with this phone as verified.
     await prisma.user.updateMany({ where: { phone: data.phone }, data: { isVerified: true } });
+    return reply.send({ verified: true });
+  });
+
+  // ── POST /auth/check-email ───────────────────────────────────────
+  app.post('/auth/check-email', async (request, reply) => {
+    const data = parseBody(checkEmailSchema, request, reply);
+    if (!data) return;
+    const existing = await prisma.user.findUnique({
+      where: { email: data.email.toLowerCase() },
+      select: { id: true },
+    });
+    return reply.send({ available: !existing });
+  });
+
+  // ── POST /auth/send-verification-email ──────────────────────────
+  app.post('/auth/send-verification-email', async (request, reply) => {
+    const data = parseBody(sendVerificationEmailSchema, request, reply);
+    if (!data) return;
+    const code = generateEmailCode(data.email);
+    await sendVerificationEmail(data.email, code);
+    const isDev = !process.env.RESEND_API_KEY;
+    return reply.send({ sent: true, ...(isDev ? { devCode: code } : {}) });
+  });
+
+  // ── POST /auth/verify-email-code ────────────────────────────────
+  app.post('/auth/verify-email-code', async (request, reply) => {
+    const data = parseBody(verifyEmailCodeSchema, request, reply);
+    if (!data) return;
+    const ok = checkEmailVerificationCode(data.email, data.code);
+    if (!ok) {
+      return reply.code(400).send({ error: 'BadRequest', message: 'Invalid or expired code' });
+    }
+    await prisma.user.updateMany({
+      where: { email: data.email.toLowerCase() },
+      data: { emailVerified: true },
+    });
     return reply.send({ verified: true });
   });
 

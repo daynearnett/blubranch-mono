@@ -9,7 +9,7 @@ export const userBaseSchema = z.object({
   firstName: z.string().min(1).max(100),
   lastName: z.string().min(1).max(100),
   email: z.string().email().max(255),
-  phone: z.string().min(7).max(20),
+  phone: z.string().min(7).max(20).nullable(),
   role: Role,
   authProvider: AuthProvider,
   authProviderId: z.string().max(255).nullable().optional(),

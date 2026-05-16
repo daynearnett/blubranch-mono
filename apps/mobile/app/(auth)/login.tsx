@@ -60,7 +60,7 @@ export default function Login() {
             <Button
               variant="ghost"
               label="Create a new account"
-              onPress={() => router.replace('/(auth)/signup-account')}
+              onPress={() => router.replace('/(auth)/signup-name')}
             />
           </View>
         </ScrollView>
@@ -78,6 +78,6 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     justifyContent: 'space-between',
   },
-  title: { ...typography.h1, color: colors.primaryDark, marginBottom: spacing.xs },
-  subtitle: { ...typography.body, color: colors.textSecondary, marginBottom: spacing.xl },
+  title: { ...typography.h1, color: colors.navy, marginBottom: spacing.xs },
+  subtitle: { ...typography.body, color: colors.textMuted, marginBottom: spacing.xl },
 });

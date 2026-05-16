@@ -12,6 +12,7 @@ export function serializeUser(user: User) {
     authProvider: user.authProvider,
     profilePhotoUrl: user.profilePhotoUrl,
     isVerified: user.isVerified,
+    emailVerified: user.emailVerified,
     createdAt: user.createdAt,
     updatedAt: user.updatedAt,
   };
