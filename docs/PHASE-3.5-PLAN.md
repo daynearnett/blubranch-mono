@@ -19,7 +19,7 @@ Build empty-state profile (S9) with dashed avatar tap-to-upload, verify-now card
 ### 4. ✅ Navigation & settings (S9 bottom nav, S15 top bar, S26) (f18dc0f)
 Swap bottom nav tabs from Feed/Finances/Post/Jobs/Profile → Feed/Network/Post/Jobs/Me per every v2 mockup. Build sticky `TopSearchBar` component (avatar left → search pill center → messages icon right) deployed on all primary tab screens. Build Settings screen (S26) with Account section (profile & visibility, sign in & security, phone number), Preferences (notifications, language), Support (help center, send feedback), Sign out (red, centered), account deletion flow with 7-day cooling period, app version from package.json. Move sign-out from profile tab to settings. Wire gear icon on profile to settings.
 
-### 5. Network system (S18–S20)
+### 5. ✅ Network system (S18–S20) (c36f84b)
 Build Network tab landing (S18) with Grow/Connections sub-tabs. Grow tab: pending invitations with inline accept/dismiss, connection + invite count cards, union hook banner ("N tradespeople from {union} are already on BluBranch"), PYMK preview with "See all". Build full PYMK screen (S19) with filter pills (All, union, city, trade, past coworkers), suggestion algorithm (mutual_connections×3 + same_trade×2 + same_local×2 + same_city×1), dismiss with 90-day cooldown, connect with optional note modal. Build Connections list (S20) with search, sort pills (Recent/First name/Last name/Trade), quick-message button, remove/block via long-press menu. API: `GET /connections`, `POST /connections/request`, `PUT /connections/:id/accept`, `DELETE /connections/:id`, `GET /network/suggestions`, invitation rate limits (10/day, 50/week). Connection degree calculation (1st/2nd).
 
 ### 6. Feed & post composer (S15–S17)
