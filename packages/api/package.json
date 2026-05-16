@@ -16,6 +16,8 @@
     "clean": "rm -rf .turbo"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1048.0",
+    "@aws-sdk/s3-request-presigner": "^3.1048.0",
     "@blubranch/db": "workspace:*",
     "@blubranch/shared": "workspace:*",
     "@fastify/cors": "^10.0.1",
@@ -24,6 +26,8 @@
     "bcryptjs": "^2.4.3",
     "fastify": "^5.2.0",
     "jsonwebtoken": "^9.0.2",
+    "resend": "^6.12.3",
+    "sharp": "^0.34.5",
     "tsx": "^4.19.2",
     "twilio": "^5.4.0",
     "zod": "^3.24.1"
@@ -32,6 +36,7 @@
     "@types/bcryptjs": "^2.4.6",
     "@types/jsonwebtoken": "^9.0.7",
     "@types/node": "^22.10.0",
+    "@types/sharp": "^0.32.0",
     "typescript": "^5.7.2",
     "vitest": "^2.1.8"
   }

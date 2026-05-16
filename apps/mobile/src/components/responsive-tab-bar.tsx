@@ -1,23 +1,25 @@
-// One tab bar component, three layouts:
-//   mobile  → 5-icon row across the bottom, Post button raised orange
-//   tablet  → vertical rail on the left, icons only (collapsed)
-//   desktop → vertical rail on the left, icons + labels (expanded)
-//
-// We pass this to <Tabs tabBar={...}> from expo-router. The navigator
-// container's flexDirection is controlled via screenOptions.tabBarPosition,
-// so this component just owns its own appearance.
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
+import type { LucideIcon } from 'lucide-react-native';
+import { Briefcase, Home, Plus, User, Users } from 'lucide-react-native';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLayout } from '../hooks/useLayout.js';
 import { colors, radius, spacing, typography } from '../theme.js';
 
-const ICONS: Record<string, string> = {
-  feed: '🏠',
-  finances: '💰',
-  post: '+',
-  jobs: '💼',
-  profile: '👤',
+const TAB_ICONS: Record<string, LucideIcon> = {
+  feed: Home,
+  network: Users,
+  post: Plus,
+  jobs: Briefcase,
+  profile: User,
+};
+
+const TAB_LABELS: Record<string, string> = {
+  feed: 'Feed',
+  network: 'Network',
+  post: 'Post',
+  jobs: 'Jobs',
+  profile: 'Me',
 };
 
 export function ResponsiveTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
@@ -35,6 +37,8 @@ export function ResponsiveTabBar({ state, descriptors, navigation }: BottomTabBa
         {state.routes.map((route, index) => {
           const focused = state.index === index;
           const isPost = route.name === 'post';
+          const Icon = TAB_ICONS[route.name] ?? Home;
+          const label = TAB_LABELS[route.name] ?? route.name;
           const onPress = () => {
             const event = navigation.emit({
               type: 'tabPress',
@@ -48,21 +52,23 @@ export function ResponsiveTabBar({ state, descriptors, navigation }: BottomTabBa
               key={route.key}
               onPress={onPress}
               style={[styles.bottomItem, isPost && styles.bottomItemPost]}
-              accessibilityLabel={descriptors[route.key]?.options.title ?? route.name}
+              accessibilityLabel={label}
               accessibilityRole="button"
               accessibilityState={focused ? { selected: true } : {}}
             >
               {isPost ? (
                 <View style={styles.postFab}>
-                  <Text style={styles.postFabIcon}>+</Text>
+                  <Plus color={colors.textInverse} size={28} strokeWidth={1.8} />
                 </View>
               ) : (
                 <>
-                  <Text style={[styles.bottomIcon, focused && styles.bottomIconActive]}>
-                    {ICONS[route.name] ?? '·'}
-                  </Text>
+                  <Icon
+                    color={focused ? colors.orange : colors.textMuted}
+                    size={22}
+                    strokeWidth={1.8}
+                  />
                   <Text style={[styles.bottomLabel, focused && styles.bottomLabelActive]}>
-                    {descriptors[route.key]?.options.title ?? route.name}
+                    {label}
                   </Text>
                 </>
               )}
@@ -73,7 +79,6 @@ export function ResponsiveTabBar({ state, descriptors, navigation }: BottomTabBa
     );
   }
 
-  // Sidebar (tablet collapsed / desktop expanded)
   return (
     <View
       style={[
@@ -91,6 +96,8 @@ export function ResponsiveTabBar({ state, descriptors, navigation }: BottomTabBa
 
       {state.routes.map((route, index) => {
         const focused = state.index === index;
+        const Icon = TAB_ICONS[route.name] ?? Home;
+        const label = TAB_LABELS[route.name] ?? route.name;
         const onPress = () => {
           const event = navigation.emit({
             type: 'tabPress',
@@ -108,17 +115,17 @@ export function ResponsiveTabBar({ state, descriptors, navigation }: BottomTabBa
               isDesktop ? styles.sideItemExpanded : styles.sideItemCollapsed,
               focused && styles.sideItemActive,
             ]}
-            accessibilityLabel={descriptors[route.key]?.options.title ?? route.name}
+            accessibilityLabel={label}
             accessibilityRole="button"
             accessibilityState={focused ? { selected: true } : {}}
           >
-            <Text style={[styles.sideIcon, focused && styles.sideIconActive]}>
-              {ICONS[route.name] ?? '·'}
-            </Text>
+            <Icon
+              color={focused ? colors.orange : colors.textMuted}
+              size={22}
+              strokeWidth={1.8}
+            />
             {isDesktop ? (
-              <Text style={[styles.sideLabel, focused && styles.sideLabelActive]}>
-                {descriptors[route.key]?.options.title ?? route.name}
-              </Text>
+              <Text style={[styles.sideLabel, focused && styles.sideLabelActive]}>{label}</Text>
             ) : null}
           </Pressable>
         );
@@ -128,32 +135,29 @@ export function ResponsiveTabBar({ state, descriptors, navigation }: BottomTabBa
 }
 
 const styles = StyleSheet.create({
-  // ── Mobile bottom bar ────────────────────────────────────────
   bottomBar: {
     flexDirection: 'row',
     alignItems: 'flex-end',
     backgroundColor: colors.background,
     borderTopWidth: 1,
     borderTopColor: colors.border,
-    paddingHorizontal: spacing.xs,
+    paddingHorizontal: spacing.xxs,
     paddingTop: spacing.sm,
   },
   bottomItem: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: spacing.xs,
+    paddingVertical: spacing.xxs,
   },
   bottomItemPost: { marginTop: -spacing.xl },
-  bottomIcon: { fontSize: 22, color: colors.textSecondary },
-  bottomIconActive: { color: colors.primary },
-  bottomLabel: { ...typography.caption, color: colors.textSecondary, marginTop: 2 },
-  bottomLabelActive: { color: colors.primary, fontWeight: '600' },
+  bottomLabel: { ...typography.small, color: colors.textMuted, marginTop: 2 },
+  bottomLabelActive: { color: colors.orange, fontWeight: '600' },
   postFab: {
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: colors.primary,
+    backgroundColor: colors.orange,
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000',
@@ -162,16 +166,14 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 3 },
     elevation: 4,
   },
-  postFabIcon: { color: colors.textInverse, fontSize: 28, fontWeight: '300', lineHeight: 32 },
 
-  // ── Sidebar (tablet + desktop) ───────────────────────────────
   sidebar: {
     backgroundColor: colors.background,
     borderRightWidth: 1,
     borderRightColor: colors.border,
     paddingHorizontal: spacing.sm,
     paddingBottom: spacing.lg,
-    gap: spacing.xs,
+    gap: spacing.xxs,
   },
   sidebarCollapsed: { width: 72, alignItems: 'center' },
   sidebarExpanded: { width: 240 },
@@ -186,12 +188,12 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: radius.sm,
-    backgroundColor: colors.primary,
+    backgroundColor: colors.orange,
     alignItems: 'center',
     justifyContent: 'center',
   },
   sidebarLogoText: { color: colors.textInverse, fontWeight: '700' },
-  sidebarBrandText: { ...typography.h3, color: colors.primaryDark },
+  sidebarBrandText: { ...typography.h3, color: colors.navy },
   sideItem: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -208,8 +210,6 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
   },
   sideItemActive: { backgroundColor: colors.chipBgActive },
-  sideIcon: { fontSize: 22, color: colors.textSecondary },
-  sideIconActive: { color: colors.primary },
   sideLabel: { ...typography.body, color: colors.textPrimary },
-  sideLabelActive: { color: colors.primary, fontWeight: '600' },
+  sideLabelActive: { color: colors.orange, fontWeight: '600' },
 });

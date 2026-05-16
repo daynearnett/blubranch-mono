@@ -5,6 +5,7 @@ import { extname, join } from 'node:path';
 import { pipeline } from 'node:stream/promises';
 import type { FastifyInstance } from 'fastify';
 import { requireAuth } from '../auth/middleware.js';
+import { isS3Configured, uploadToS3 } from '../services/s3.js';
 
 const MIME_BY_EXT: Record<string, string> = {
   '.jpg': 'image/jpeg',
@@ -15,15 +16,15 @@ const MIME_BY_EXT: Record<string, string> = {
 };
 
 const ALLOWED_EXT = new Set(['.jpg', '.jpeg', '.png', '.webp', '.heic']);
-const MAX_BYTES = 8 * 1024 * 1024; // 8 MB
+const MAX_BYTES = 8 * 1024 * 1024;
 
-// Local filesystem store. Phase 5+ swap in S3 / R2 — keep the same {url} shape.
 export const UPLOAD_DIR = process.env.UPLOAD_DIR ?? join(process.cwd(), 'uploads');
 
 export async function uploadRoutes(app: FastifyInstance): Promise<void> {
-  await mkdir(UPLOAD_DIR, { recursive: true });
+  if (!isS3Configured()) {
+    await mkdir(UPLOAD_DIR, { recursive: true });
+  }
 
-  // ── POST /upload/image ──────────────────────────────────────────
   app.post('/upload/image', { preHandler: requireAuth }, async (request, reply) => {
     const file = await request.file({ limits: { fileSize: MAX_BYTES } });
     if (!file) return reply.code(400).send({ error: 'BadRequest', message: 'No file uploaded' });
@@ -35,18 +36,35 @@ export async function uploadRoutes(app: FastifyInstance): Promise<void> {
         message: `Unsupported file type. Allowed: ${[...ALLOWED_EXT].join(', ')}`,
       });
     }
-    const id = randomUUID();
-    const filename = `${id}${ext}`;
-    const dest = join(UPLOAD_DIR, filename);
-    await pipeline(file.file, createWriteStream(dest));
+
+    const chunks: Buffer[] = [];
+    for await (const chunk of file.file) {
+      chunks.push(chunk);
+    }
+    const buffer = Buffer.concat(chunks);
+
     if (file.file.truncated) {
       return reply.code(413).send({ error: 'PayloadTooLarge', message: 'Max 8MB' });
     }
+
+    const contentType = MIME_BY_EXT[ext] ?? 'application/octet-stream';
+
+    if (isS3Configured()) {
+      const url = await uploadToS3(buffer, ext, contentType);
+      return reply.send({ url, filename: url.split('/').pop() });
+    }
+
+    const id = randomUUID();
+    const filename = `${id}${ext}`;
+    const dest = join(UPLOAD_DIR, filename);
+    await pipeline(
+      (async function* () { yield buffer; })(),
+      createWriteStream(dest),
+    );
     const baseUrl = process.env.PUBLIC_BASE_URL ?? `http://localhost:${process.env.PORT ?? 4000}`;
     return reply.send({ url: `${baseUrl}/uploads/${filename}`, filename });
   });
 
-  // Static serving of uploaded files (dev convenience).
   app.get<{ Params: { filename: string } }>('/uploads/:filename', async (request, reply) => {
     const filename = request.params.filename.replace(/[^a-zA-Z0-9._-]/g, '');
     const ext = extname(filename).toLowerCase();

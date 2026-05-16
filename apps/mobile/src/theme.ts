@@ -1,54 +1,91 @@
-// Design tokens — kept in one place so we can swap palettes when final colors land.
-// Pulled from CLAUDE.md (NOT FINAL — stand-in until brand work is done).
+// BluBranch v2 design tokens — Balint's exact palette from the build guide.
+// System font stack on every platform. No webfont.
 
 export const colors = {
-  primary: '#E8713A', // orange — CTAs, accents
-  primaryDark: '#1B3A5C', // dark navy — headers, profile banner
-  ctaDark: '#1E3D5C', // dark blue — secondary CTAs ("Take me to my feed")
+  // Brand
+  navy: '#0F2D52',
+  navyDark: '#0A2240',
+  navyMid: '#1A4A7A',
+  orange: '#E85D20',
+  orangeWarm: '#993C1D',
+  green: '#1B5E20', // verified badge ONLY — not for generic success
+  amber: '#FAC775',
+  amberText: '#412402',
+  red: '#C0392B', // destructive actions only
+
+  // Neutral
+  surface: '#F5F7FA',
+  cardBg: '#FFFFFF',
+  divider: '#F1EFE8',
+  text: '#0F2D52',
+  textBody: '#2A3F58',
+  textMuted: '#5C7A9B',
+  textLight: '#8FB3D4',
+  border: 'rgba(15,45,82,0.18)',
+  borderSoft: 'rgba(15,45,82,0.08)',
+
+  // Functional aliases (used by existing components)
+  primary: '#E85D20',
+  primaryDark: '#0F2D52',
+  ctaDark: '#0A2240',
   background: '#FFFFFF',
-  surface: '#F7F8FA',
-  border: '#E5E7EB',
-  textPrimary: '#1A1A1A',
-  textSecondary: '#6B7280',
+  textPrimary: '#0F2D52',
+  textSecondary: '#5C7A9B',
   textInverse: '#FFFFFF',
-  success: '#22C55E',
-  danger: '#EF4444',
-  inputBorder: '#D1D5DB',
-  chipBg: '#F3F4F6',
-  chipBgActive: '#FFE4D6',
-  chipBorderActive: '#E8713A',
+  success: '#1B5E20',
+  danger: '#C0392B',
+  inputBorder: 'rgba(15,45,82,0.18)',
+  chipBg: '#F5F7FA',
+  chipBgActive: '#FDEEE6',
+  chipBorderActive: '#E85D20',
 } as const;
 
 export const spacing = {
-  xs: 4,
+  xxs: 4,
+  xs: 6,
   sm: 8,
   md: 12,
   lg: 16,
   xl: 24,
   xxl: 32,
+  // Balint's extra stops
+  10: 10,
+  14: 14,
+  18: 18,
+  22: 22,
+  26: 26,
 } as const;
 
 export const radius = {
+  xs: 4,   // tags/badges
   sm: 6,
-  md: 10,
-  lg: 14,
-  pill: 999,
+  md: 8,   // cards, input fields
+  lg: 10,  // cards
+  xl: 12,
+  pill: 18,     // inline buttons
+  pillCta: 24,  // primary CTAs
+  avatar: 999,  // circle
 } as const;
 
 export const typography = {
-  h1: { fontSize: 28, fontWeight: '700' as const },
-  h2: { fontSize: 22, fontWeight: '700' as const },
-  h3: { fontSize: 18, fontWeight: '600' as const },
-  body: { fontSize: 15, fontWeight: '400' as const },
-  bodyBold: { fontSize: 15, fontWeight: '600' as const },
-  small: { fontSize: 13, fontWeight: '400' as const },
-  caption: { fontSize: 12, fontWeight: '400' as const },
+  h1: { fontSize: 22, fontWeight: '700' as const, letterSpacing: -0.44, lineHeight: 26 },
+  h2: { fontSize: 17, fontWeight: '700' as const },
+  h3: { fontSize: 15, fontWeight: '700' as const },
+  body: { fontSize: 13, fontWeight: '400' as const, lineHeight: 20 },
+  bodyBold: { fontSize: 13, fontWeight: '600' as const, lineHeight: 20 },
+  small: { fontSize: 12, fontWeight: '400' as const },
+  micro: { fontSize: 11, fontWeight: '600' as const, letterSpacing: 0.44, textTransform: 'uppercase' as const },
+  caption: { fontSize: 10, fontWeight: '600' as const, letterSpacing: 0.4, textTransform: 'uppercase' as const },
 } as const;
 
 export const layout = {
-  // Screens 4–7 are mocked at mobile width.
-  screenPadding: spacing.lg,
+  screenPaddingH: 16,
+  sectionPaddingV: 16,
+  cardPadding: 14,
   cardRadius: radius.md,
   inputHeight: 48,
   buttonHeight: 50,
+  dividerHeight: 6,
+  // Kept for backwards compat with existing screens
+  screenPadding: 16,
 } as const;

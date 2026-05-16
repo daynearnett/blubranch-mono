@@ -93,6 +93,28 @@ enum CompanySize {
   size_500_plus
 }
 
+enum PostAudience {
+  anyone
+  connections
+}
+
+enum LicenseVerificationMethod {
+  state_api
+  manual
+}
+
+enum WorkplaceVerificationMethod {
+  email
+  manual
+}
+
+enum VerificationStatus {
+  pending
+  verified
+  rejected
+  expired
+}
+
 // ───────────────────────────── Core: users ─────────────────────────────
 
 model User {
@@ -100,30 +122,35 @@ model User {
   firstName       String       @map("first_name") @db.VarChar(100)
   lastName        String       @map("last_name") @db.VarChar(100)
   email           String       @unique @db.VarChar(255)
-  phone           String       @unique @db.VarChar(20)
+  phone           String?      @unique @db.VarChar(20)
   passwordHash    String?      @map("password_hash") @db.VarChar(255)
   role            Role
   authProvider    AuthProvider @map("auth_provider")
   authProviderId  String?      @map("auth_provider_id") @db.VarChar(255)
   profilePhotoUrl String?      @map("profile_photo_url") @db.VarChar(500)
   isVerified      Boolean      @default(false) @map("is_verified")
+  emailVerified   Boolean      @default(false) @map("email_verified")
+  phoneVerified   Boolean      @default(false) @map("phone_verified")
+  slug            String?      @unique @db.VarChar(100)
+  termsAcceptedAt DateTime?    @map("terms_accepted_at")
+  termsVersion    String?      @map("terms_version") @db.VarChar(20)
   createdAt       DateTime     @default(now()) @map("created_at")
   updatedAt       DateTime     @updatedAt @map("updated_at")
 
-  workerProfile  WorkerProfile?
-  settings       UserSettings?
-  trades         UserTrade[]
-  skills         UserSkill[]
-  certifications Certification[]
+  workerProfile   WorkerProfile?
+  settings        UserSettings?
+  trades          UserTrade[]
+  skills          UserSkill[]
+  certifications  Certification[]
   portfolioPhotos PortfolioPhoto[]
-  workHistory    WorkHistory[]
-  companies      Company[]
+  workHistory     WorkHistory[]
+  companies       Company[]
 
-  jobsPosted     Job[]              @relation("JobEmployer")
-  applications   JobApplication[]
-  posts          Post[]
-  postLikes      PostLike[]
-  postComments   PostComment[]
+  jobsPosted   Job[]            @relation("JobEmployer")
+  applications JobApplication[]
+  posts        Post[]
+  postLikes    PostLike[]
+  postComments PostComment[]
 
   connectionsRequested Connection[] @relation("ConnectionRequester")
   connectionsReceived  Connection[] @relation("ConnectionReceiver")
@@ -135,6 +162,11 @@ model User {
   conversationsB Conversation[] @relation("ConversationUserB")
   messagesSent   Message[]      @relation("MessageSender")
 
+  licenses       License[]
+  workPlaces     WorkPlace[]
+  bookmarkedJobs BookmarkedJob[]
+  searchLogs     SearchLog[]
+
   @@index([role])
   @@map("users")
 }
@@ -142,25 +174,29 @@ model User {
 // ───────────────────────────── Worker profile ─────────────────────────────
 
 model WorkerProfile {
-  id                 String          @id @default(uuid()) @db.Uuid
-  userId             String          @unique @map("user_id") @db.Uuid
-  user               User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  headline           String?         @db.VarChar(200)
-  bio                String?         @db.VarChar(300)
-  experienceLevel    ExperienceLevel @map("experience_level")
-  hourlyRate         Decimal?        @map("hourly_rate") @db.Decimal(8, 2)
-  city               String          @db.VarChar(100)
-  state              String          @db.VarChar(50)
-  zipCode            String          @map("zip_code") @db.VarChar(10)
+  id                  String          @id @default(uuid()) @db.Uuid
+  userId              String          @unique @map("user_id") @db.Uuid
+  user                User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  headline            String?         @db.VarChar(200)
+  bio                 String?         @db.VarChar(300)
+  experienceLevel     ExperienceLevel @map("experience_level")
+  hourlyRate          Decimal?        @map("hourly_rate") @db.Decimal(8, 2)
+  city                String          @db.VarChar(100)
+  state               String          @db.VarChar(50)
+  zipCode             String          @map("zip_code") @db.VarChar(10)
   // location is geography(Point, 4326) — added via raw SQL in migration; PostGIS GiST index also added there.
-  travelRadiusMiles  Int             @map("travel_radius_miles")
-  jobAvailability    JobAvailability @map("job_availability")
-  unionName          String?         @map("union_name") @db.VarChar(200)
+  travelRadiusMiles   Int             @map("travel_radius_miles")
+  jobAvailability     JobAvailability @map("job_availability")
+  unionName           String?         @map("union_name") @db.VarChar(200)
   // Self-reported license number captured at signup. Unverified — the
   // certifications table is reserved for named, verifiable credentials.
-  licenseNumber      String?         @map("license_number") @db.VarChar(100)
-  createdAt          DateTime        @default(now()) @map("created_at")
-  updatedAt          DateTime        @updatedAt @map("updated_at")
+  licenseNumber       String?         @map("license_number") @db.VarChar(100)
+  profileCompleteness Int             @default(0) @map("profile_completeness")
+  currentCompany      String?         @map("current_company") @db.VarChar(200)
+  currentTitle        String?         @map("current_title") @db.VarChar(200)
+  tradeYears          Int?            @map("trade_years")
+  createdAt           DateTime        @default(now()) @map("created_at")
+  updatedAt           DateTime        @updatedAt @map("updated_at")
 
   @@index([city, state])
   @@map("worker_profiles")
@@ -181,9 +217,10 @@ model UserSettings {
 // ───────────────────────────── Trades / skills ─────────────────────────────
 
 model Trade {
-  id     Int    @id @default(autoincrement())
-  name   String @unique @db.VarChar(100)
-  slug   String @unique @db.VarChar(100)
+  id        Int     @id @default(autoincrement())
+  name      String  @unique @db.VarChar(100)
+  slug      String  @unique @db.VarChar(100)
+  isPopular Boolean @default(false) @map("is_popular")
 
   userTrades UserTrade[]
   skills     Skill[]
@@ -206,8 +243,8 @@ model UserTrade {
 model Skill {
   id      Int    @id @default(autoincrement())
   name    String @db.VarChar(100)
-  tradeId Int?   @map("trade_id")
-  trade   Trade? @relation(fields: [tradeId], references: [id], onDelete: SetNull)
+  tradeId Int    @map("trade_id")
+  trade   Trade  @relation(fields: [tradeId], references: [id], onDelete: Cascade)
 
   userSkills UserSkill[]
 
@@ -306,6 +343,9 @@ model Job {
   city                   String      @db.VarChar(100)
   state                  String      @db.VarChar(50)
   zipCode                String      @map("zip_code") @db.VarChar(10)
+  location               String?     @db.VarChar(200)
+  lat                    Decimal?    @db.Decimal(10, 7)
+  lng                    Decimal?    @db.Decimal(10, 7)
   description            String      @db.VarChar(1000)
   openingsCount          Int         @default(1) @map("openings_count")
   status                 JobStatus
@@ -320,6 +360,7 @@ model Job {
 
   benefits     JobBenefit[]
   applications JobApplication[]
+  bookmarks    BookmarkedJob[]
 
   @@index([status, expiresAt])
   @@index([tradeId, status])
@@ -365,11 +406,14 @@ model JobApplication {
 // ───────────────────────────── Social: posts ─────────────────────────────
 
 model Post {
-  id        String   @id @default(uuid()) @db.Uuid
-  userId    String   @map("user_id") @db.Uuid
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  content   String   @db.Text
-  createdAt DateTime @default(now()) @map("created_at")
+  id          String       @id @default(uuid()) @db.Uuid
+  userId      String       @map("user_id") @db.Uuid
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  content     String       @db.Text
+  audience    PostAudience @default(anyone)
+  locationTag String?      @map("location_tag") @db.VarChar(100)
+  tradeTag    String?      @map("trade_tag") @db.VarChar(100)
+  createdAt   DateTime     @default(now()) @map("created_at")
 
   photos   PostPhoto[]
   likes    PostLike[]
@@ -443,6 +487,78 @@ model Endorsement {
 
   @@index([endorsedId])
   @@map("endorsements")
+}
+
+// ───────────────────────────── Verification: licenses ─────────────────────────────
+
+model License {
+  id                 String                     @id @default(uuid()) @db.Uuid
+  userId             String                     @map("user_id") @db.Uuid
+  user               User                       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type               String                     @db.VarChar(200)
+  number             String                     @db.VarChar(100)
+  issuingState       String                     @map("issuing_state") @db.VarChar(2)
+  expiresAt          DateTime?                  @map("expires_at")
+  status             VerificationStatus         @default(pending)
+  verificationMethod LicenseVerificationMethod? @map("verification_method")
+  verifiedAt         DateTime?                  @map("verified_at")
+  verifiedBy         String?                    @map("verified_by") @db.VarChar(100)
+  createdAt          DateTime                   @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@index([status])
+  @@map("licenses")
+}
+
+// ───────────────────────────── Verification: workplaces ─────────────────────────────
+
+model WorkPlace {
+  id                 String                       @id @default(uuid()) @db.Uuid
+  userId             String                       @map("user_id") @db.Uuid
+  user               User                         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  companyName        String                       @map("company_name") @db.VarChar(200)
+  role               String                       @db.VarChar(200)
+  startDate          DateTime?                    @map("start_date") @db.Date
+  endDate            DateTime?                    @map("end_date") @db.Date
+  current            Boolean                      @default(false)
+  location           String?                      @db.VarChar(200)
+  lat                Decimal?                     @db.Decimal(10, 7)
+  lng                Decimal?                     @db.Decimal(10, 7)
+  status             VerificationStatus           @default(pending)
+  verificationMethod WorkplaceVerificationMethod? @map("verification_method")
+  verifiedAt         DateTime?                    @map("verified_at")
+  verificationEmail  String?                      @map("verification_email") @db.VarChar(255)
+  createdAt          DateTime                     @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@map("work_places")
+}
+
+// ───────────────────────────── Bookmarked jobs ─────────────────────────────
+
+model BookmarkedJob {
+  userId    String   @map("user_id") @db.Uuid
+  jobId     String   @map("job_id") @db.Uuid
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  job       Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@id([userId, jobId])
+  @@index([jobId])
+  @@map("bookmarked_jobs")
+}
+
+// ───────────────────────────── Search logs ─────────────────────────────
+
+model SearchLog {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  query     String   @db.VarChar(500)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([userId, createdAt])
+  @@map("search_logs")
 }
 
 // ───────────────────────────── Messaging ─────────────────────────────

@@ -16,10 +16,10 @@ export default function TabsLayout() {
       tabBar={(props) => <ResponsiveTabBar {...props} />}
     >
       <Tabs.Screen name="feed" options={{ title: 'Feed' }} />
-      <Tabs.Screen name="finances" options={{ title: 'Finances' }} />
+      <Tabs.Screen name="network" options={{ title: 'Network' }} />
       <Tabs.Screen name="post" options={{ title: 'Post' }} />
       <Tabs.Screen name="jobs" options={{ title: 'Jobs' }} />
-      <Tabs.Screen name="profile" options={{ title: 'Profile' }} />
+      <Tabs.Screen name="profile" options={{ title: 'Me' }} />
     </Tabs>
   );
 }
