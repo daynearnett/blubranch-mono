@@ -1,7 +1,10 @@
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { MapPin, Pencil, Settings } from 'lucide-react-native';
 import type { MeResponse, PublicProfile } from '../lib/api.js';
 import { colors, radius, spacing, typography } from '../theme.js';
 import { Badge } from './ui.js';
+import { VerifiedBadge } from './verified-badge.js';
+import { ConnectButton } from './connect-button.js';
 
 type ProfileLike = MeResponse | PublicProfile;
 
@@ -11,19 +14,28 @@ interface Props {
   active: 'about' | 'portfolio' | 'posts';
   onTabChange: (tab: 'about' | 'portfolio' | 'posts') => void;
   isMe?: boolean;
+  onSettings?: () => void;
+  onEditProfile?: () => void;
 }
 
-export function ProfileHeader({ profile, stats, active, onTabChange, isMe }: Props) {
+export function ProfileHeader({ profile, stats, active, onTabChange, isMe, onSettings, onEditProfile }: Props) {
   const wp = profile.workerProfile;
   const fullName = `${profile.firstName} ${profile.lastName}`;
   const initials = `${profile.firstName[0] ?? ''}${profile.lastName[0] ?? ''}`.toUpperCase();
-  const headline = wp?.headline ?? 'Tradesperson';
+
+  const autoHeadline = buildAutoHeadline(wp);
+  const headline = wp?.headline || autoHeadline || 'Tradesperson';
   const location = wp?.city && wp?.state ? `${wp.city}, ${wp.state}` : null;
-  const radiusLine = wp?.travelRadiusMiles ? ` · Within ${wp.travelRadiusMiles} miles` : '';
 
   return (
     <View>
       <View style={styles.header}>
+        {isMe && onSettings ? (
+          <Pressable style={styles.settingsBtn} onPress={onSettings} accessibilityLabel="Settings">
+            <Settings color="rgba(255,255,255,0.7)" size={20} strokeWidth={2} />
+          </Pressable>
+        ) : null}
+
         <View style={styles.avatarWrap}>
           {profile.profilePhotoUrl ? (
             <Image source={{ uri: profile.profilePhotoUrl }} style={styles.avatar} />
@@ -32,20 +44,27 @@ export function ProfileHeader({ profile, stats, active, onTabChange, isMe }: Pro
               <Text style={styles.avatarInitials}>{initials}</Text>
             </View>
           )}
-          <View style={styles.onlineDot} />
+          {profile.isVerified ? (
+            <View style={styles.verifiedPos}>
+              <VerifiedBadge size="small" />
+            </View>
+          ) : null}
         </View>
-        <Text style={styles.name}>{fullName}</Text>
+
+        <View style={styles.nameRow}>
+          <Text style={styles.name}>{fullName}</Text>
+          {profile.isVerified ? <VerifiedBadge size="mini" /> : null}
+        </View>
         <Text style={styles.headline}>{headline}</Text>
         {location ? (
-          <Text style={styles.location}>
-            {location}
-            {radiusLine}
-          </Text>
+          <View style={styles.locationRow}>
+            <MapPin color="rgba(255,255,255,0.6)" size={14} strokeWidth={2} />
+            <Text style={styles.location}>{location}</Text>
+          </View>
         ) : null}
 
         <View style={styles.badgeRow}>
           {wp?.unionName ? <Badge label={wp.unionName} tone="primary" /> : null}
-          {profile.isVerified ? <Badge label="✓ Verified" tone="success" /> : null}
           {wp?.jobAvailability === 'open' || wp?.jobAvailability === 'actively_looking' ? (
             <Badge label="Open to Work" tone="success" />
           ) : null}
@@ -63,11 +82,16 @@ export function ProfileHeader({ profile, stats, active, onTabChange, isMe }: Pro
           </View>
         ) : null}
 
+        {isMe && onEditProfile ? (
+          <Pressable style={styles.editBtn} onPress={onEditProfile}>
+            <Pencil color={colors.textInverse} size={14} strokeWidth={2} />
+            <Text style={styles.editBtnLabel}>Edit profile</Text>
+          </Pressable>
+        ) : null}
+
         {!isMe ? (
           <View style={styles.actionRow}>
-            <Pressable style={[styles.actionBtn, styles.actionPrimary]}>
-              <Text style={styles.actionPrimaryLabel}>Connect</Text>
-            </Pressable>
+            <ConnectButton />
             <Pressable style={[styles.actionBtn, styles.actionOutline]}>
               <Text style={styles.actionOutlineLabel}>Message</Text>
             </Pressable>
@@ -89,6 +113,15 @@ export function ProfileHeader({ profile, stats, active, onTabChange, isMe }: Pro
   );
 }
 
+function buildAutoHeadline(wp: ProfileLike['workerProfile']): string | null {
+  if (!wp) return null;
+  const parts: string[] = [];
+  if ('currentTitle' in wp && typeof wp.currentTitle === 'string') parts.push(wp.currentTitle);
+  if ('tradeYears' in wp && typeof wp.tradeYears === 'number') parts.push(`${wp.tradeYears} yrs`);
+  if (wp.unionName) parts.push(wp.unionName);
+  return parts.length > 0 ? parts.join(' · ') : null;
+}
+
 function Stat({ value, label }: { value: number | string; label: string }) {
   return (
     <View style={styles.statCol}>
@@ -100,31 +133,36 @@ function Stat({ value, label }: { value: number | string; label: string }) {
 
 const styles = StyleSheet.create({
   header: {
-    backgroundColor: colors.primaryDark,
+    backgroundColor: colors.navy,
     paddingHorizontal: spacing.xl,
     paddingTop: spacing.xl,
     paddingBottom: spacing.lg,
     alignItems: 'center',
   },
+  settingsBtn: {
+    position: 'absolute',
+    top: spacing.md,
+    right: spacing.md,
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   avatarWrap: { marginBottom: spacing.md },
   avatar: { width: 100, height: 100, borderRadius: 50, backgroundColor: colors.surface },
   avatarFallback: { alignItems: 'center', justifyContent: 'center' },
-  avatarInitials: { ...typography.h1, color: colors.primaryDark },
-  onlineDot: {
+  avatarInitials: { fontSize: 28, fontWeight: '700', color: colors.navy },
+  verifiedPos: {
     position: 'absolute',
-    right: 4,
-    bottom: 4,
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    borderWidth: 2,
-    borderColor: colors.primaryDark,
-    backgroundColor: colors.success,
+    right: 2,
+    bottom: 2,
   },
-  name: { ...typography.h2, color: colors.textInverse, marginBottom: spacing.xs },
-  headline: { ...typography.body, color: colors.textInverse, marginBottom: spacing.xs },
-  location: { ...typography.small, color: '#cbd5e1', marginBottom: spacing.md },
-  badgeRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', marginBottom: spacing.md },
+  nameRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, marginBottom: spacing.xxs },
+  name: { ...typography.h2, color: colors.textInverse },
+  headline: { ...typography.body, color: 'rgba(255,255,255,0.85)', marginBottom: spacing.xs },
+  locationRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: spacing.md },
+  location: { ...typography.small, color: 'rgba(255,255,255,0.6)' },
+  badgeRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', marginBottom: spacing.md, gap: spacing.xs },
   statsRow: {
     flexDirection: 'row',
     justifyContent: 'space-around',
@@ -136,17 +174,27 @@ const styles = StyleSheet.create({
   },
   statCol: { alignItems: 'center', flex: 1 },
   statValue: { ...typography.h3, color: colors.textInverse },
-  statLabel: { ...typography.caption, color: '#cbd5e1' },
+  statLabel: { ...typography.small, color: 'rgba(255,255,255,0.6)' },
+  editBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.3)',
+    marginTop: spacing.md,
+  },
+  editBtnLabel: { ...typography.bodyBold, color: colors.textInverse },
   actionRow: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md, width: '100%' },
   actionBtn: {
     flex: 1,
     height: 44,
-    borderRadius: radius.md,
+    borderRadius: radius.pill,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  actionPrimary: { backgroundColor: colors.primary },
-  actionPrimaryLabel: { ...typography.bodyBold, color: colors.textInverse },
   actionOutline: { borderWidth: 1, borderColor: colors.textInverse },
   actionOutlineLabel: { ...typography.bodyBold, color: colors.textInverse },
   tabBar: {
@@ -160,13 +208,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: spacing.md,
   },
-  tabLabel: { ...typography.bodyBold, color: colors.textSecondary },
-  tabLabelActive: { color: colors.primary },
+  tabLabel: { ...typography.bodyBold, color: colors.textMuted },
+  tabLabelActive: { color: colors.orange },
   tabUnderline: {
     position: 'absolute',
     bottom: 0,
     height: 2,
     width: '60%',
-    backgroundColor: colors.primary,
+    backgroundColor: colors.orange,
   },
 });

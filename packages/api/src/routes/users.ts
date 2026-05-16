@@ -1,11 +1,13 @@
 import {
   certificationInputSchema,
+  licenseInputSchema,
   portfolioPhotoInputSchema,
   setSkillsInputSchema,
   setTradesInputSchema,
   userSettingsInputSchema,
   workHistoryInputSchema,
   workerProfileInputSchema,
+  workplaceVerifyInputSchema,
 } from '@blubranch/shared';
 import type { FastifyInstance } from 'fastify';
 import { requireAuth } from '../auth/middleware.js';
@@ -29,6 +31,8 @@ export async function userRoutes(app: FastifyInstance): Promise<void> {
         certifications: true,
         portfolioPhotos: { orderBy: { sortOrder: 'asc' } },
         workHistory: { orderBy: { startDate: 'desc' } },
+        licenses: { orderBy: { createdAt: 'desc' } },
+        workPlaces: { orderBy: { startDate: 'desc' } },
       },
     });
     if (!user) return reply.code(404).send({ error: 'NotFound' });
@@ -41,6 +45,8 @@ export async function userRoutes(app: FastifyInstance): Promise<void> {
       certifications: user.certifications,
       portfolioPhotos: user.portfolioPhotos,
       workHistory: user.workHistory,
+      licenses: user.licenses,
+      workPlaces: user.workPlaces,
     });
   });
 
@@ -263,10 +269,112 @@ export async function userRoutes(app: FastifyInstance): Promise<void> {
     return reply.send(settings);
   });
 
+  // ── POST /users/me/licenses ──────────────────────────────────
+  app.post('/users/me/licenses', { preHandler: requireAuth }, async (request, reply) => {
+    const data = parseBody(licenseInputSchema, request, reply);
+    if (!data) return;
+    const license = await prisma.license.create({
+      data: {
+        userId: request.user!.id,
+        type: data.type,
+        number: data.number,
+        issuingState: data.issuingState.toUpperCase(),
+        expiresAt: data.expiresAt ?? null,
+        status: 'pending',
+      },
+    });
+    return reply.code(201).send(license);
+  });
+
+  // ── POST /users/me/workplaces ───────────────────────────────
+  app.post('/users/me/workplaces', { preHandler: requireAuth }, async (request, reply) => {
+    const data = parseBody(workplaceVerifyInputSchema, request, reply);
+    if (!data) return;
+    const wp = await prisma.workPlace.create({
+      data: {
+        userId: request.user!.id,
+        companyName: data.companyName,
+        role: data.role,
+        startDate: data.startDate ?? null,
+        endDate: data.endDate ?? null,
+        current: data.current,
+        location: data.location ?? null,
+        verificationEmail: data.verificationEmail ?? null,
+        status: data.verificationEmail ? 'pending' : 'pending',
+        verificationMethod: data.verificationEmail ? 'email' : null,
+      },
+    });
+    return reply.code(201).send(wp);
+  });
+
+  // ── GET /u/:slug (public profile by slug) ───────────────────
+  app.get<{ Params: { slug: string } }>('/u/:slug', async (request, reply) => {
+    const user = await prisma.user.findFirst({
+      where: { slug: request.params.slug },
+      include: {
+        workerProfile: true,
+        trades: { include: { trade: true } },
+        skills: { include: { skill: true } },
+        certifications: true,
+        licenses: { where: { status: 'verified' } },
+        portfolioPhotos: { orderBy: { sortOrder: 'asc' } },
+        workHistory: { orderBy: { startDate: 'desc' } },
+        endorsementsReceived: { orderBy: { createdAt: 'desc' }, take: 20 },
+        settings: true,
+      },
+    });
+    if (!user) return reply.code(404).send({ error: 'NotFound' });
+
+    const showRate = user.settings?.showHourlyRate ?? false;
+    const showUnion = user.settings?.showUnion ?? true;
+
+    const stats = await Promise.all([
+      prisma.connection.count({
+        where: {
+          status: 'accepted',
+          OR: [{ requesterId: user.id }, { receiverId: user.id }],
+        },
+      }),
+      prisma.post.count({ where: { userId: user.id } }),
+      prisma.endorsement.count({ where: { endorsedId: user.id } }),
+    ]);
+
+    return reply.send({
+      id: user.id,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      profilePhotoUrl: user.profilePhotoUrl,
+      role: user.role,
+      isVerified: user.isVerified,
+      slug: user.slug,
+      workerProfile: user.workerProfile
+        ? {
+            ...user.workerProfile,
+            hourlyRate: showRate ? user.workerProfile.hourlyRate : null,
+            unionName: showUnion ? user.workerProfile.unionName : null,
+          }
+        : null,
+      trades: user.trades.map((t) => t.trade),
+      skills: user.skills.map((s) => s.skill),
+      certifications: user.certifications,
+      licenses: user.licenses,
+      portfolioPhotos: user.portfolioPhotos,
+      workHistory: user.workHistory,
+      endorsements: user.endorsementsReceived,
+      stats: {
+        connections: stats[0],
+        posts: stats[1],
+        endorsements: stats[2],
+        rating: 0,
+      },
+    });
+  });
+
   // ── Reference: trades + skills + benefits ───────────────────────
   app.get('/reference/trades', async () => {
-    const trades = await prisma.trade.findMany({ orderBy: { name: 'asc' } });
-    return trades;
+    return prisma.trade.findMany({
+      orderBy: [{ isPopular: 'desc' }, { name: 'asc' }],
+    });
   });
 
   app.get<{ Querystring: { tradeId?: string } }>('/reference/skills', async (request) => {

@@ -7,6 +7,7 @@ import type {
   JobApplyInput,
   JobInput,
   JobUpdate,
+  LicenseInput,
   LoginInput,
   PortfolioPhotoInput,
   PostCommentInput,
@@ -17,6 +18,7 @@ import type {
   UserSettingsInput,
   WorkHistoryInput,
   WorkerProfileInput,
+  WorkplaceVerifyInput,
 } from '@blubranch/shared';
 import { Platform } from 'react-native';
 
@@ -137,11 +139,16 @@ export const me = {
     }),
   updateSettings: (input: UserSettingsInput) =>
     request<unknown>('/users/me/settings', { method: 'PUT', body: JSON.stringify(input) }),
+  addLicense: (input: LicenseInput) =>
+    request<LicenseRecord>('/users/me/licenses', { method: 'POST', body: JSON.stringify(input) }),
+  addWorkplace: (input: WorkplaceVerifyInput) =>
+    request<WorkplaceRecord>('/users/me/workplaces', { method: 'POST', body: JSON.stringify(input) }),
 };
 
 // ── Public profile ──────────────────────────────────────────────
 export const users = {
   get: (id: string) => request<PublicProfile>(`/users/${id}`),
+  getBySlug: (slug: string) => request<PublicProfile>(`/u/${slug}`),
 };
 
 // ── Reference ───────────────────────────────────────────────────
@@ -168,6 +175,33 @@ export async function uploadImage(uri: string, filename = 'upload.jpg'): Promise
 }
 
 // ── Response shapes (loose — mirrors API output) ────────────────
+export interface LicenseRecord {
+  id: string;
+  type: string;
+  number: string;
+  issuingState: string;
+  expiresAt: string | null;
+  status: 'pending' | 'verified' | 'rejected' | 'expired';
+  verificationMethod: string | null;
+  verifiedAt: string | null;
+  createdAt: string;
+}
+
+export interface WorkplaceRecord {
+  id: string;
+  companyName: string;
+  role: string;
+  startDate: string | null;
+  endDate: string | null;
+  current: boolean;
+  location: string | null;
+  status: 'pending' | 'verified' | 'rejected' | 'expired';
+  verificationMethod: string | null;
+  verifiedAt: string | null;
+  verificationEmail: string | null;
+  createdAt: string;
+}
+
 export interface MeResponse {
   id: string;
   firstName: string;
@@ -178,6 +212,7 @@ export interface MeResponse {
   authProvider: string;
   profilePhotoUrl: string | null;
   isVerified: boolean;
+  emailVerified?: boolean;
   workerProfile: WorkerProfileFields | null;
   settings: {
     openToWork: boolean;
@@ -203,6 +238,8 @@ export interface MeResponse {
     endDate: string | null;
     isCurrent: boolean;
   }[];
+  licenses: LicenseRecord[];
+  workPlaces: WorkplaceRecord[];
 }
 
 export interface WorkerProfileFields {

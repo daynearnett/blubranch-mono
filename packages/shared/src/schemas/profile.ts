@@ -70,3 +70,24 @@ export const userSettingsInputSchema = z.object({
   jobAlerts: z.boolean().optional(),
 });
 export type UserSettingsInput = z.infer<typeof userSettingsInputSchema>;
+
+// ── License verification ──────────────────────────────────────
+export const licenseInputSchema = z.object({
+  type: z.string().min(1).max(200),
+  number: z.string().min(1).max(100),
+  issuingState: z.string().length(2),
+  expiresAt: z.coerce.date().optional().nullable(),
+});
+export type LicenseInput = z.infer<typeof licenseInputSchema>;
+
+// ── Workplace verification ────────────────────────────────────
+export const workplaceVerifyInputSchema = z.object({
+  companyName: z.string().min(1).max(200),
+  role: z.string().min(1).max(200),
+  startDate: z.coerce.date().optional().nullable(),
+  endDate: z.coerce.date().optional().nullable(),
+  current: z.boolean().default(false),
+  location: z.string().max(200).optional().nullable(),
+  verificationEmail: z.string().email().max(255).optional().nullable(),
+});
+export type WorkplaceVerifyInput = z.infer<typeof workplaceVerifyInputSchema>;
