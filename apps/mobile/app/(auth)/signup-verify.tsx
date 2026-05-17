@@ -18,7 +18,18 @@ export default function SignupVerify() {
   const inputRefs = useRef<(TextInput | null)[]>([]);
 
   useEffect(() => {
-    auth.sendVerificationEmail(draft.email).catch(() => {});
+    auth.sendVerificationEmail(draft.email).then(async (res) => {
+      if (res.devCode) {
+        setDigits(res.devCode.split(''));
+        try {
+          const { verified } = await auth.verifyEmailCode(draft.email, res.devCode);
+          if (verified) {
+            update({ emailVerified: true });
+            router.push('/(auth)/signup-location');
+          }
+        } catch { /* user can still enter manually */ }
+      }
+    }).catch(() => {});
     setResendCooldown(30);
   }, [draft.email]);
 
