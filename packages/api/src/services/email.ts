@@ -1,7 +1,11 @@
 import { Resend } from 'resend';
 import { randomInt } from 'node:crypto';
 
-const resend = new Resend(process.env.RESEND_API_KEY ?? '');
+let _resend: Resend | null = null;
+function getResend(): Resend {
+  if (!_resend) _resend = new Resend(process.env.RESEND_API_KEY!);
+  return _resend;
+}
 
 const FROM_ADDRESS = process.env.EMAIL_FROM ?? 'BluBranch <noreply@blubranch.com>';
 
@@ -31,7 +35,7 @@ export async function sendVerificationEmail(email: string, code: string): Promis
     return;
   }
 
-  await resend.emails.send({
+  await getResend().emails.send({
     from: FROM_ADDRESS,
     to: email,
     subject: 'Your BluBranch verification code',
