@@ -184,7 +184,7 @@ model WorkerProfile {
   city                String          @db.VarChar(100)
   state               String          @db.VarChar(50)
   zipCode             String          @map("zip_code") @db.VarChar(10)
-  // location is geography(Point, 4326) — added via raw SQL in migration; PostGIS GiST index also added there.
+  // geo is geography(Point, 4326) — added via raw SQL in migration; PostGIS GiST index also added there.
   travelRadiusMiles   Int             @map("travel_radius_miles")
   jobAvailability     JobAvailability @map("job_availability")
   unionName           String?         @map("union_name") @db.VarChar(200)
@@ -339,7 +339,8 @@ model Job {
   payMax                 Decimal     @map("pay_max") @db.Decimal(8, 2)
   jobType                JobType     @map("job_type")
   workSetting            WorkSetting @map("work_setting")
-  // location is geography(Point, 4326) — added via raw SQL in migration; PostGIS GiST index also added there.
+  // geo is geography(Point, 4326) — added via raw SQL in migration; PostGIS GiST index also added there.
+  // (Distinct from the human-readable `location` VARCHAR below, added in phase_3_5.)
   city                   String      @db.VarChar(100)
   state                  String      @db.VarChar(50)
   zipCode                String      @map("zip_code") @db.VarChar(10)

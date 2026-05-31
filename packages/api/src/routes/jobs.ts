@@ -137,9 +137,9 @@ export async function jobRoutes(app: FastifyInstance): Promise<void> {
     if (useGeo) {
       const meters = q.radius * MILES_TO_METERS;
       const point = Prisma.sql`ST_SetSRID(ST_MakePoint(${q.lng}, ${q.lat}), 4326)::geography`;
-      distanceSelect = Prisma.sql`(ST_Distance(j."location", ${point}) / ${MILES_TO_METERS}) AS distance_miles`;
+      distanceSelect = Prisma.sql`(ST_Distance(j."geo", ${point}) / ${MILES_TO_METERS}) AS distance_miles`;
       conditions.push(
-        Prisma.sql`j."location" IS NOT NULL AND ST_DWithin(j."location", ${point}, ${meters})`,
+        Prisma.sql`j."geo" IS NOT NULL AND ST_DWithin(j."geo", ${point}, ${meters})`,
       );
     }
 
