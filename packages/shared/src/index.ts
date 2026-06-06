@@ -7,4 +7,6 @@ export * from './schemas/profile.js';
 export * from './schemas/post.js';
 export * from './schemas/connection.js';
 export * from './schemas/search.js';
+export * from './schemas/message.js';
+export * from './schemas/notification.js';
 export * from './reference.js';

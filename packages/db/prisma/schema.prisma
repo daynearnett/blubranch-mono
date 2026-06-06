@@ -167,6 +167,10 @@ model User {
   bookmarkedJobs BookmarkedJob[]
   searchLogs     SearchLog[]
 
+  // Phase 4 — notifications & device tokens
+  notifications  Notification[]
+  deviceTokens   DeviceToken[]
+
   @@index([role])
   @@map("users")
 }
@@ -203,13 +207,18 @@ model WorkerProfile {
 }
 
 model UserSettings {
-  userId         String  @id @map("user_id") @db.Uuid
-  user           User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  openToWork     Boolean @default(true) @map("open_to_work")
-  showHourlyRate Boolean @default(false) @map("show_hourly_rate")
-  showUnion      Boolean @default(true) @map("show_union")
-  financialTips  Boolean @default(true) @map("financial_tips")
-  jobAlerts      Boolean @default(true) @map("job_alerts")
+  userId                    String  @id @map("user_id") @db.Uuid
+  user                      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  openToWork                Boolean @default(true) @map("open_to_work")
+  showHourlyRate            Boolean @default(false) @map("show_hourly_rate")
+  showUnion                 Boolean @default(true) @map("show_union")
+  financialTips             Boolean @default(true) @map("financial_tips")
+  jobAlerts                 Boolean @default(true) @map("job_alerts")
+  // Phase 4 — notification preferences
+  notifyMessages            Boolean @default(true) @map("notify_messages")
+  notifyConnectionRequests  Boolean @default(true) @map("notify_connection_requests")
+  notifyApplicationStatus   Boolean @default(true) @map("notify_application_status")
+  notifyJobMatch            Boolean @default(true) @map("notify_job_match")
 
   @@map("user_settings")
 }
@@ -590,4 +599,50 @@ model Message {
 
   @@index([conversationId, createdAt])
   @@map("messages")
+}
+
+// ───────────────────────────── Phase 4: Notifications ─────────────────────────────
+
+enum NotificationType {
+  new_message
+  connection_request
+  connection_accepted
+  application_status
+  job_match
+}
+
+model Notification {
+  id        String           @id @default(uuid()) @db.Uuid
+  userId    String           @map("user_id") @db.Uuid
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      NotificationType
+  title     String           @db.VarChar(200)
+  body      String           @db.VarChar(500)
+  data      Json?            @db.JsonB
+  readAt    DateTime?        @map("read_at")
+  createdAt DateTime         @default(now()) @map("created_at")
+
+  @@index([userId, createdAt])
+  @@index([userId, readAt])
+  @@map("notifications")
+}
+
+// ───────────────────────────── Phase 4: Device tokens (FCM push) ─────────────────────────────
+
+enum DevicePlatform {
+  ios
+  android
+  web
+}
+
+model DeviceToken {
+  id        String         @id @default(uuid()) @db.Uuid
+  userId    String         @map("user_id") @db.Uuid
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String         @unique @db.VarChar(500)
+  platform  DevicePlatform
+  createdAt DateTime       @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@map("device_tokens")
 }

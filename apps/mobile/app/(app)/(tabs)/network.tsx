@@ -11,7 +11,7 @@ import {
   View,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Check, Search, UserPlus, Users, X } from 'lucide-react-native';
+import { Check, MessageSquare, Search, UserPlus, Users, X } from 'lucide-react-native';
 import { TopSearchBar } from '../../../src/components/top-search-bar.js';
 import { Button } from '../../../src/components/ui.js';
 import { VerifiedBadge } from '../../../src/components/verified-badge.js';
@@ -155,6 +155,7 @@ export default function NetworkTab() {
             searchQuery={searchQuery}
             onSearch={handleSearch}
             onViewProfile={(id) => router.push(`/users/${id}`)}
+            onMessage={(userId) => router.push(`/(app)/new-chat/${userId}`)}
           />
         )}
       </ScrollView>
@@ -261,11 +262,13 @@ function ConnectionsSection({
   searchQuery,
   onSearch,
   onViewProfile,
+  onMessage,
 }: {
   items: ConnectionItem[];
   searchQuery: string;
   onSearch: (text: string) => void;
   onViewProfile: (id: string) => void;
+  onMessage: (userId: string) => void;
 }) {
   return (
     <View>
@@ -307,6 +310,14 @@ function ConnectionsSection({
                 {item.user.headline || item.user.trade || ''}
               </Text>
             </View>
+            <Pressable
+              style={styles.quickMsgBtn}
+              onPress={() => onMessage(item.user.id)}
+              accessibilityLabel={`Message ${item.user.firstName}`}
+              accessibilityRole="button"
+            >
+              <MessageSquare color={colors.orange} size={18} strokeWidth={2} />
+            </Pressable>
           </Pressable>
         ))
       )}
@@ -392,6 +403,15 @@ const styles = StyleSheet.create({
     borderColor: colors.orange,
   },
   connectLabel: { ...typography.small, color: colors.orange, fontWeight: '600' },
+  quickMsgBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.chipBgActive,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: spacing.sm,
+  },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',

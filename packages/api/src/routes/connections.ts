@@ -3,6 +3,7 @@ import type { FastifyInstance } from 'fastify';
 import { requireAuth } from '../auth/middleware.js';
 import { getPrisma } from '../lib/prisma.js';
 import { parseBody } from '../lib/validate.js';
+import { sendNotification } from '../services/push.js';
 
 export async function connectionRoutes(app: FastifyInstance): Promise<void> {
   const prisma = getPrisma();
@@ -181,6 +182,19 @@ export async function connectionRoutes(app: FastifyInstance): Promise<void> {
       data: { requesterId: userId, receiverId: data.receiverId, status: 'pending' },
     });
 
+    // Push notification to receiver (non-blocking).
+    const requester = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { firstName: true, lastName: true },
+    });
+    sendNotification({
+      userId: data.receiverId,
+      type: 'connection_request',
+      title: 'New connection request',
+      body: `${requester?.firstName ?? 'Someone'} ${requester?.lastName ?? ''} wants to connect`.trim(),
+      data: { connectionId: connection.id, requesterId: userId },
+    }).catch(() => {});
+
     return reply.code(201).send(connection);
   });
 
@@ -205,6 +219,19 @@ export async function connectionRoutes(app: FastifyInstance): Promise<void> {
         where: { id: connection.id },
         data: { status: 'accepted' },
       });
+
+      // Push notification to requester that their request was accepted.
+      const accepter = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { firstName: true, lastName: true },
+      });
+      sendNotification({
+        userId: connection.requesterId,
+        type: 'connection_accepted',
+        title: 'Connection accepted',
+        body: `${accepter?.firstName ?? 'Someone'} ${accepter?.lastName ?? ''} accepted your connection request`.trim(),
+        data: { connectionId: connection.id },
+      }).catch(() => {});
 
       return reply.send(updated);
     },

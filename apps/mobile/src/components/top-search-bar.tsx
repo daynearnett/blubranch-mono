@@ -44,7 +44,7 @@ export function TopSearchBar({
 
       <Pressable
         style={styles.msgButton}
-        onPress={() => {/* TODO: navigate to messages */}}
+        onPress={() => router.push('/(app)/messages')}
         accessibilityLabel={`Messages${unreadMessages > 0 ? `, ${unreadMessages} unread` : ''}`}
         accessibilityRole="button"
       >

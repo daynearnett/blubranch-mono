@@ -74,3 +74,16 @@ coverage/
 
 # Stray zip files (downloads, build artifacts)
 *.zip
+
+# ── Firebase (Phase 4 push notifications) ──────────────────────────
+# Service-account keys are SENSITIVE — never commit. Belt-and-suspenders
+# patterns so an accidental drop into the repo is ignored.
+*firebase-adminsdk*.json
+**/firebase-service-account.json
+# NOTE: google-services.json + GoogleService-Info.plist ARE committed on
+# purpose — Firebase *client* API keys are restricted by bundle ID +
+# Security Rules and are safe in client code; EAS builds need them present.
+
+# Claude Code local files
+.claude/settings.local.json
+.claude/worktrees/

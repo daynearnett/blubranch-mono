@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1021030466216",
+    "project_id": "blubranch-2e582",
+    "storage_bucket": "blubranch-2e582.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1021030466216:android:e5f419947ebd86be84b89d",
+        "android_client_info": {
+          "package_name": "com.blubranch.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDm8IFcvm4ro1L-5ucafdnbywda3pRiTA8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

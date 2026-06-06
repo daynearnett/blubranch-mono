@@ -21,6 +21,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { useRouter } from 'expo-router';
 import { Button } from './ui.js';
 import { ApiError, jobs as jobsApi } from '../lib/api.js';
 import { colors, radius, spacing, typography } from '../theme.js';
@@ -42,6 +43,7 @@ interface Props {
 }
 
 export function QuickApplyModal({ visible, job, onClose, onApplied }: Props) {
+  const router = useRouter();
   const [message, setMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -65,6 +67,15 @@ export function QuickApplyModal({ visible, job, onClose, onApplied }: Props) {
       onApplied?.(job);
       onClose();
     } catch (err) {
+      if (err instanceof ApiError && err.status === 403 && err.message.includes('verify your phone')) {
+        // Phone verification required — close the modal and navigate to verify screen.
+        onClose();
+        router.push({
+          pathname: '/(app)/verify-phone',
+          params: { returnTo: job.id },
+        });
+        return;
+      }
       setError(err instanceof ApiError ? err.message : 'Could not apply');
     } finally {
       setSubmitting(false);

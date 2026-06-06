@@ -592,6 +592,103 @@ export const connections = {
   suggestions: () => request<NetworkSuggestion[]>('/network/suggestions'),
 };
 
+// ── Messages ──────────────────────────────────────────────────────
+
+export interface ConversationPreview {
+  id: string;
+  otherUser: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    profilePhotoUrl: string | null;
+  };
+  lastMessage: {
+    id: string;
+    content: string;
+    senderId: string;
+    createdAt: string;
+    readAt: string | null;
+  } | null;
+  unreadCount: number;
+  updatedAt: string;
+}
+
+export interface MessageItem {
+  id: string;
+  content: string;
+  senderId: string;
+  createdAt: string;
+  readAt: string | null;
+}
+
+export interface NotificationItem {
+  id: string;
+  type: string;
+  title: string;
+  body: string;
+  data: Record<string, unknown> | null;
+  readAt: string | null;
+  createdAt: string;
+}
+
+export const messages = {
+  conversations: (params?: { page?: number; limit?: number }) => {
+    const q = new URLSearchParams();
+    if (params?.page) q.set('page', String(params.page));
+    if (params?.limit) q.set('limit', String(params.limit));
+    return request<{ conversations: ConversationPreview[] }>(`/conversations?${q.toString()}`);
+  },
+  thread: (conversationId: string, params?: { cursor?: string; limit?: number }) => {
+    const q = new URLSearchParams();
+    if (params?.cursor) q.set('cursor', params.cursor);
+    if (params?.limit) q.set('limit', String(params.limit));
+    return request<{ messages: MessageItem[]; nextCursor?: string }>(
+      `/conversations/${conversationId}/messages?${q.toString()}`,
+    );
+  },
+  send: (conversationId: string, content: string) =>
+    request<{ message: MessageItem }>(`/conversations/${conversationId}/messages`, {
+      method: 'POST',
+      body: JSON.stringify({ content }),
+    }),
+  startConversation: (recipientId: string, content: string) =>
+    request<{ conversation: { id: string }; message: MessageItem }>('/messages', {
+      method: 'POST',
+      body: JSON.stringify({ recipientId, content }),
+    }),
+  markRead: (conversationId: string) =>
+    request<{ readCount: number }>(`/conversations/${conversationId}/read`, { method: 'PUT' }),
+  unreadCount: () => request<{ unreadCount: number }>('/messages/unread-count'),
+};
+
+export const notifications = {
+  list: (params?: { page?: number; unreadOnly?: boolean }) => {
+    const q = new URLSearchParams();
+    if (params?.page) q.set('page', String(params.page));
+    if (params?.unreadOnly) q.set('unreadOnly', 'true');
+    return request<{ notifications: NotificationItem[]; total: number }>(`/notifications?${q.toString()}`);
+  },
+  unreadCount: () => request<{ unreadCount: number }>('/notifications/unread-count'),
+  markRead: (id: string) =>
+    request<{ notification: NotificationItem }>(`/notifications/${id}/read`, { method: 'PUT' }),
+  markAllRead: () =>
+    request<{ readCount: number }>('/notifications/read-all', { method: 'PUT' }),
+  registerDevice: (token: string, platform: 'ios' | 'android' | 'web') =>
+    request<unknown>('/devices/register', {
+      method: 'POST',
+      body: JSON.stringify({ token, platform }),
+    }),
+  removeDevice: (token: string) =>
+    request<void>(`/devices/${encodeURIComponent(token)}`, { method: 'DELETE' }),
+  updatePreferences: (prefs: {
+    notifyMessages?: boolean;
+    notifyConnectionRequests?: boolean;
+    notifyApplicationStatus?: boolean;
+    notifyJobMatch?: boolean;
+  }) =>
+    request<unknown>('/settings/notifications', { method: 'PUT', body: JSON.stringify(prefs) }),
+};
+
 // ── Search ──────────────────────────────────────────────────────
 
 export interface SearchResult<T> {

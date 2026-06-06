@@ -130,7 +130,10 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
       return reply.code(400).send({ error: 'BadRequest', message: 'Invalid or expired code' });
     }
     // Mark any user with this phone as verified.
-    await prisma.user.updateMany({ where: { phone: data.phone }, data: { isVerified: true } });
+    await prisma.user.updateMany({
+      where: { phone: data.phone },
+      data: { isVerified: true, phoneVerified: true },
+    });
     return reply.send({ verified: true });
   });
 

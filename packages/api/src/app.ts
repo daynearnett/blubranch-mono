@@ -4,7 +4,8 @@ import sensible from '@fastify/sensible';
 import Fastify, { type FastifyInstance } from 'fastify';
 import { extractUser } from './auth/middleware.js';
 import { registerSecurity } from './lib/security.js';
-import { startExpireCron } from './jobs/expire-cron.js';
+import { startWorkers } from './jobs/worker-setup.js';
+import { closeQueues } from './lib/queue.js';
 import { applicationRoutes } from './routes/applications.js';
 import { authRoutes } from './routes/auth.js';
 import { companyRoutes } from './routes/companies.js';
@@ -13,6 +14,8 @@ import { postRoutes } from './routes/posts.js';
 import { uploadRoutes } from './routes/upload.js';
 import { connectionRoutes } from './routes/connections.js';
 import { userRoutes } from './routes/users.js';
+import { messageRoutes } from './routes/messages.js';
+import { notificationRoutes } from './routes/notifications.js';
 
 // Origins that may call this API. Native iOS / Android apps don't send the
 // Origin header so we let those through unconditionally (the `if (!origin)`
@@ -73,13 +76,15 @@ export async function buildApp(): Promise<FastifyInstance> {
   await app.register(applicationRoutes);
   await app.register(connectionRoutes);
   await app.register(postRoutes);
+  await app.register(messageRoutes);
+  await app.register(notificationRoutes);
   await app.register(uploadRoutes);
 
-  // Hourly tick to flip expired jobs. Stop on graceful shutdown so tests
-  // don't keep an interval alive.
+  // BullMQ workers + repeatable job schedules (expire-jobs hourly,
+  // license-expiration nightly). Skip in test env to avoid Redis dependency.
   if (process.env.NODE_ENV !== 'test') {
-    const stopCron = startExpireCron(app);
-    app.addHook('onClose', async () => stopCron());
+    await startWorkers();
+    app.addHook('onClose', async () => closeQueues());
   }
 
   return app;

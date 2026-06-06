@@ -7,6 +7,7 @@ import type { FastifyInstance } from 'fastify';
 import { requireAuth, requireRole } from '../auth/middleware.js';
 import { getPrisma } from '../lib/prisma.js';
 import { parseBody } from '../lib/validate.js';
+import { sendNotification } from '../services/push.js';
 
 export async function applicationRoutes(app: FastifyInstance): Promise<void> {
   const prisma = getPrisma();
@@ -19,6 +20,21 @@ export async function applicationRoutes(app: FastifyInstance): Promise<void> {
     async (request, reply) => {
       const data = parseBody(jobApplyInputSchema, request, reply);
       if (!data) return;
+
+      // Phone-verification gate: workers must verify their phone number
+      // before they can apply to jobs. This prevents spam applications and
+      // ensures employers can reach applicants.
+      const applicant = await prisma.user.findUnique({
+        where: { id: request.user!.id },
+        select: { phoneVerified: true, phone: true },
+      });
+      if (!applicant?.phoneVerified) {
+        return reply.code(403).send({
+          error: 'PhoneVerificationRequired',
+          message: 'Please verify your phone number before applying to jobs',
+          hasPhone: !!applicant?.phone,
+        });
+      }
 
       const job = await prisma.job.findUnique({ where: { id: request.params.id } });
       if (!job) return reply.code(404).send({ error: 'NotFound' });
@@ -115,10 +131,31 @@ export async function applicationRoutes(app: FastifyInstance): Promise<void> {
       ) {
         return reply.code(403).send({ error: 'Forbidden' });
       }
-      return prisma.jobApplication.update({
+      const updated = await prisma.jobApplication.update({
         where: { id: application.id },
         data: { status: data.status },
       });
+
+      // Push notification to the worker about their application status change.
+      const statusLabels: Record<string, string> = {
+        reviewed: 'is being reviewed',
+        shortlisted: 'has been shortlisted',
+        hired: 'resulted in a hire! Congratulations',
+        rejected: 'was not selected',
+      };
+      sendNotification({
+        userId: application.workerId,
+        type: 'application_status',
+        title: `Application update: ${application.job.title}`,
+        body: `Your application ${statusLabels[data.status] ?? 'has been updated'}`,
+        data: {
+          jobId: application.jobId,
+          applicationId: application.id,
+          newStatus: data.status,
+        },
+      }).catch(() => {});
+
+      return updated;
     },
   );
 
