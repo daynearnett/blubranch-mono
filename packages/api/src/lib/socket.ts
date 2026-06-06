@@ -1,8 +1,9 @@
 import { Server as HttpServer } from 'node:http';
 import { Server, type Socket } from 'socket.io';
 import { createAdapter } from '@socket.io/redis-adapter';
+import type { Redis } from 'ioredis';
 import { verifyAccessToken } from '../auth/jwt.js';
-import { getRedis, createRedisClient } from './redis.js';
+import { createRedisClient } from './redis.js';
 import { registerMessageHandlers } from '../socket/message-handlers.js';
 import { registerPresenceHandlers } from '../socket/presence-handlers.js';
 
@@ -12,6 +13,8 @@ export interface AuthenticatedSocket extends Socket {
 }
 
 let io: Server | null = null;
+let adapterPub: Redis | null = null;
+let adapterSub: Redis | null = null;
 
 /**
  * Attach Socket.io to an existing HTTP server. Called once during app
@@ -21,7 +24,7 @@ let io: Server | null = null;
  * (via Socket.io) — no second port needed. Socket.io's upgrade
  * handshake intercepts WebSocket requests before Fastify sees them.
  */
-export function setupSocketIO(httpServer: HttpServer): Server {
+export async function setupSocketIO(httpServer: HttpServer): Promise<Server> {
   io = new Server(httpServer, {
     cors: {
       origin: (origin, cb) => {
@@ -44,15 +47,28 @@ export function setupSocketIO(httpServer: HttpServer): Server {
     pingTimeout: 20000,
   });
 
-  // Wire up Redis adapter for horizontal scaling. If Redis isn't
-  // reachable the adapter silently falls back to in-process pub/sub
-  // (single-instance mode) — fine for staging/dev.
+  // Wire up the Redis adapter for horizontal scaling — but ONLY if Redis
+  // actually connects. The adapter does NOT auto-fallback: handing it
+  // unreachable clients makes every emit throw and crashes the process.
+  // When Redis is absent (local dev / Redis outage), we leave Socket.io's
+  // built-in in-memory adapter in place, which is correct for a single
+  // instance. Uses dedicated pub/sub clients (not the shared singleton) so
+  // their lifecycle is fully owned here.
   try {
-    const pubClient = getRedis();
-    const subClient = createRedisClient();
-    io.adapter(createAdapter(pubClient, subClient));
+    const pub = createRedisClient();
+    const sub = createRedisClient();
+    const connectTimeout = new Promise((_, rej) =>
+      setTimeout(() => rej(new Error('connect timeout')), 4000),
+    );
+    await Promise.race([Promise.all([pub.connect(), sub.connect()]), connectTimeout]);
+    io.adapter(createAdapter(pub, sub));
+    adapterPub = pub;
+    adapterSub = sub;
+    console.log('[Socket.io] Redis adapter active (horizontal scaling enabled)');
   } catch (err) {
-    console.warn('[Socket.io] Redis adapter setup failed, using in-memory adapter:', err);
+    console.warn(
+      `[Socket.io] Redis unavailable — using in-memory adapter (single-instance): ${(err as Error).message}`,
+    );
   }
 
   // ── JWT authentication middleware ────────────────────────────────
@@ -109,4 +125,9 @@ export async function closeSocketIO(): Promise<void> {
     await new Promise<void>((resolve) => io!.close(() => resolve()));
     io = null;
   }
+  // Quit the dedicated adapter pub/sub clients if they were connected.
+  await adapterPub?.quit().catch(() => {});
+  await adapterSub?.quit().catch(() => {});
+  adapterPub = null;
+  adapterSub = null;
 }

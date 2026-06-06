@@ -39,12 +39,19 @@ export function getRedis(): Redis {
  */
 export function createRedisClient(): Redis {
   const url = process.env.REDIS_URL || 'redis://localhost:6379';
-  return new Redis(url, {
+  const client = new Redis(url, {
     maxRetriesPerRequest: null,
     enableReadyCheck: false,
-    retryStrategy: (times: number) => Math.min(times * 200, 5000),
+    connectTimeout: 3000, // fail fast if Redis isn't reachable
+    retryStrategy: (times: number) => (times > 3 ? null : Math.min(times * 200, 2000)),
     lazyConnect: true,
   });
+  // Always attach an error handler — an unhandled 'error' on an ioredis
+  // client (e.g. Redis goes away) otherwise crashes the process.
+  client.on('error', (err: Error) => {
+    console.error('[Redis] client error:', err.message);
+  });
+  return client;
 }
 
 /**
