@@ -180,8 +180,8 @@ export async function postRoutes(app: FastifyInstance): Promise<void> {
           c."id" AS company_id, c."name" AS company_name,
           t."name" AS trade_name, t."slug" AS trade_slug,
           (
-            CASE WHEN wp."location" IS NOT NULL AND j."location" IS NOT NULL
-              THEN ST_Distance(j."location", wp."location") / 1609.344
+            CASE WHEN wp."geo" IS NOT NULL AND j."geo" IS NOT NULL
+              THEN ST_Distance(j."geo", wp."geo") / 1609.344
               ELSE NULL
             END
           ) AS distance_miles

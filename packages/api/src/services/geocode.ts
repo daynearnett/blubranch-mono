@@ -103,6 +103,6 @@ export async function setGeographyPoint(
   // only — both names are checked against a closed enum above. The `$3::uuid`
   // cast is required because Prisma's extended protocol passes parameters as
   // text and Postgres doesn't auto-cast uuid columns.
-  const sql = `UPDATE "${table}" SET "location" = ST_SetSRID(ST_MakePoint($1, $2), 4326)::geography WHERE "${idColumn}" = $3::uuid`;
+  const sql = `UPDATE "${table}" SET "geo" = ST_SetSRID(ST_MakePoint($1, $2), 4326)::geography WHERE "${idColumn}" = $3::uuid`;
   await prisma.$executeRawUnsafe(sql, point.lng, point.lat, id);
 }
