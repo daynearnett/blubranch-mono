@@ -14,21 +14,23 @@ const port = Number(process.env.PORT) || 4000;
 
 const app = await buildApp();
 
+// Graceful shutdown — close Socket.io and Redis on SIGTERM/SIGINT.
+// MUST be registered BEFORE listen(): Fastify throws
+// FST_ERR_INSTANCE_ALREADY_LISTENING if addHook is called after the
+// instance is already listening.
+app.addHook('onClose', async () => {
+  await closeSocketIO();
+  await closeRedis();
+});
+
 try {
   await app.listen({ port, host });
 
-  // Attach Socket.io to Fastify's underlying HTTP server. Must be done
-  // AFTER listen() so the server exists. Socket.io intercepts WebSocket
-  // upgrade requests before Fastify; regular HTTP requests pass through
-  // to Fastify as usual.
+  // Attach Socket.io to Fastify's underlying HTTP server. Done AFTER
+  // listen() so the server exists. Socket.io intercepts WebSocket upgrade
+  // requests before Fastify; regular HTTP requests pass through as usual.
   await setupSocketIO(app.server);
   app.log.info('[Socket.io] attached to HTTP server');
-
-  // Graceful shutdown — close Socket.io and Redis on SIGTERM/SIGINT.
-  app.addHook('onClose', async () => {
-    await closeSocketIO();
-    await closeRedis();
-  });
 
   app.log.info(`BluBranch API listening on http://${host}:${port}`);
 } catch (err) {
