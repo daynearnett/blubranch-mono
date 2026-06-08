@@ -21,6 +21,7 @@
     },
     "preview": {
       "distribution": "store",
+      "autoIncrement": true,
       "ios": {
         "simulator": false,
         "resourceClass": "m-medium",
