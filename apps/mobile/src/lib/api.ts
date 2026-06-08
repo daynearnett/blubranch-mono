@@ -221,6 +221,12 @@ export interface MeResponse {
     showUnion: boolean;
     financialTips: boolean;
     jobAlerts: boolean;
+    notifyMessages: boolean;
+    notifyConnectionRequests: boolean;
+    notifyApplicationStatus: boolean;
+    notifyJobMatch: boolean;
+    notifyProfileViews: boolean;
+    notifyProfileNudges: boolean;
   } | null;
   trades: { id: number; name: string; slug: string }[];
   skills: { id: number; name: string; tradeId: number | null }[];

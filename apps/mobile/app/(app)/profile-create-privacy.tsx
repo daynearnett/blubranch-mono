@@ -56,6 +56,12 @@ export default function ProfileCreatePrivacy() {
     showUnion: true,
     financialTips: true,
     jobAlerts: true,
+    notifyMessages: true,
+    notifyConnectionRequests: true,
+    notifyApplicationStatus: true,
+    notifyJobMatch: true,
+    notifyProfileViews: true,
+    notifyProfileNudges: true,
   };
 
   const toggle = async (key: SettingsKey) => {

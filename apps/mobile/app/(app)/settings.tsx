@@ -72,7 +72,12 @@ export default function Settings() {
   ];
 
   const preferencesSection: SettingsRow[] = [
-    { key: 'notifications', icon: Bell, label: 'Notifications' },
+    {
+      key: 'notifications',
+      icon: Bell,
+      label: 'Notifications',
+      onPress: () => router.push('/(app)/notification-settings'),
+    },
     { key: 'language', icon: Globe, label: 'Language' },
   ];
 
