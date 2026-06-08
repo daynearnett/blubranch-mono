@@ -31,6 +31,8 @@ export async function sendNotification(params: {
       connection_accepted: settings.notifyConnectionRequests,
       application_status: settings.notifyApplicationStatus,
       job_match: settings.notifyJobMatch,
+      profile_view: settings.notifyProfileViews,
+      profile_nudge: settings.notifyProfileNudges,
     };
     if (prefMap[params.type] === false) {
       return;
@@ -131,4 +133,41 @@ export async function sendNotification(params: {
     console.error('[Push] FCM send failed:', err);
     // Don't throw — push failure shouldn't break the calling flow.
   }
+}
+
+/**
+ * Notify a user that someone viewed their profile. Throttled to at most one
+ * notification per (viewer → viewed) pair per 24h so frequent visitors don't
+ * spam the viewed user. Respects the notifyProfileViews preference (via
+ * sendNotification). Best-effort — callers should not await/block on it.
+ */
+export async function notifyProfileView(viewerId: string, viewedId: string): Promise<void> {
+  if (!viewerId || !viewedId || viewerId === viewedId) return;
+  const prisma = getPrisma();
+
+  const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+  const recent = await prisma.notification.findFirst({
+    where: {
+      userId: viewedId,
+      type: 'profile_view',
+      createdAt: { gte: since },
+      data: { path: ['viewerId'], equals: viewerId },
+    },
+    select: { id: true },
+  });
+  if (recent) return; // already notified about this viewer recently
+
+  const viewer = await prisma.user.findUnique({
+    where: { id: viewerId },
+    select: { firstName: true, lastName: true },
+  });
+  if (!viewer) return;
+
+  await sendNotification({
+    userId: viewedId,
+    type: 'profile_view',
+    title: 'Someone viewed your profile',
+    body: `${viewer.firstName} ${viewer.lastName} viewed your profile`,
+    data: { viewerId },
+  });
 }

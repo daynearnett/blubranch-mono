@@ -219,6 +219,8 @@ model UserSettings {
   notifyConnectionRequests  Boolean @default(true) @map("notify_connection_requests")
   notifyApplicationStatus   Boolean @default(true) @map("notify_application_status")
   notifyJobMatch            Boolean @default(true) @map("notify_job_match")
+  notifyProfileViews        Boolean @default(true) @map("notify_profile_views")
+  notifyProfileNudges       Boolean @default(true) @map("notify_profile_nudges")
 
   @@map("user_settings")
 }
@@ -610,6 +612,8 @@ enum NotificationType {
   connection_accepted
   application_status
   job_match
+  profile_view
+  profile_nudge
 }
 
 model Notification {

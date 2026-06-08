@@ -18,5 +18,7 @@ export const notificationPreferencesSchema = z.object({
   notifyConnectionRequests: z.boolean().optional(),
   notifyApplicationStatus: z.boolean().optional(),
   notifyJobMatch: z.boolean().optional(),
+  notifyProfileViews: z.boolean().optional(),
+  notifyProfileNudges: z.boolean().optional(),
 });
 export type NotificationPreferences = z.infer<typeof notificationPreferencesSchema>;

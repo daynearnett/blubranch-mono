@@ -15,6 +15,7 @@ import { getPrisma } from '../lib/prisma.js';
 import { serializeUser } from '../lib/serialize.js';
 import { parseBody } from '../lib/validate.js';
 import { geocodeAddress, setGeographyPoint } from '../services/geocode.js';
+import { notifyProfileView } from '../services/push.js';
 
 export async function userRoutes(app: FastifyInstance): Promise<void> {
   const prisma = getPrisma();
@@ -67,6 +68,10 @@ export async function userRoutes(app: FastifyInstance): Promise<void> {
       },
     });
     if (!user) return reply.code(404).send({ error: 'NotFound' });
+
+    // Profile-view notification (throttled, non-blocking). Fires only when an
+    // authenticated viewer looks at someone else's profile.
+    if (request.user?.id) notifyProfileView(request.user.id, user.id).catch(() => {});
 
     // Honor privacy toggles
     const showRate = user.settings?.showHourlyRate ?? false;
@@ -324,6 +329,9 @@ export async function userRoutes(app: FastifyInstance): Promise<void> {
       },
     });
     if (!user) return reply.code(404).send({ error: 'NotFound' });
+
+    // Profile-view notification (throttled, non-blocking).
+    if (request.user?.id) notifyProfileView(request.user.id, user.id).catch(() => {});
 
     const showRate = user.settings?.showHourlyRate ?? false;
     const showUnion = user.settings?.showUnion ?? true;
