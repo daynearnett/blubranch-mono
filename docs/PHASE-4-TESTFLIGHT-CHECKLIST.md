@@ -28,7 +28,9 @@
 - [ ] **Connection request**: A sends B a connection request → **B gets a push**.
 - [ ] **Connection accepted**: B accepts → **A gets a push**.
 - [ ] **Application status**: employer moves a worker's application to shortlisted/hired → **worker gets a push**.
-- [ ] **Preference gating**: in Settings → notifications, turn **off** message notifications → send a message → **no push** arrives (in-app message still works).
+- [ ] **Job match**: post a job (as employer) in a worker's trade + same city/state, with that worker "open to work" → within ~30 min (the match-scan interval) the worker gets a **"New {trade} job near you"** push. (Worker must not be "not looking" and must not have been notified about that job already.)
+- [ ] **Profile view**: open another user's profile while signed in → that user gets a **"{name} viewed your profile"** push (throttled to once per viewer per 24h; viewing your own profile does nothing).
+- [ ] **Preference gating**: in Settings → notifications, turn **off** message notifications → send a message → **no push** arrives (in-app message still works). _(Note: toggles for the new profile-view / profile-nudge prefs are API-side; mobile Settings UI for them is a pending add — they default on.)_
 
 ## 3. SMS apply-gate (Twilio)
 - [ ] As a worker who has **not** verified a phone number, tap **Quick Apply** on a job → app routes to the **verify-phone** screen (not the application).
