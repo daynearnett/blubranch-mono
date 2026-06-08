@@ -18,19 +18,15 @@
 [build]
 builder = "DOCKERFILE"
 dockerfilePath = "Dockerfile"
-# Trigger a rebuild only when files that affect the API image change.
-# Mobile / admin / docs changes don't need to redeploy the API.
-watchPatterns = [
-  "packages/api/**",
-  "packages/shared/**",
-  "packages/db/**",
-  "pnpm-lock.yaml",
-  "pnpm-workspace.yaml",
-  "package.json",
-  "Dockerfile",
-  ".dockerignore",
-  "railway.toml",
-]
+# NOTE: watchPatterns temporarily removed (2026-06-08) — Railway's
+# change-detection on `railway up` was incorrectly skipping the Phase 4
+# build ("no changes detected in watch paths") even though packages/api,
+# packages/db, packages/shared and pnpm-lock.yaml all changed. With no
+# watchPatterns, every deploy rebuilds (safe). Restore the scoped list
+# below once the auto-deploy path is confirmed working:
+#   watchPatterns = ["packages/api/**","packages/shared/**","packages/db/**",
+#     "pnpm-lock.yaml","pnpm-workspace.yaml","package.json","Dockerfile",
+#     ".dockerignore","railway.toml"]
 
 [deploy]
 healthcheckPath = "/health"
