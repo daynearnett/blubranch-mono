@@ -20,6 +20,16 @@ interface TradeOption {
 // MM/YYYY — e.g. 06/2021. Optional, so an empty field is always fine.
 const MONTH_YEAR = /^(0?[1-9]|1[0-2])\/\d{4}$/;
 
+// MM/YYYY → comparable ordinal (year*12 + month) for future / order checks.
+function monthOrdinal(mmYYYY: string): number {
+  const [mm = 0, yyyy = 0] = mmYYYY.split('/').map(Number);
+  return yyyy * 12 + mm;
+}
+function currentOrdinal(): number {
+  const now = new Date();
+  return now.getFullYear() * 12 + (now.getMonth() + 1);
+}
+
 export default function SignupTrade() {
   const router = useRouter();
   const { draft, update, reset } = useSignup();
@@ -66,13 +76,26 @@ export default function SignupTrade() {
     const start = draft.currentStartDate.trim();
     const end = draft.currentEndDate.trim();
     let badDate = false;
-    if (start && !MONTH_YEAR.test(start)) {
-      setStartErr('Use MM/YYYY');
-      badDate = true;
+    if (start) {
+      if (!MONTH_YEAR.test(start)) {
+        setStartErr('Use MM/YYYY');
+        badDate = true;
+      } else if (monthOrdinal(start) > currentOrdinal()) {
+        setStartErr("Can't be in the future");
+        badDate = true;
+      }
     }
-    if (end && !MONTH_YEAR.test(end)) {
-      setEndErr('Use MM/YYYY');
-      badDate = true;
+    if (end) {
+      if (!MONTH_YEAR.test(end)) {
+        setEndErr('Use MM/YYYY');
+        badDate = true;
+      } else if (monthOrdinal(end) > currentOrdinal()) {
+        setEndErr("Can't be in the future");
+        badDate = true;
+      } else if (start && MONTH_YEAR.test(start) && monthOrdinal(end) < monthOrdinal(start)) {
+        setEndErr('End is before start');
+        badDate = true;
+      }
     }
     if (badDate) return;
 

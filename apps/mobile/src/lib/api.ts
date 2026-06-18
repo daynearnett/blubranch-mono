@@ -564,6 +564,7 @@ export const feed = {
 export const posts = {
   create: (input: PostInput) =>
     request<FeedPost>('/posts', { method: 'POST', body: JSON.stringify(input) }),
+  get: (id: string) => request<FeedPost>(`/posts/${id}`),
   like: (id: string) => request<{ liked: boolean }>(`/posts/${id}/like`, { method: 'POST' }),
   unlike: (id: string) => request<{ liked: boolean }>(`/posts/${id}/like`, { method: 'DELETE' }),
   comments: (id: string) =>

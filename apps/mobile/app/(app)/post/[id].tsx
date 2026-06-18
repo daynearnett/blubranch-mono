@@ -1,5 +1,6 @@
-// Post comments screen — opened from a post card's comment button (and the
-// blubranch://post/<id> deep link used by Share).
+// Post comments screen — opened from a post card's comment button and the
+// blubranch://post/<id> deep link (Share). Shows the post being commented on
+// as a preview header so the deep link lands on something meaningful.
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import {
@@ -16,14 +17,88 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArrowLeft, Send } from 'lucide-react-native';
-import { posts as postsApi } from '../../../src/lib/api.js';
+import { posts as postsApi, type FeedPost } from '../../../src/lib/api.js';
+import { Badge } from '../../../src/components/ui.js';
 import { colors, radius, spacing, typography } from '../../../src/theme.js';
 
 type Comment = Awaited<ReturnType<typeof postsApi.comments>>[number];
 
+function relativeTime(iso: string): string {
+  const seconds = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+  if (seconds < 60) return 'just now';
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `${days}d ago`;
+  return new Date(iso).toLocaleDateString();
+}
+
+function Avatar({
+  url,
+  first,
+  last,
+  size,
+}: {
+  url: string | null;
+  first: string;
+  last: string;
+  size: number;
+}) {
+  if (url) {
+    return <Image source={{ uri: url }} style={{ width: size, height: size, borderRadius: size / 2 }} />;
+  }
+  return (
+    <View
+      style={[
+        styles.avatarFallback,
+        { width: size, height: size, borderRadius: size / 2 },
+      ]}
+    >
+      <Text style={styles.avatarInitials}>
+        {`${first[0] ?? ''}${last[0] ?? ''}`.toUpperCase()}
+      </Text>
+    </View>
+  );
+}
+
+function PostPreview({ post }: { post: FeedPost }) {
+  return (
+    <View style={styles.preview}>
+      <View style={styles.previewHeader}>
+        <Avatar url={post.user.profilePhotoUrl} first={post.user.firstName} last={post.user.lastName} size={40} />
+        <View style={{ flex: 1 }}>
+          <View style={styles.nameRow}>
+            <Text style={styles.previewName}>
+              {post.user.firstName} {post.user.lastName}
+            </Text>
+            {post.user.unionName ? <Badge label={post.user.unionName} tone="primary" /> : null}
+          </View>
+          {post.user.headline ? (
+            <Text style={styles.previewHeadline} numberOfLines={1}>
+              {post.user.headline}
+            </Text>
+          ) : null}
+          <Text style={styles.previewTime}>{relativeTime(post.createdAt)}</Text>
+        </View>
+      </View>
+      <Text style={styles.previewContent}>{post.content}</Text>
+      {post.photos.length > 0 ? (
+        <Image source={{ uri: post.photos[0]!.photoUrl }} style={styles.previewPhoto} />
+      ) : null}
+      <View style={styles.previewStats}>
+        <Text style={styles.previewStat}>{post.likeCount} likes</Text>
+        <Text style={styles.previewStat}>{post.commentCount} comments</Text>
+      </View>
+    </View>
+  );
+}
+
 export default function PostComments() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const [post, setPost] = useState<FeedPost | null>(null);
   const [comments, setComments] = useState<Comment[]>([]);
   const [loading, setLoading] = useState(true);
   const [text, setText] = useState('');
@@ -31,17 +106,16 @@ export default function PostComments() {
 
   const load = useCallback(async () => {
     if (!id) return;
-    try {
-      setComments(await postsApi.comments(id));
-    } catch {
-      // leave empty; user can retry by reopening
-    } finally {
-      setLoading(false);
-    }
+    const [p, c] = await Promise.allSettled([postsApi.get(id), postsApi.comments(id)]);
+    if (p.status === 'fulfilled') setPost(p.value);
+    if (c.status === 'fulfilled') setComments(c.value);
   }, [id]);
 
   useEffect(() => {
-    load();
+    (async () => {
+      await load();
+      setLoading(false);
+    })();
   }, [load]);
 
   const send = async () => {
@@ -51,7 +125,9 @@ export default function PostComments() {
     try {
       await postsApi.comment(id, { content });
       setText('');
-      await load();
+      const c = await postsApi.comments(id);
+      setComments(c);
+      setPost((prev) => (prev ? { ...prev, commentCount: prev.commentCount + 1 } : prev));
     } catch {
       // keep the text so the user can retry
     } finally {
@@ -81,18 +157,18 @@ export default function PostComments() {
             data={comments}
             keyExtractor={(c) => c.id}
             contentContainerStyle={styles.list}
-            ListEmptyComponent={<Text style={styles.empty}>No comments yet. Be the first.</Text>}
+            ListHeaderComponent={post ? <PostPreview post={post} /> : null}
+            ListEmptyComponent={
+              <Text style={styles.empty}>No comments yet. Be the first.</Text>
+            }
             renderItem={({ item }) => (
               <View style={styles.commentRow}>
-                {item.user.profilePhotoUrl ? (
-                  <Image source={{ uri: item.user.profilePhotoUrl }} style={styles.avatar} />
-                ) : (
-                  <View style={[styles.avatar, styles.avatarFallback]}>
-                    <Text style={styles.avatarInitials}>
-                      {(item.user.firstName[0] ?? '').toUpperCase()}
-                    </Text>
-                  </View>
-                )}
+                <Avatar
+                  url={item.user.profilePhotoUrl}
+                  first={item.user.firstName}
+                  last={item.user.lastName}
+                  size={36}
+                />
                 <View style={styles.bubble}>
                   <Text style={styles.commentName}>
                     {item.user.firstName} {item.user.lastName}
@@ -138,10 +214,38 @@ const styles = StyleSheet.create({
   },
   backBtn: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
   topBarTitle: { ...typography.h3, flex: 1, textAlign: 'center', color: colors.navy },
-  list: { padding: spacing.lg, gap: spacing.md, flexGrow: 1 },
-  empty: { ...typography.body, color: colors.textMuted, textAlign: 'center', marginTop: spacing.xxl },
-  commentRow: { flexDirection: 'row', gap: spacing.sm },
-  avatar: { width: 36, height: 36, borderRadius: 18 },
+  list: { paddingBottom: spacing.lg, flexGrow: 1 },
+  // Post preview header
+  preview: {
+    padding: spacing.lg,
+    borderBottomWidth: 8,
+    borderBottomColor: colors.surface,
+  },
+  previewHeader: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.sm },
+  nameRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
+  previewName: { ...typography.bodyBold, color: colors.textPrimary },
+  previewHeadline: { ...typography.caption, color: colors.textSecondary, marginTop: 2 },
+  previewTime: { ...typography.caption, color: colors.textSecondary },
+  previewContent: { ...typography.body, color: colors.textPrimary, lineHeight: 22 },
+  previewPhoto: {
+    width: '100%',
+    aspectRatio: 16 / 9,
+    borderRadius: radius.sm,
+    backgroundColor: colors.surface,
+    marginTop: spacing.sm,
+  },
+  previewStats: {
+    flexDirection: 'row',
+    gap: spacing.lg,
+    marginTop: spacing.md,
+    paddingTop: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  previewStat: { ...typography.small, color: colors.textMuted },
+  // Comments
+  empty: { ...typography.body, color: colors.textMuted, textAlign: 'center', marginTop: spacing.xl },
+  commentRow: { flexDirection: 'row', gap: spacing.sm, paddingHorizontal: spacing.lg, paddingTop: spacing.md },
   avatarFallback: { backgroundColor: colors.chipBg, alignItems: 'center', justifyContent: 'center' },
   avatarInitials: { ...typography.small, fontWeight: '700', color: colors.primaryDark },
   bubble: {

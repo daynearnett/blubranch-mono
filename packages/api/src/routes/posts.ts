@@ -62,6 +62,52 @@ export async function postRoutes(app: FastifyInstance): Promise<void> {
     },
   );
 
+  // ── GET /posts/:id ──────────────────────────────────────────────
+  // Single post in feed shape — used by the comments screen (and the
+  // blubranch://post/<id> deep link) to show the post being commented on.
+  app.get<{ Params: { id: string } }>(
+    '/posts/:id',
+    { preHandler: requireAuth },
+    async (request, reply) => {
+      const userId = request.user!.id;
+      const p = await prisma.post.findUnique({
+        where: { id: request.params.id },
+        include: {
+          user: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              profilePhotoUrl: true,
+              workerProfile: { select: { headline: true, unionName: true } },
+            },
+          },
+          photos: { orderBy: { sortOrder: 'asc' } },
+          likes: { where: { userId }, select: { userId: true } },
+          _count: { select: { likes: true, comments: true } },
+        },
+      });
+      if (!p) return reply.code(404).send({ error: 'NotFound', message: 'Post not found' });
+      return reply.send({
+        id: p.id,
+        content: p.content,
+        createdAt: p.createdAt,
+        photos: p.photos,
+        likeCount: p._count.likes,
+        commentCount: p._count.comments,
+        likedByMe: p.likes.length > 0,
+        user: {
+          id: p.user.id,
+          firstName: p.user.firstName,
+          lastName: p.user.lastName,
+          profilePhotoUrl: p.user.profilePhotoUrl,
+          headline: p.user.workerProfile?.headline ?? null,
+          unionName: p.user.workerProfile?.unionName ?? null,
+        },
+      });
+    },
+  );
+
   // ── Comments ────────────────────────────────────────────────────
   app.get<{ Params: { id: string } }>('/posts/:id/comments', async (request) => {
     return prisma.postComment.findMany({
