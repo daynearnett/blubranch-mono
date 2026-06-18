@@ -112,6 +112,24 @@ export function PostCard({ post: initial }: { post: FeedPost }) {
           <Text style={styles.engagementLabel}>Share</Text>
         </Pressable>
       </View>
+
+      {post.topComments && post.topComments.length > 0 ? (
+        <View style={styles.comments}>
+          {post.commentCount > post.topComments.length ? (
+            <Pressable onPress={() => router.push(`/(app)/post/${post.id}`)}>
+              <Text style={styles.viewAll}>View all {post.commentCount} comments</Text>
+            </Pressable>
+          ) : null}
+          {post.topComments.map((c) => (
+            <Text key={c.id} style={styles.commentText} numberOfLines={2}>
+              <Text style={styles.commentName}>
+                {c.user.firstName} {c.user.lastName}{' '}
+              </Text>
+              {c.content}
+            </Text>
+          ))}
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -168,4 +186,14 @@ const styles = StyleSheet.create({
   engagementBtn: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
   engagementLabel: { ...typography.small, color: colors.textMuted },
   engagementLabelActive: { color: colors.orange },
+  comments: {
+    marginTop: spacing.sm,
+    paddingTop: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    gap: spacing.xs,
+  },
+  viewAll: { ...typography.small, color: colors.textMuted, marginBottom: spacing.xs },
+  commentText: { ...typography.small, color: colors.textPrimary, lineHeight: 18 },
+  commentName: { fontWeight: '700', color: colors.navy },
 });

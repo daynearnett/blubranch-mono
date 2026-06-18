@@ -479,6 +479,11 @@ export interface FeedPost {
     headline: string | null;
     unionName: string | null;
   };
+  topComments?: {
+    id: string;
+    content: string;
+    user: { firstName: string; lastName: string; profilePhotoUrl: string | null };
+  }[];
 }
 
 export interface FeedJobItem {

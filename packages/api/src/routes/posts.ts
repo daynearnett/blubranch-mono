@@ -181,6 +181,13 @@ export async function postRoutes(app: FastifyInstance): Promise<void> {
         },
         photos: { orderBy: { sortOrder: 'asc' } },
         likes: { where: { userId }, select: { userId: true } },
+        comments: {
+          orderBy: { createdAt: 'desc' },
+          take: 2,
+          include: {
+            user: { select: { id: true, firstName: true, lastName: true, profilePhotoUrl: true } },
+          },
+        },
         _count: { select: { likes: true, comments: true } },
       },
     });
@@ -285,6 +292,16 @@ export async function postRoutes(app: FastifyInstance): Promise<void> {
               headline: p.user.workerProfile?.headline ?? null,
               unionName: p.user.workerProfile?.unionName ?? null,
             },
+            // Latest 2 comments, shown oldest-first under the post (LinkedIn-style).
+            topComments: [...p.comments].reverse().map((c) => ({
+              id: c.id,
+              content: c.content,
+              user: {
+                firstName: c.user.firstName,
+                lastName: c.user.lastName,
+                profilePhotoUrl: c.user.profilePhotoUrl,
+              },
+            })),
           },
         });
       }
