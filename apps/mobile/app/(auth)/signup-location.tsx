@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { MapPin } from 'lucide-react-native';
 import * as Location from 'expo-location';
-import { JOB_AVAILABILITY_OPTIONS, TRAVEL_RADIUS_OPTIONS } from '@blubranch/shared';
+import { JOB_AVAILABILITY_OPTIONS } from '@blubranch/shared';
 import type { JobAvailability } from '@blubranch/shared';
 import { Button, Chip, Input } from '../../src/components/ui.js';
 import { SignupShell } from '../../src/components/signup-shell.js';
@@ -81,18 +81,6 @@ export default function SignupLocation() {
           keyboardType="number-pad"
           maxLength={10}
         />
-
-        <Text style={styles.fieldLabel}>How far will you travel for work?</Text>
-        <View style={styles.chipWrap}>
-          {TRAVEL_RADIUS_OPTIONS.map((mi) => (
-            <Chip
-              key={mi}
-              label={`${mi} mi`}
-              active={draft.travelRadiusMiles === mi}
-              onPress={() => update({ travelRadiusMiles: mi })}
-            />
-          ))}
-        </View>
 
         <View style={styles.privacyCallout}>
           <Text style={styles.privacyText}>

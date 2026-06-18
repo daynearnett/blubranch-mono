@@ -40,6 +40,17 @@ export function setAccessToken(token: string | null): void {
   accessToken = token;
 }
 
+// Transparent token refresh. The auth layer registers a handler that swaps an
+// expired access token (15m TTL) for a fresh one using the stored refresh
+// token; `request()` calls it on a 401 and retries once. A single in-flight
+// promise is shared so a burst of concurrent 401s triggers only one refresh.
+let refreshHandler: (() => Promise<string | null>) | null = null;
+let refreshInFlight: Promise<string | null> | null = null;
+
+export function setRefreshHandler(fn: (() => Promise<string | null>) | null): void {
+  refreshHandler = fn;
+}
+
 export class ApiError extends Error {
   constructor(
     public readonly status: number,
@@ -50,7 +61,7 @@ export class ApiError extends Error {
   }
 }
 
-async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+async function request<T>(path: string, init: RequestInit = {}, allowRefresh = true): Promise<T> {
   const headers: Record<string, string> = {
     Accept: 'application/json',
     ...((init.headers as Record<string, string>) ?? {}),
@@ -61,6 +72,27 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
 
   const res = await fetch(`${defaultBaseUrl()}${path}`, { ...init, headers });
+
+  // On a 401, the access token has likely expired mid-session. Transparently
+  // refresh once and retry so a long flow (e.g. onboarding) doesn't dead-end
+  // with "Valid bearer token required". Skip /auth/* to avoid refresh recursion
+  // and skip the retry itself (allowRefresh=false) so a still-401 can't loop.
+  if (
+    res.status === 401 &&
+    allowRefresh &&
+    accessToken &&
+    refreshHandler &&
+    !path.startsWith('/auth/')
+  ) {
+    if (!refreshInFlight) {
+      refreshInFlight = refreshHandler().finally(() => {
+        refreshInFlight = null;
+      });
+    }
+    const newToken = await refreshInFlight;
+    if (newToken) return request<T>(path, init, false);
+  }
+
   const text = await res.text();
   const data = text ? JSON.parse(text) : null;
 
@@ -269,6 +301,10 @@ export interface WorkerProfileFields {
   jobAvailability: 'open' | 'actively_looking' | 'not_looking';
   unionName: string | null;
   licenseNumber: string | null;
+  currentCompany: string | null;
+  currentTitle: string | null;
+  currentStartDate: string | null;
+  currentEndDate: string | null;
 }
 
 export interface PublicProfile {

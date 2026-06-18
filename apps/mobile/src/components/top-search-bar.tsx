@@ -1,7 +1,9 @@
+import { useCallback, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { MessageSquare, Search } from 'lucide-react-native';
+import { Bell, MessageSquare, Search } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { notifications as notificationsApi } from '../lib/api.js';
 import { colors, spacing, typography } from '../theme.js';
 
 interface TopSearchBarProps {
@@ -20,6 +22,24 @@ export function TopSearchBar({
 }: TopSearchBarProps) {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
+
+  // Refresh the bell's unread badge whenever a feed-style screen regains focus
+  // (e.g. after returning from the notifications inbox, which marks them read).
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+      notificationsApi
+        .unreadCount()
+        .then((r) => {
+          if (active) setUnreadNotifications(r.unreadCount);
+        })
+        .catch(() => {});
+      return () => {
+        active = false;
+      };
+    }, []),
+  );
 
   return (
     <View style={[styles.container, { paddingTop: insets.top + 8 }]}>
@@ -43,15 +63,29 @@ export function TopSearchBar({
       </Pressable>
 
       <Pressable
-        style={styles.msgButton}
+        style={styles.iconButton}
+        onPress={() => router.push('/(app)/notifications')}
+        accessibilityLabel={`Notifications${unreadNotifications > 0 ? `, ${unreadNotifications} unread` : ''}`}
+        accessibilityRole="button"
+      >
+        <Bell color={colors.navy} size={22} strokeWidth={1.8} />
+        {unreadNotifications > 0 && (
+          <View style={styles.badge}>
+            <Text style={styles.badgeText}>
+              {unreadNotifications > 9 ? '9+' : unreadNotifications}
+            </Text>
+          </View>
+        )}
+      </Pressable>
+
+      <Pressable
+        style={styles.iconButton}
         onPress={() => router.push('/(app)/messages')}
         accessibilityLabel={`Messages${unreadMessages > 0 ? `, ${unreadMessages} unread` : ''}`}
         accessibilityRole="button"
       >
         <MessageSquare color={colors.navy} size={22} strokeWidth={1.8} />
-        {unreadMessages > 0 && (
-          <View style={styles.unreadDot} />
-        )}
+        {unreadMessages > 0 && <View style={styles.unreadDot} />}
       </Pressable>
     </View>
   );
@@ -94,8 +128,8 @@ const styles = StyleSheet.create({
     ...typography.body,
     color: colors.textMuted,
   },
-  msgButton: {
-    width: 36,
+  iconButton: {
+    width: 32,
     height: 36,
     alignItems: 'center',
     justifyContent: 'center',
@@ -103,10 +137,23 @@ const styles = StyleSheet.create({
   unreadDot: {
     position: 'absolute',
     top: 6,
-    right: 6,
+    right: 4,
     width: 8,
     height: 8,
     borderRadius: 4,
     backgroundColor: colors.orange,
   },
+  badge: {
+    position: 'absolute',
+    top: 2,
+    right: -2,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: colors.danger,
+    paddingHorizontal: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  badgeText: { fontSize: 9, color: colors.textInverse, fontWeight: '700' },
 });

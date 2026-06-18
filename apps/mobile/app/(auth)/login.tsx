@@ -7,21 +7,52 @@ import { useAuth } from '../../src/lib/auth-context.js';
 import { ApiError } from '../../src/lib/api.js';
 import { colors, spacing, typography } from '../../src/theme.js';
 
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 export default function Login() {
   const router = useRouter();
   const { signIn } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [emailError, setEmailError] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
 
   const onSubmit = async () => {
+    setEmailError(null);
+    setFormError(null);
+
+    // Validate before hitting the API so a mis-autofilled value (e.g. iOS
+    // suggesting a phone number for the email field) gets a clear, field-level
+    // message instead of a raw server "ValidationError".
+    const trimmed = email.trim();
+    if (!EMAIL_RE.test(trimmed)) {
+      setEmailError('Enter a valid email address');
+      return;
+    }
+    if (!password) {
+      setFormError('Enter your password');
+      return;
+    }
+
     setSubmitting(true);
-    setError(null);
     try {
-      await signIn(email.trim(), password);
+      await signIn(trimmed, password);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Sign-in failed');
+      if (err instanceof ApiError) {
+        // Prefer a field-specific validation issue; fall back to the API's
+        // human message (e.g. "Invalid credentials"); never show the raw code.
+        const emailIssue = err.issues?.find((i) => i.path === 'email');
+        if (emailIssue) {
+          setEmailError('Enter a valid email address');
+        } else if (err.message && err.message !== 'ValidationError') {
+          setFormError(err.message);
+        } else {
+          setFormError('Check your email and password and try again.');
+        }
+      } else {
+        setFormError('Sign-in failed. Please try again.');
+      }
     } finally {
       setSubmitting(false);
     }
@@ -42,16 +73,26 @@ export default function Login() {
               label="Email"
               autoCapitalize="none"
               autoComplete="email"
+              textContentType="emailAddress"
               keyboardType="email-address"
               value={email}
-              onChangeText={setEmail}
+              onChangeText={(t) => {
+                setEmail(t);
+                if (emailError) setEmailError(null);
+              }}
+              error={emailError ?? undefined}
             />
             <Input
               label="Password"
               secureTextEntry
+              autoComplete="current-password"
+              textContentType="password"
               value={password}
-              onChangeText={setPassword}
-              error={error ?? undefined}
+              onChangeText={(t) => {
+                setPassword(t);
+                if (formError) setFormError(null);
+              }}
+              error={formError ?? undefined}
             />
           </View>
 

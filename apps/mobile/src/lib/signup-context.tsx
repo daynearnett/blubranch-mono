@@ -22,11 +22,13 @@ export interface SignupDraft {
   zipCode: string;
   travelRadiusMiles: number;
   jobAvailability: JobAvailability;
-  // Step 5 (S8): trade + company + title
+  // Step 5 (S8): trade + current job
   tradeIds: number[];
   experienceLevel: ExperienceLevel | null;
   currentCompany: string;
   currentTitle: string;
+  currentStartDate: string; // YYYY-MM (month precision is enough for a profile)
+  currentEndDate: string; // blank = current / ongoing
   certificationNumber: string;
   unionName: string;
 }
@@ -48,6 +50,8 @@ const empty: SignupDraft = {
   experienceLevel: null,
   currentCompany: '',
   currentTitle: '',
+  currentStartDate: '',
+  currentEndDate: '',
   certificationNumber: '',
   unionName: '',
 };

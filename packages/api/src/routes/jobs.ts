@@ -6,7 +6,7 @@ import {
 } from '@blubranch/shared';
 import { Prisma } from '@blubranch/db';
 import type { FastifyInstance } from 'fastify';
-import { requireAuth, requireRole } from '../auth/middleware.js';
+import { requireAuth } from '../auth/middleware.js';
 import { isPostGisEnabled } from '../lib/postgis.js';
 import { getPrisma } from '../lib/prisma.js';
 import { parseBody } from '../lib/validate.js';
@@ -26,7 +26,7 @@ export async function jobRoutes(app: FastifyInstance): Promise<void> {
   // create the job in `open` status immediately.
   app.post(
     '/jobs',
-    { preHandler: requireRole('employer', 'admin') },
+    { preHandler: requireAuth },
     async (request, reply) => {
       const data = parseBody(jobInputSchema, request, reply);
       if (!data) return;
@@ -271,7 +271,7 @@ export async function jobRoutes(app: FastifyInstance): Promise<void> {
   // ── PUT /jobs/:id ───────────────────────────────────────────────
   app.put<{ Params: { id: string } }>(
     '/jobs/:id',
-    { preHandler: requireRole('employer', 'admin') },
+    { preHandler: requireAuth },
     async (request, reply) => {
       const data = parseBody(jobUpdateSchema, request, reply);
       if (!data) return;
@@ -324,7 +324,7 @@ export async function jobRoutes(app: FastifyInstance): Promise<void> {
   // Soft-delete — flips status to 'closed' so applicants still resolve.
   app.delete<{ Params: { id: string } }>(
     '/jobs/:id',
-    { preHandler: requireRole('employer', 'admin') },
+    { preHandler: requireAuth },
     async (request, reply) => {
       const existing = await prisma.job.findUnique({ where: { id: request.params.id } });
       if (!existing) return reply.code(404).send({ error: 'NotFound' });
@@ -341,7 +341,7 @@ export async function jobRoutes(app: FastifyInstance): Promise<void> {
 
   // ── GET /users/me/jobs ──────────────────────────────────────────
   // Employer's posted jobs.
-  app.get('/users/me/jobs', { preHandler: requireRole('employer', 'admin') }, async (request) => {
+  app.get('/users/me/jobs', { preHandler: requireAuth }, async (request) => {
     const jobs = await prisma.job.findMany({
       where: { employerId: request.user!.id },
       orderBy: { createdAt: 'desc' },

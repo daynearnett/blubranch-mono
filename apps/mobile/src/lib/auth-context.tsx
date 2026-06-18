@@ -114,6 +114,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await persist(res);
   }, [persist]);
 
+  // Wire the API client's transparent refresh-on-401 (see api.request). When an
+  // authed call gets a 401 the client calls this to swap the expired 15m access
+  // token for a fresh one via the 7-day refresh token, then retries. If the
+  // refresh token is missing or rejected, sign out so the user re-authenticates
+  // instead of getting stuck behind repeated "Valid bearer token required".
+  useEffect(() => {
+    api.setRefreshHandler(async () => {
+      const refreshToken = await secureStorage.getItem(REFRESH_KEY).catch(() => null);
+      if (!refreshToken) {
+        await signOut();
+        return null;
+      }
+      try {
+        const res = await api.auth.refresh(refreshToken);
+        await persist(res);
+        return res.accessToken;
+      } catch {
+        await signOut();
+        return null;
+      }
+    });
+    return () => api.setRefreshHandler(null);
+  }, [persist, signOut]);
+
   const value = useMemo<AuthState>(
     () => ({ user, status, signIn, register, signOut, refresh, setUser }),
     [user, status, signIn, register, signOut, refresh],

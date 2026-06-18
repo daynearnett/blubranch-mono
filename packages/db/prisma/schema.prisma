@@ -198,6 +198,8 @@ model WorkerProfile {
   profileCompleteness Int             @default(0) @map("profile_completeness")
   currentCompany      String?         @map("current_company") @db.VarChar(200)
   currentTitle        String?         @map("current_title") @db.VarChar(200)
+  currentStartDate    String?         @map("current_start_date") @db.VarChar(7)
+  currentEndDate      String?         @map("current_end_date") @db.VarChar(7)
   tradeYears          Int?            @map("trade_years")
   createdAt           DateTime        @default(now()) @map("created_at")
   updatedAt           DateTime        @updatedAt @map("updated_at")

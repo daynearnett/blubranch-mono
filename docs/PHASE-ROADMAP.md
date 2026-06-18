@@ -136,6 +136,7 @@
 - [ ] Admin auth (separate from user auth, or admin role check)
 - [ ] User management: list, search, approve, ban, verify certifications
 - [ ] Job moderation: review flagged listings, remove
+- [ ] Bug-report queue: list / triage / resolve in-app issue reports (see Phase 7 in-app reporter)
 - [ ] Payment/subscription overview
 - [ ] Analytics dashboard: signups, jobs posted, match rate, revenue
 - [ ] Dispute resolution queue
@@ -152,8 +153,10 @@
 - [ ] Load testing PostGIS queries at scale
 - [ ] Stripe Connect end-to-end testing with test accounts
 - [ ] Push notification testing on both platforms
+- [ ] **In-app bug reporter** (parity with Taist's `header_bug_icon`) — `Bug` icon in the mobile header (`apps/mobile/src/components/adaptive-header.tsx`) → report-issue form (title, description, optional screenshot) → new `POST /issues` API endpoint persisting to an `Issue` table, with user id / app version / device / OS auto-attached. Reports surface in the admin panel's bug-report queue (Phase 6) for triage/resolve. Replaces the manual Slack→CR capture flow for in-app-discovered bugs.
 - [ ] Responsive layout QA: iPhone SE, iPad, 1440px desktop
 - [ ] **Replace emoji icons with vector icons** (`lucide-react-native` or `@expo/vector-icons`) — emoji rendering varies across iOS versions and Android OEM skins, looks unprofessional at scale. Touchpoints: `apps/mobile/src/components/responsive-tab-bar.tsx` (5 tab icons), `apps/mobile/app/(app)/(tabs)/*.tsx` placeholder hero icons, `apps/mobile/src/components/adaptive-header.tsx` (notification + message icons), `apps/mobile/app/(app)/profile-create-photo.tsx` (camera dot)
+- [ ] **Social sign-in (Apple + Google)** — mockups spec'd Apple/Google/Facebook but only email/password is built. Backend `/auth/social` exists as an insecure stub (no id_token verification); needs real provider integration: `expo-apple-authentication` + Sign in with Apple capability, `expo-auth-session` Google OAuth clients per platform, and server-side id_token signature verification against each issuer. Add **Sign in with Apple** buttons to login + signup screens. **Drop Facebook** (business verification + app review, low payoff). ⚠️ **App Store Guideline 4.8:** offering Google (or any third-party login) makes Sign in with Apple **mandatory** for approval — ship them together. Pre-beta priority (lowers signup friction for the blue-collar audience).
 - [ ] Security audit: auth flows, data access, rate limiting
 - [ ] Privacy Policy and Terms of Service
 - [ ] App Store screenshots for each form factor

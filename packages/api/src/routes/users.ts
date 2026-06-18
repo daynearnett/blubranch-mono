@@ -137,6 +137,10 @@ export async function userRoutes(app: FastifyInstance): Promise<void> {
         hourlyRate: data.hourlyRate ?? null,
         unionName: data.unionName ?? null,
         licenseNumber: data.licenseNumber ?? null,
+        currentCompany: data.currentCompany ?? null,
+        currentTitle: data.currentTitle ?? null,
+        currentStartDate: data.currentStartDate ?? null,
+        currentEndDate: data.currentEndDate ?? null,
       },
       update: {
         ...(data.experienceLevel !== undefined && { experienceLevel: data.experienceLevel }),
@@ -150,6 +154,10 @@ export async function userRoutes(app: FastifyInstance): Promise<void> {
         ...(data.hourlyRate !== undefined && { hourlyRate: data.hourlyRate }),
         ...(data.unionName !== undefined && { unionName: data.unionName }),
         ...(data.licenseNumber !== undefined && { licenseNumber: data.licenseNumber }),
+        ...(data.currentCompany !== undefined && { currentCompany: data.currentCompany }),
+        ...(data.currentTitle !== undefined && { currentTitle: data.currentTitle }),
+        ...(data.currentStartDate !== undefined && { currentStartDate: data.currentStartDate }),
+        ...(data.currentEndDate !== undefined && { currentEndDate: data.currentEndDate }),
       },
     });
 

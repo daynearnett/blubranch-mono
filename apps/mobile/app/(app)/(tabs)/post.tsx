@@ -15,7 +15,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Camera, ChevronDown, Globe, MapPin, Users, Wrench, X } from 'lucide-react-native';
+import { Briefcase, Camera, ChevronDown, ChevronRight, Globe, MapPin, Users, Wrench, X } from 'lucide-react-native';
 import { Badge, Button, Chip } from '../../../src/components/ui.js';
 import { ApiError, me, posts } from '../../../src/lib/api.js';
 import { useAuth } from '../../../src/lib/auth-context.js';
@@ -104,6 +104,16 @@ function PostComposer() {
           style={styles.postBtn}
         />
       </View>
+
+      <Pressable
+        style={styles.hireBanner}
+        onPress={() => router.push('/(app)/post-job/plan')}
+        accessibilityRole="button"
+      >
+        <Briefcase color={colors.orange} size={18} strokeWidth={2} />
+        <Text style={styles.hireBannerText}>Looking to hire? Post a job</Text>
+        <ChevronRight color={colors.textMuted} size={18} strokeWidth={2} />
+      </Pressable>
 
       <KeyboardAvoidingView
         style={{ flex: 1 }}
@@ -232,6 +242,17 @@ const styles = StyleSheet.create({
   },
   closeBtn: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
   topBarTitle: { ...typography.h3, color: colors.navy },
+  hireBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    backgroundColor: colors.chipBgActive,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.divider,
+  },
+  hireBannerText: { ...typography.bodyBold, color: colors.navy, flex: 1 },
   postBtn: { height: 36, paddingHorizontal: spacing.lg, borderRadius: radius.pill },
   content: { padding: spacing.lg, flexGrow: 1 },
   authorRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginBottom: spacing.lg },

@@ -140,7 +140,9 @@ const inputStyles = StyleSheet.create({
   },
   fieldHighlight: { borderColor: colors.primary, borderWidth: 2 },
   fieldError: { borderColor: colors.danger },
-  errorText: { ...typography.caption, color: colors.danger, marginTop: spacing.xs },
+  // Sentence-case + readable: caption is 10px ALL-CAPS (right for helper labels,
+  // wrong for error messages — it made "ValidationError" look like a raw code).
+  errorText: { ...typography.small, color: colors.danger, marginTop: spacing.xs, fontWeight: '500' },
   helperText: { ...typography.caption, color: colors.textSecondary, marginTop: spacing.xs },
 });
 

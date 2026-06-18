@@ -2,8 +2,7 @@ import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { ChevronDown, ChevronUp } from 'lucide-react-native';
-import { EXPERIENCE_LEVEL_OPTIONS, TRADE_LIST } from '@blubranch/shared';
-import type { ExperienceLevel } from '@blubranch/shared';
+import { TRADE_LIST } from '@blubranch/shared';
 import { Button, Chip, Input } from '../../src/components/ui.js';
 import { SignupShell } from '../../src/components/signup-shell.js';
 import { ApiError, me, reference } from '../../src/lib/api.js';
@@ -35,8 +34,11 @@ export default function SignupTrade() {
       });
   }, []);
 
-  const popularTrades = trades.filter((t) => t.isPopular !== false);
-  const visibleTrades = showAll ? trades : popularTrades;
+  // Show the popular trades upfront. If the seed data doesn't flag any as
+  // popular, fall back to the first 8 so the picker is never empty.
+  const popular = trades.filter((t) => t.isPopular);
+  const primaryTrades = popular.length > 0 ? popular : trades.slice(0, 8);
+  const visibleTrades = showAll ? trades : primaryTrades;
 
   const toggleTrade = (id: number) => {
     update({
@@ -46,8 +48,13 @@ export default function SignupTrade() {
     });
   };
 
+  const canSubmit =
+    draft.tradeIds.length > 0 &&
+    draft.currentCompany.trim() !== '' &&
+    draft.currentTitle.trim() !== '';
+
   const onCreate = async () => {
-    if (draft.tradeIds.length === 0 || !draft.experienceLevel) return;
+    if (!canSubmit) return;
 
     setSubmitting(true);
     try {
@@ -60,22 +67,22 @@ export default function SignupTrade() {
         termsAccepted: draft.termsAccepted,
       });
 
-      if (draft.role === 'worker') {
-        const positiveTradeIds = draft.tradeIds.filter((id) => id > 0);
-        if (positiveTradeIds.length) {
-          await me.setTrades({ tradeIds: positiveTradeIds }).catch(() => undefined);
-        }
-        await me.updateWorkerProfile({
-          experienceLevel: draft.experienceLevel ?? undefined,
-          city: draft.city,
-          state: draft.state,
-          zipCode: draft.zipCode,
-          travelRadiusMiles: draft.travelRadiusMiles,
-          jobAvailability: draft.jobAvailability,
-          unionName: draft.unionName || null,
-          licenseNumber: draft.certificationNumber.trim() || null,
-        });
+      const positiveTradeIds = draft.tradeIds.filter((id) => id > 0);
+      if (positiveTradeIds.length) {
+        await me.setTrades({ tradeIds: positiveTradeIds }).catch(() => undefined);
       }
+      // experienceLevel + travelRadiusMiles are no longer asked in onboarding —
+      // the server fills sensible defaults; both move to account settings later.
+      await me.updateWorkerProfile({
+        city: draft.city,
+        state: draft.state,
+        zipCode: draft.zipCode,
+        jobAvailability: draft.jobAvailability,
+        currentCompany: draft.currentCompany.trim(),
+        currentTitle: draft.currentTitle.trim(),
+        currentStartDate: draft.currentStartDate.trim() || null,
+        currentEndDate: draft.currentEndDate.trim() || null,
+      });
 
       reset();
       router.replace('/(app)/profile-create-photo');
@@ -91,7 +98,7 @@ export default function SignupTrade() {
     <SignupShell progress={85}>
       <View>
         <Text style={styles.title}>What's your trade?</Text>
-        <Text style={styles.subtitle}>Pick all that apply — you can change this later.</Text>
+        <Text style={styles.subtitle}>Pick all that apply.</Text>
 
         <View style={styles.chipWrap}>
           {visibleTrades.map((t) => (
@@ -104,64 +111,55 @@ export default function SignupTrade() {
           ))}
         </View>
 
-        {trades.length > popularTrades.length && (
-          <Pressable
-            style={styles.viewMoreBtn}
-            onPress={() => setShowAll(!showAll)}
-          >
+        {trades.length > primaryTrades.length && (
+          <Pressable style={styles.viewMoreBtn} onPress={() => setShowAll(!showAll)}>
             {showAll ? (
               <ChevronUp color={colors.orange} size={18} strokeWidth={2} />
             ) : (
               <ChevronDown color={colors.orange} size={18} strokeWidth={2} />
             )}
             <Text style={styles.viewMoreText}>
-              {showAll ? 'Show fewer trades' : `View all ${trades.length} trades`}
+              {showAll ? 'Show fewer' : `View all ${trades.length} trades`}
             </Text>
           </Pressable>
         )}
 
-        <Text style={styles.fieldLabel}>Years of experience</Text>
-        <View style={styles.chipWrap}>
-          {EXPERIENCE_LEVEL_OPTIONS.map((opt) => (
-            <Chip
-              key={opt.value}
-              label={opt.label}
-              active={draft.experienceLevel === opt.value}
-              onPress={() => update({ experienceLevel: opt.value as ExperienceLevel })}
-            />
-          ))}
-        </View>
-
         <Input
-          label="Current company (optional)"
+          label="Current company"
           placeholder="e.g. Turner Construction"
           value={draft.currentCompany}
           onChangeText={(v) => update({ currentCompany: v })}
         />
         <Input
-          label="Job title (optional)"
+          label="Job title"
           placeholder="e.g. Journeyman Electrician"
           value={draft.currentTitle}
           onChangeText={(v) => update({ currentTitle: v })}
         />
-        <Input
-          label="License / certification # (optional)"
-          value={draft.certificationNumber}
-          onChangeText={(v) => update({ certificationNumber: v })}
-          helper="Verified licenses display a badge on your profile"
-        />
-        <Input
-          label="Union member? (optional)"
-          placeholder="e.g. IBEW Local 134"
-          value={draft.unionName}
-          onChangeText={(v) => update({ unionName: v })}
-        />
+        <View style={styles.dateRow}>
+          <Input
+            containerStyle={styles.dateField}
+            label="Start (YYYY-MM)"
+            placeholder="2021-06"
+            value={draft.currentStartDate}
+            onChangeText={(v) => update({ currentStartDate: v })}
+            keyboardType="numbers-and-punctuation"
+          />
+          <Input
+            containerStyle={styles.dateField}
+            label="End (blank = current)"
+            placeholder="2024-03"
+            value={draft.currentEndDate}
+            onChangeText={(v) => update({ currentEndDate: v })}
+            keyboardType="numbers-and-punctuation"
+          />
+        </View>
       </View>
 
       <Button
         variant="ctaDark"
         label="Create my BluBranch profile"
-        disabled={draft.tradeIds.length === 0 || !draft.experienceLevel}
+        disabled={!canSubmit}
         onPress={onCreate}
         loading={submitting}
         style={{ marginTop: spacing.lg }}
@@ -172,13 +170,7 @@ export default function SignupTrade() {
 
 const styles = StyleSheet.create({
   title: { ...typography.h2, color: colors.navy, marginBottom: spacing.xs },
-  subtitle: { ...typography.body, color: colors.textMuted, marginBottom: spacing.xl },
-  fieldLabel: {
-    ...typography.small,
-    fontWeight: '600',
-    marginTop: spacing.md,
-    marginBottom: spacing.xs,
-  },
+  subtitle: { ...typography.body, color: colors.textMuted, marginBottom: spacing.lg },
   chipWrap: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: spacing.sm },
   viewMoreBtn: {
     flexDirection: 'row',
@@ -188,4 +180,6 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   viewMoreText: { ...typography.bodyBold, color: colors.orange },
+  dateRow: { flexDirection: 'row', gap: spacing.md },
+  dateField: { flex: 1 },
 });

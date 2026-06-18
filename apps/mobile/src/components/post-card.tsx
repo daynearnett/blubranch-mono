@@ -1,6 +1,7 @@
 // Social feed post card (Mockup screen 4 — first item).
 import { useState } from 'react';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, Share, StyleSheet, Text, View } from 'react-native';
+import { useRouter } from 'expo-router';
 import { Heart, MessageCircle, Share2 } from 'lucide-react-native';
 import { Badge } from './ui.js';
 import { VerifiedBadge } from './verified-badge.js';
@@ -8,12 +9,25 @@ import { colors, radius, spacing, typography } from '../theme.js';
 import { posts as postsApi, type FeedPost } from '../lib/api.js';
 
 export function PostCard({ post: initial }: { post: FeedPost }) {
+  const router = useRouter();
   const [post, setPost] = useState(initial);
   const [busy, setBusy] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const initials = `${post.user.firstName[0] ?? ''}${post.user.lastName[0] ?? ''}`.toUpperCase();
   const elapsed = relativeTime(new Date(post.createdAt));
   const showSeeMore = post.content.length > 280 && !expanded;
+
+  const onShare = async () => {
+    const excerpt =
+      post.content.length > 200 ? `${post.content.slice(0, 200)}…` : post.content;
+    try {
+      await Share.share({
+        message: `${post.user.firstName} ${post.user.lastName} on BluBranch:\n\n"${excerpt}"\n\nblubranch://post/${post.id}`,
+      });
+    } catch {
+      // user dismissed the share sheet
+    }
+  };
 
   const onLikePress = async () => {
     if (busy) return;
@@ -86,14 +100,17 @@ export function PostCard({ post: initial }: { post: FeedPost }) {
             {post.likeCount}
           </Text>
         </Pressable>
-        <View style={styles.engagementBtn}>
+        <Pressable
+          style={styles.engagementBtn}
+          onPress={() => router.push(`/(app)/post/${post.id}`)}
+        >
           <MessageCircle color={colors.textMuted} size={18} strokeWidth={1.8} />
           <Text style={styles.engagementLabel}>{post.commentCount}</Text>
-        </View>
-        <View style={styles.engagementBtn}>
+        </Pressable>
+        <Pressable style={styles.engagementBtn} onPress={onShare}>
           <Share2 color={colors.textMuted} size={18} strokeWidth={1.8} />
           <Text style={styles.engagementLabel}>Share</Text>
-        </View>
+        </Pressable>
       </View>
     </View>
   );

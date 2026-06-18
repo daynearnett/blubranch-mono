@@ -1,6 +1,6 @@
 import { companyInputSchema } from '@blubranch/shared';
 import type { FastifyInstance } from 'fastify';
-import { requireAuth, requireRole } from '../auth/middleware.js';
+import { requireAuth } from '../auth/middleware.js';
 import { getPrisma } from '../lib/prisma.js';
 import { parseBody } from '../lib/validate.js';
 
@@ -8,8 +8,9 @@ export async function companyRoutes(app: FastifyInstance): Promise<void> {
   const prisma = getPrisma();
 
   // ── POST /companies ─────────────────────────────────────────────
-  // Mockup screen 7B. Employers post jobs against a company they own.
-  app.post('/companies', { preHandler: requireRole('employer', 'admin') }, async (request, reply) => {
+  // Any signed-in user can own a company and post jobs (dual-capability:
+  // a worker can also be an employer). Ownership is scoped by employerId.
+  app.post('/companies', { preHandler: requireAuth }, async (request, reply) => {
     const data = parseBody(companyInputSchema, request, reply);
     if (!data) return;
     const company = await prisma.company.create({

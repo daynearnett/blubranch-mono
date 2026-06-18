@@ -1,7 +1,11 @@
 import jwt from 'jsonwebtoken';
 import type { Role } from '@blubranch/shared';
 
-const ACCESS_TTL = '15m';
+// 1h (raised from 15m) as a stopgap while the mobile client ships transparent
+// refresh-on-401 (see apps/mobile/src/lib/api.ts). Long-lived sessions like the
+// onboarding wizard were dead-ending on expiry before the retry logic landed.
+// Revisit (drop back toward 15m) once the refresh-on-401 build is on TestFlight.
+const ACCESS_TTL = '1h';
 const REFRESH_TTL = '7d';
 
 export interface AccessTokenPayload {
