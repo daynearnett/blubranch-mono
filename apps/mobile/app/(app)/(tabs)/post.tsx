@@ -4,7 +4,9 @@
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
+  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -14,10 +16,11 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Briefcase, Camera, ChevronDown, ChevronRight, Globe, MapPin, Users, Wrench, X } from 'lucide-react-native';
 import { Badge, Button, Chip } from '../../../src/components/ui.js';
-import { ApiError, me, posts } from '../../../src/lib/api.js';
+import { ApiError, me, posts, uploadImage } from '../../../src/lib/api.js';
 import { useAuth } from '../../../src/lib/auth-context.js';
 import { colors, radius, spacing, typography } from '../../../src/theme.js';
 
@@ -49,7 +52,35 @@ function PostComposer() {
   const [showAudiencePicker, setShowAudiencePicker] = useState(false);
   const [locationTag, setLocationTag] = useState<string | null>(null);
   const [tradeTag, setTradeTag] = useState<string | null>(null);
+  const [photoUrls, setPhotoUrls] = useState<string[]>([]);
+  const [uploading, setUploading] = useState(false);
   const [busy, setBusy] = useState(false);
+
+  const pickPhoto = async () => {
+    if (photoUrls.length >= 4) {
+      Alert.alert('Limit reached', 'You can add up to 4 photos per post.');
+      return;
+    }
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) {
+      Alert.alert('Permission needed', 'Allow photo access to add photos to your post.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.8,
+    });
+    if (result.canceled || !result.assets[0]) return;
+    setUploading(true);
+    try {
+      const url = await uploadImage(result.assets[0].uri);
+      setPhotoUrls((prev) => [...prev, url]);
+    } catch (err) {
+      Alert.alert('Upload failed', err instanceof ApiError ? err.message : 'Try again');
+    } finally {
+      setUploading(false);
+    }
+  };
 
   // Pre-fill from profile
   useEffect(() => {
@@ -77,6 +108,7 @@ function PostComposer() {
         audience,
         locationTag,
         tradeTag,
+        photoUrls: photoUrls.length ? photoUrls : undefined,
       });
       setContent('');
       router.navigate('/(app)/(tabs)/feed');
@@ -201,11 +233,32 @@ function PostComposer() {
               </Pressable>
             ) : null}
           </View>
+
+          {photoUrls.length > 0 || uploading ? (
+            <View style={styles.photoRow}>
+              {photoUrls.map((url, i) => (
+                <View key={url} style={styles.photoThumb}>
+                  <Image source={{ uri: url }} style={styles.photoImg} />
+                  <Pressable
+                    style={styles.photoRemove}
+                    onPress={() => setPhotoUrls((prev) => prev.filter((_, j) => j !== i))}
+                  >
+                    <X color={colors.textInverse} size={12} strokeWidth={2.5} />
+                  </Pressable>
+                </View>
+              ))}
+              {uploading ? (
+                <View style={[styles.photoThumb, styles.photoUploading]}>
+                  <ActivityIndicator color={colors.orange} />
+                </View>
+              ) : null}
+            </View>
+          ) : null}
         </ScrollView>
 
         <View style={styles.toolbar}>
-          <Pressable style={styles.toolbarBtn}>
-            <Camera color={colors.navy} size={22} strokeWidth={1.8} />
+          <Pressable style={styles.toolbarBtn} onPress={pickPhoto} disabled={uploading}>
+            <Camera color={uploading ? colors.textMuted : colors.navy} size={22} strokeWidth={1.8} />
           </Pressable>
           <Pressable
             style={styles.toolbarBtn}
@@ -316,6 +369,25 @@ const styles = StyleSheet.create({
     backgroundColor: colors.chipBgActive,
   },
   tagLabel: { ...typography.small, color: colors.orange, fontWeight: '600' },
+  photoRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.md },
+  photoThumb: { width: 88, height: 88, borderRadius: radius.md, overflow: 'hidden' },
+  photoImg: { width: '100%', height: '100%' },
+  photoUploading: {
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  photoRemove: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   toolbar: {
     flexDirection: 'row',
     borderTopWidth: 1,

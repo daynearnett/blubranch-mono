@@ -170,6 +170,14 @@
 
 ---
 
+## Feed & content backlog (from cofounder device testing 2026-06-18)
+
+- **Video posts** (LinkedIn-style) — large: video upload (expo-image-picker video mode), storage (S3 + size limits), a `Post` video field, feed playback (`expo-av`/`expo-video`), thumbnail generation. Photo posts already work as of build (6).
+- **Explicit-content moderation** (LinkedIn-style) — large/ongoing: automated image+text moderation on upload (e.g. AWS Rekognition / a moderation API), a Terms/Community-Guidelines gate, user **report** flow + admin review queue. Get ahead of it before public beta.
+- **Rich link previews when sharing** — the iMessage `A|` placeholder appears because `blubranch://post/<id>` is a custom scheme with no preview. Needs an **https share page with OpenGraph tags** (e.g. `GET /share/post/:id` serving HTML with `og:image`=BluBranch logo, `og:title`/`og:description`, then deep-linking/redirecting into the app). Requires a hosted logo + public route.
+- **Top-comments preview under feed posts** (LinkedIn-style) — show the top 1–2 comments inline on each feed post card (needs comment data in the `/feed` payload or a lightweight per-post fetch).
+- **Blue-collar search filters** — extend the search page (currently Jobs/People tabs + Trending) with facets adapted from LinkedIn: trade, distance/radius, pay range, job type, union, open-to-work; add a Posts tab.
+
 ## Post-launch priorities (not scoped yet)
 
 - Finances tab (financial wellness content, earnings tracking for workers)

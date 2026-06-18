@@ -1,7 +1,7 @@
 // Mockup screen 4 — Home Feed.
 // Mixed timeline of social posts + nearby jobs (interleaved every 3rd item).
-import { useRouter } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -43,9 +43,13 @@ export default function FeedTab() {
     }
   }, []);
 
-  useEffect(() => {
-    load();
-  }, [load]);
+  // Refetch on focus (silent after the first load) so like/comment counts
+  // update when returning from a post's comments screen.
+  useFocusEffect(
+    useCallback(() => {
+      load();
+    }, [load]),
+  );
 
   const onRefresh = () => {
     setRefreshing(true);
