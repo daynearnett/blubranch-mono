@@ -17,6 +17,9 @@ interface TradeOption {
   isPopular?: boolean;
 }
 
+// MM/YYYY — e.g. 06/2021. Optional, so an empty field is always fine.
+const MONTH_YEAR = /^(0?[1-9]|1[0-2])\/\d{4}$/;
+
 export default function SignupTrade() {
   const router = useRouter();
   const { draft, update, reset } = useSignup();
@@ -24,6 +27,8 @@ export default function SignupTrade() {
   const [trades, setTrades] = useState<TradeOption[]>([]);
   const [showAll, setShowAll] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [startErr, setStartErr] = useState<string | null>(null);
+  const [endErr, setEndErr] = useState<string | null>(null);
 
   useEffect(() => {
     reference
@@ -56,6 +61,21 @@ export default function SignupTrade() {
   const onCreate = async () => {
     if (!canSubmit) return;
 
+    // Dates are optional; only validate format when present so a typo shows an
+    // inline hint instead of failing signup at the server.
+    const start = draft.currentStartDate.trim();
+    const end = draft.currentEndDate.trim();
+    let badDate = false;
+    if (start && !MONTH_YEAR.test(start)) {
+      setStartErr('Use MM/YYYY');
+      badDate = true;
+    }
+    if (end && !MONTH_YEAR.test(end)) {
+      setEndErr('Use MM/YYYY');
+      badDate = true;
+    }
+    if (badDate) return;
+
     setSubmitting(true);
     try {
       await register({
@@ -80,14 +100,17 @@ export default function SignupTrade() {
         jobAvailability: draft.jobAvailability,
         currentCompany: draft.currentCompany.trim(),
         currentTitle: draft.currentTitle.trim(),
-        currentStartDate: draft.currentStartDate.trim() || null,
-        currentEndDate: draft.currentEndDate.trim() || null,
+        currentStartDate: start || null,
+        currentEndDate: end || null,
       });
 
       reset();
       router.replace('/(app)/profile-create-photo');
     } catch (err) {
-      const msg = err instanceof ApiError ? err.message : 'Could not create account';
+      const msg =
+        err instanceof ApiError && err.message && err.message !== 'ValidationError'
+          ? err.message
+          : 'Something went wrong creating your profile. Please try again.';
       Alert.alert('Signup failed', msg);
     } finally {
       setSubmitting(false);
@@ -139,18 +162,26 @@ export default function SignupTrade() {
         <View style={styles.dateRow}>
           <Input
             containerStyle={styles.dateField}
-            label="Start (YYYY-MM)"
-            placeholder="2021-06"
+            label="Start (MM/YYYY)"
+            placeholder="06/2021"
             value={draft.currentStartDate}
-            onChangeText={(v) => update({ currentStartDate: v })}
+            onChangeText={(v) => {
+              update({ currentStartDate: v });
+              if (startErr) setStartErr(null);
+            }}
+            error={startErr ?? undefined}
             keyboardType="numbers-and-punctuation"
           />
           <Input
             containerStyle={styles.dateField}
-            label="End (blank = current)"
-            placeholder="2024-03"
+            label="End (MM/YYYY)"
+            placeholder="Now"
             value={draft.currentEndDate}
-            onChangeText={(v) => update({ currentEndDate: v })}
+            onChangeText={(v) => {
+              update({ currentEndDate: v });
+              if (endErr) setEndErr(null);
+            }}
+            error={endErr ?? undefined}
             keyboardType="numbers-and-punctuation"
           />
         </View>

@@ -16,18 +16,19 @@ export const workerProfileInputSchema = z.object({
   // Self-reported license #. Reserved on the worker profile so the
   // certifications table can stay focused on named, verifiable credentials.
   licenseNumber: z.string().max(100).optional().nullable(),
-  // Current job, captured in onboarding. Dates are YYYY-MM strings (month
-  // precision); a blank end date means the job is current / ongoing.
+  // Current job, captured in onboarding. Month precision; a blank end date
+  // means the job is current / ongoing. Accepts MM/YYYY (the UI format) or
+  // YYYY-MM — lenient so a date never hard-fails signup. Fits VARCHAR(7).
   currentCompany: z.string().max(200).optional().nullable(),
   currentTitle: z.string().max(200).optional().nullable(),
   currentStartDate: z
     .string()
-    .regex(/^\d{4}-\d{2}$/, 'Use YYYY-MM')
+    .regex(/^(\d{1,2}\/\d{4}|\d{4}-\d{2})$/, 'Use MM/YYYY')
     .optional()
     .nullable(),
   currentEndDate: z
     .string()
-    .regex(/^\d{4}-\d{2}$/, 'Use YYYY-MM')
+    .regex(/^(\d{1,2}\/\d{4}|\d{4}-\d{2})$/, 'Use MM/YYYY')
     .optional()
     .nullable(),
 });
