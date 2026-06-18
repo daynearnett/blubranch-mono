@@ -430,20 +430,22 @@ export async function jobRoutes(app: FastifyInstance): Promise<void> {
     async (request, reply) => {
       const parsed = searchQuerySchema.safeParse(request.query);
       if (!parsed.success) return reply.code(400).send({ error: 'BadRequest' });
-      const { q, tab, page, limit } = parsed.data;
+      const { q, tab, page, limit, jobType, payMin, openToWork, union } = parsed.data;
       const userId = request.user!.id;
 
       // Log search
       await prisma.searchLog.create({ data: { userId, query: q } }).catch(() => {});
 
       if (tab === 'jobs') {
-        const where = {
-          status: 'open' as const,
+        const where: Prisma.JobWhereInput = {
+          status: 'open',
           OR: [
-            { title: { contains: q, mode: 'insensitive' as const } },
-            { description: { contains: q, mode: 'insensitive' as const } },
+            { title: { contains: q, mode: 'insensitive' } },
+            { description: { contains: q, mode: 'insensitive' } },
           ],
         };
+        if (jobType) where.jobType = jobType as Prisma.JobWhereInput['jobType'];
+        if (payMin) where.payMax = { gte: payMin };
         const [results, total] = await Promise.all([
           prisma.job.findMany({
             where,
@@ -471,12 +473,16 @@ export async function jobRoutes(app: FastifyInstance): Promise<void> {
       }
 
       if (tab === 'people') {
-        const where = {
+        const where: Prisma.UserWhereInput = {
           OR: [
-            { firstName: { contains: q, mode: 'insensitive' as const } },
-            { lastName: { contains: q, mode: 'insensitive' as const } },
+            { firstName: { contains: q, mode: 'insensitive' } },
+            { lastName: { contains: q, mode: 'insensitive' } },
           ],
         };
+        const wp: Prisma.WorkerProfileWhereInput = {};
+        if (openToWork === 'true') wp.jobAvailability = { in: ['open', 'actively_looking'] };
+        if (union === 'true') wp.unionName = { not: null };
+        if (Object.keys(wp).length > 0) where.workerProfile = { is: wp };
         const [results, total] = await Promise.all([
           prisma.user.findMany({
             where,
@@ -504,6 +510,53 @@ export async function jobRoutes(app: FastifyInstance): Promise<void> {
             isVerified: u.isVerified,
             headline: u.workerProfile?.headline ?? null,
             trade: u.trades[0]?.trade?.name ?? null,
+          })),
+          total,
+          page,
+          limit,
+        });
+      }
+
+      if (tab === 'posts') {
+        const where: Prisma.PostWhereInput = {
+          content: { contains: q, mode: 'insensitive' },
+        };
+        const [results, total] = await Promise.all([
+          prisma.post.findMany({
+            where,
+            skip: (page - 1) * limit,
+            take: limit,
+            orderBy: { createdAt: 'desc' },
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  firstName: true,
+                  lastName: true,
+                  profilePhotoUrl: true,
+                  workerProfile: { select: { headline: true } },
+                },
+              },
+              _count: { select: { likes: true, comments: true } },
+            },
+          }),
+          prisma.post.count({ where }),
+        ]);
+        return reply.send({
+          tab,
+          items: results.map((p) => ({
+            id: p.id,
+            content: p.content,
+            createdAt: p.createdAt,
+            likeCount: p._count.likes,
+            commentCount: p._count.comments,
+            user: {
+              id: p.user.id,
+              firstName: p.user.firstName,
+              lastName: p.user.lastName,
+              profilePhotoUrl: p.user.profilePhotoUrl,
+              headline: p.user.workerProfile?.headline ?? null,
+            },
           })),
           total,
           page,

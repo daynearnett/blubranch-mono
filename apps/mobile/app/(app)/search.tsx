@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -17,9 +17,16 @@ import { VerifiedBadge } from '../../src/components/verified-badge.js';
 import { search, type RecentSearch } from '../../src/lib/api.js';
 import { colors, radius, spacing, typography } from '../../src/theme.js';
 
-type Tab = 'jobs' | 'people';
+type Tab = 'jobs' | 'people' | 'posts';
 
 const TRENDING = ['Electrician', 'Plumber', 'HVAC', 'Welder', 'Carpenter', 'Foreman'];
+
+const JOB_TYPES: { value: string; label: string }[] = [
+  { value: 'full_time', label: 'Full-time' },
+  { value: 'part_time', label: 'Part-time' },
+  { value: 'contract', label: 'Contract' },
+];
+const PAY_TIERS = [25, 35, 45];
 
 export default function SearchScreen() {
   const router = useRouter();
@@ -30,17 +37,28 @@ export default function SearchScreen() {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
+  const [jobType, setJobType] = useState<string | null>(null);
+  const [payMin, setPayMin] = useState<number | null>(null);
+  const [openToWork, setOpenToWork] = useState(false);
+  const [union, setUnion] = useState(false);
 
   useEffect(() => {
     search.recent().then(setRecent).catch(() => {});
   }, []);
 
-  const doSearch = useCallback(async (q: string, t: Tab) => {
+  const doSearch = async (q: string, t: Tab) => {
     if (!q.trim()) return;
     setLoading(true);
     setSearched(true);
     try {
-      const res = await search.query({ q: q.trim(), tab: t });
+      const res = await search.query({
+        q: q.trim(),
+        tab: t,
+        jobType: t === 'jobs' && jobType ? jobType : undefined,
+        payMin: t === 'jobs' && payMin ? payMin : undefined,
+        openToWork: t === 'people' && openToWork ? true : undefined,
+        union: t === 'people' && union ? true : undefined,
+      });
       setResults(res.items);
       setTotal(res.total);
     } catch {
@@ -49,7 +67,13 @@ export default function SearchScreen() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  };
+
+  // Re-run the search whenever a filter changes.
+  useEffect(() => {
+    if (searched && query.trim()) doSearch(query, tab);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [jobType, payMin, openToWork, union]);
 
   const handleSubmit = () => doSearch(query, tab);
 
@@ -101,20 +125,59 @@ export default function SearchScreen() {
       </View>
 
       {searched ? (
-        <View style={styles.tabBar}>
-          <Pressable
-            style={[styles.tab, tab === 'jobs' && styles.tabActive]}
-            onPress={() => handleTabChange('jobs')}
-          >
-            <Text style={[styles.tabLabel, tab === 'jobs' && styles.tabLabelActive]}>Jobs</Text>
-          </Pressable>
-          <Pressable
-            style={[styles.tab, tab === 'people' && styles.tabActive]}
-            onPress={() => handleTabChange('people')}
-          >
-            <Text style={[styles.tabLabel, tab === 'people' && styles.tabLabelActive]}>People</Text>
-          </Pressable>
-        </View>
+        <>
+          <View style={styles.tabBar}>
+            {(['jobs', 'people', 'posts'] as Tab[]).map((t) => (
+              <Pressable
+                key={t}
+                style={[styles.tab, tab === t && styles.tabActive]}
+                onPress={() => handleTabChange(t)}
+              >
+                <Text style={[styles.tabLabel, tab === t && styles.tabLabelActive]}>
+                  {t === 'jobs' ? 'Jobs' : t === 'people' ? 'People' : 'Posts'}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+
+          {tab === 'jobs' || tab === 'people' ? (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.filterRow}
+            >
+              {tab === 'jobs' ? (
+                <>
+                  {JOB_TYPES.map((jt) => (
+                    <Chip
+                      key={jt.value}
+                      label={jt.label}
+                      active={jobType === jt.value}
+                      onPress={() => setJobType(jobType === jt.value ? null : jt.value)}
+                    />
+                  ))}
+                  {PAY_TIERS.map((p) => (
+                    <Chip
+                      key={p}
+                      label={`$${p}+/hr`}
+                      active={payMin === p}
+                      onPress={() => setPayMin(payMin === p ? null : p)}
+                    />
+                  ))}
+                </>
+              ) : (
+                <>
+                  <Chip
+                    label="Open to work"
+                    active={openToWork}
+                    onPress={() => setOpenToWork((v) => !v)}
+                  />
+                  <Chip label="Union" active={union} onPress={() => setUnion((v) => !v)} />
+                </>
+              )}
+            </ScrollView>
+          ) : null}
+        </>
       ) : null}
 
       <ScrollView contentContainerStyle={styles.content}>
@@ -176,7 +239,7 @@ export default function SearchScreen() {
               </Pressable>
             ))}
           </View>
-        ) : (
+        ) : tab === 'people' ? (
           <View>
             <Text style={styles.resultCount}>{total} {total !== 1 ? 'people' : 'person'} found</Text>
             {(results as Array<{ id: string; firstName: string; lastName: string; profilePhotoUrl: string | null; isVerified: boolean; headline: string | null; trade: string | null }>).map((person) => (
@@ -203,6 +266,29 @@ export default function SearchScreen() {
                   </View>
                   <Text style={styles.resultSub} numberOfLines={1}>
                     {person.headline || person.trade || ''}
+                  </Text>
+                </View>
+              </Pressable>
+            ))}
+          </View>
+        ) : (
+          <View>
+            <Text style={styles.resultCount}>{total} post{total !== 1 ? 's' : ''} found</Text>
+            {(results as Array<{ id: string; content: string; likeCount: number; commentCount: number; user: { firstName: string; lastName: string } }>).map((post) => (
+              <Pressable
+                key={post.id}
+                style={styles.resultRow}
+                onPress={() => router.push(`/(app)/post/${post.id}`)}
+              >
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.resultTitle}>
+                    {post.user.firstName} {post.user.lastName}
+                  </Text>
+                  <Text style={styles.resultSub} numberOfLines={2}>
+                    {post.content}
+                  </Text>
+                  <Text style={styles.resultMeta}>
+                    {post.likeCount} likes · {post.commentCount} comments
                   </Text>
                 </View>
               </Pressable>
@@ -246,6 +332,15 @@ const styles = StyleSheet.create({
   tabActive: { borderBottomWidth: 2, borderBottomColor: colors.orange },
   tabLabel: { ...typography.bodyBold, color: colors.textMuted },
   tabLabelActive: { color: colors.orange },
+  filterRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.divider,
+  },
+  resultMeta: { ...typography.caption, color: colors.textMuted, marginTop: 2 },
   content: { padding: spacing.lg },
   section: { marginBottom: spacing.xl },
   sectionTitle: { ...typography.h3, color: colors.navy, marginBottom: spacing.md },

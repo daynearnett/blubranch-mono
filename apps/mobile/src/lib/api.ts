@@ -749,11 +749,23 @@ export interface RecentSearch {
 }
 
 export const search = {
-  query: <T = unknown>(params: { q: string; tab?: string; page?: number }) => {
+  query: <T = unknown>(params: {
+    q: string;
+    tab?: string;
+    page?: number;
+    jobType?: string;
+    payMin?: number;
+    openToWork?: boolean;
+    union?: boolean;
+  }) => {
     const qs = new URLSearchParams();
     qs.set('q', params.q);
     if (params.tab) qs.set('tab', params.tab);
     if (params.page) qs.set('page', String(params.page));
+    if (params.jobType) qs.set('jobType', params.jobType);
+    if (params.payMin) qs.set('payMin', String(params.payMin));
+    if (params.openToWork) qs.set('openToWork', 'true');
+    if (params.union) qs.set('union', 'true');
     return request<SearchResult<T>>(`/search?${qs.toString()}`);
   },
   recent: () => request<RecentSearch[]>('/search/recent'),
