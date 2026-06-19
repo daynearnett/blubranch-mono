@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Dimensions,
   FlatList,
+  Image,
   Pressable,
   StyleSheet,
   Text,
@@ -103,9 +104,11 @@ export default function Welcome() {
       <View style={styles.container}>
         <View style={styles.topSection}>
           <View style={styles.logoBlock}>
-            <View style={styles.logoMark}>
-              <Text style={styles.logoMarkText}>BB</Text>
-            </View>
+            <Image
+              source={require('../../assets/icon.png')}
+              style={styles.logoImage}
+              resizeMode="contain"
+            />
             <Text style={styles.brand}>BluBranch</Text>
           </View>
 
@@ -169,6 +172,7 @@ const styles = StyleSheet.create({
   },
   topSection: { flex: 1 },
   logoBlock: { alignItems: 'center', paddingTop: spacing.xxl },
+  logoImage: { width: 72, height: 72, borderRadius: radius.lg, marginBottom: spacing.sm },
   logoMark: {
     width: 64,
     height: 64,

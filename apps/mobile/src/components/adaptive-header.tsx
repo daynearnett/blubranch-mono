@@ -1,6 +1,6 @@
 // App header bar — minimal on mobile, expanded with search + actions
 // on tablet/desktop. Used by feed-style screens.
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Image, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useLayout } from '../hooks/useLayout.js';
 import { colors, radius, spacing, typography } from '../theme.js';
 
@@ -30,9 +30,11 @@ export function AdaptiveHeader({
   return (
     <View style={[styles.header, !isMobile && styles.headerWide]}>
       <View style={styles.brandRow}>
-        <View style={styles.logoMark}>
-          <Text style={styles.logoMarkText}>BB</Text>
-        </View>
+        <Image
+          source={require('../../assets/icon.png')}
+          style={styles.logoImage}
+          resizeMode="contain"
+        />
         {!isMobile ? <Text style={styles.brand}>{title}</Text> : null}
       </View>
 
@@ -81,6 +83,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xl,
   },
   brandRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  logoImage: { width: 32, height: 32, borderRadius: radius.sm },
   logoMark: {
     width: 32,
     height: 32,
