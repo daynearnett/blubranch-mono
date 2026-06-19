@@ -6,7 +6,7 @@ import { Heart, MessageCircle, Share2 } from 'lucide-react-native';
 import { Badge } from './ui.js';
 import { VerifiedBadge } from './verified-badge.js';
 import { colors, radius, spacing, typography } from '../theme.js';
-import { posts as postsApi, type FeedPost } from '../lib/api.js';
+import { apiBaseUrl, posts as postsApi, type FeedPost } from '../lib/api.js';
 
 export function PostCard({ post: initial }: { post: FeedPost }) {
   const router = useRouter();
@@ -20,9 +20,13 @@ export function PostCard({ post: initial }: { post: FeedPost }) {
   const onShare = async () => {
     const excerpt =
       post.content.length > 200 ? `${post.content.slice(0, 200)}…` : post.content;
+    // https link → OpenGraph preview page (logo + author + excerpt) that
+    // deep-links into the app, so iMessage shows a rich card not a bare link.
+    const url = `${apiBaseUrl()}/share/post/${post.id}`;
     try {
       await Share.share({
-        message: `${post.user.firstName} ${post.user.lastName} on BluBranch:\n\n"${excerpt}"\n\nblubranch://post/${post.id}`,
+        message: `${post.user.firstName} ${post.user.lastName} on BluBranch:\n\n"${excerpt}"`,
+        url,
       });
     } catch {
       // user dismissed the share sheet

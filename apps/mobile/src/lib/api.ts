@@ -40,6 +40,12 @@ export function setAccessToken(token: string | null): void {
   accessToken = token;
 }
 
+// Public base URL of the API — used to build https share links that resolve to
+// the OpenGraph preview page (GET /share/post/:id).
+export function apiBaseUrl(): string {
+  return defaultBaseUrl();
+}
+
 // Transparent token refresh. The auth layer registers a handler that swaps an
 // expired access token (15m TTL) for a fresh one using the stored refresh
 // token; `request()` calls it on a 401 and retries once. A single in-flight
