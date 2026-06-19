@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import type { ListRenderItemInfo, ViewToken } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Briefcase, Shield, Users } from 'lucide-react-native';
+import { HardHat, Shield, Users } from 'lucide-react-native';
 import type { LucideIcon } from 'lucide-react-native';
 import { Button } from '../../src/components/ui.js';
 import { colors, radius, spacing, typography } from '../../src/theme.js';
@@ -28,15 +28,15 @@ interface Slide {
 const SLIDES: Slide[] = [
   {
     id: '1',
-    icon: Briefcase,
-    title: 'Find work that fits your skills',
-    subtitle: 'Browse jobs matched to your trade, experience, and location. Apply with one tap.',
-  },
-  {
-    id: '2',
     icon: Users,
     title: 'Build your professional network',
     subtitle: 'Connect with verified tradespeople, get endorsements, and grow your reputation.',
+  },
+  {
+    id: '2',
+    icon: HardHat,
+    title: 'Find work that fits your skills',
+    subtitle: 'Browse jobs matched to your trade, experience, and location. Apply with one tap.',
   },
   {
     id: '3',

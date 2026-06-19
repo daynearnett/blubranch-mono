@@ -176,7 +176,7 @@ export default function ProfileCreatePhoto() {
 
           <Button
             variant="ctaDark"
-            label="Take me to my feed"
+            label="Take me to my branch"
             onPress={onFinish}
             loading={busy}
             style={{ marginTop: spacing.md }}

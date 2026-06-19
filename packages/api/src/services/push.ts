@@ -63,13 +63,16 @@ export async function sendNotification(params: {
     },
   });
 
-  // Email for meaningful, low-volume events (best-effort).
+  // Email for meaningful, low-volume events (best-effort). Links must be https
+  // (email clients ignore custom blubranch:// schemes); the share pages redirect
+  // into the app.
   if (EMAIL_TYPES.has(params.type)) {
+    const base = process.env.PUBLIC_BASE_URL ?? 'https://api-staging.blubranch.com';
     const postId = params.data?.postId;
     const link =
       (params.type === 'post_like' || params.type === 'post_comment') && typeof postId === 'string'
-        ? `blubranch://post/${postId}`
-        : 'blubranch://';
+        ? `${base}/share/post/${postId}`
+        : `${base}/share/open`;
     prisma.user
       .findUnique({ where: { id: params.userId }, select: { email: true } })
       .then((u) =>

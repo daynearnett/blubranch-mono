@@ -205,7 +205,7 @@ export default function SignupTrade() {
 
       <Button
         variant="ctaDark"
-        label="Take me to my branch"
+        label="Continue"
         disabled={!canSubmit}
         onPress={onCreate}
         loading={submitting}

@@ -30,6 +30,21 @@ function esc(s: string): string {
 export async function shareRoutes(app: FastifyInstance): Promise<void> {
   const prisma = getPrisma();
 
+  // Generic https → app redirect, used by email buttons (email clients ignore
+  // custom blubranch:// schemes, so links must be http(s)).
+  app.get('/share/open', async (_request, reply) => {
+    const appLink = 'blubranch://';
+    const html = `<!doctype html><html lang="en"><head>
+<meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>BluBranch</title></head>
+<body style="font-family:-apple-system,sans-serif;text-align:center;padding:48px 24px;color:#3D5A80">
+<h2>Opening BluBranch…</h2>
+<a href="${appLink}" style="display:inline-block;background:#3D5A80;color:#fff;padding:12px 28px;border-radius:10px;text-decoration:none;font-weight:700">Open BluBranch</a>
+<script>setTimeout(function(){location.href=${JSON.stringify(appLink)};},200);</script>
+</body></html>`;
+    return reply.header('Content-Type', 'text/html; charset=utf-8').send(html);
+  });
+
   app.get('/share/logo.png', async (_request, reply) => {
     const logo = getLogo();
     if (!logo) return reply.code(404).send();
