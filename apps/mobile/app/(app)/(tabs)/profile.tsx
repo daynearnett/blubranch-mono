@@ -127,6 +127,11 @@ function EnrichmentCards({ data, onVerify }: { data: MeResponse; onVerify?: () =
       title: 'Add a profile photo',
       subtitle: 'Profiles with photos get 5x more views',
       icon: Camera,
+      onPress: () =>
+        Alert.alert(
+          'Add a profile photo',
+          "We're building photo uploads from your profile — coming in an upcoming update.",
+        ),
     });
   }
   if (data.skills.length === 0) {
@@ -135,6 +140,11 @@ function EnrichmentCards({ data, onVerify }: { data: MeResponse; onVerify?: () =
       title: 'Add your skills',
       subtitle: 'Help employers find you by your expertise',
       icon: Shield,
+      onPress: () =>
+        Alert.alert(
+          'Add your skills',
+          "We're building the skills picker — coming in an upcoming update.",
+        ),
     });
   }
   if ((data.licenses?.length ?? 0) === 0 && data.certifications.length === 0) {

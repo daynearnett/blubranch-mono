@@ -65,10 +65,14 @@ export default function Settings() {
     );
   };
 
+  // Screens not built yet respond clearly instead of being dead taps.
+  const comingSoon = (label: string) =>
+    Alert.alert(label, "We're building this — it'll be available in an upcoming update.");
+
   const accountSection: SettingsRow[] = [
-    { key: 'profile', icon: User, label: 'Profile & visibility' },
-    { key: 'security', icon: KeyRound, label: 'Sign in & security' },
-    { key: 'phone', icon: Phone, label: 'Phone number' },
+    { key: 'profile', icon: User, label: 'Profile & visibility', onPress: () => comingSoon('Profile & visibility') },
+    { key: 'security', icon: KeyRound, label: 'Sign in & security', onPress: () => comingSoon('Sign in & security') },
+    { key: 'phone', icon: Phone, label: 'Phone number', onPress: () => router.push('/(app)/verify-phone') },
   ];
 
   const preferencesSection: SettingsRow[] = [
@@ -78,13 +82,13 @@ export default function Settings() {
       label: 'Notifications',
       onPress: () => router.push('/(app)/notification-settings'),
     },
-    { key: 'language', icon: Globe, label: 'Language' },
+    { key: 'language', icon: Globe, label: 'Language', onPress: () => comingSoon('Language') },
   ];
 
   const supportSection: SettingsRow[] = [
-    { key: 'help', icon: HelpCircle, label: 'Help center' },
-    { key: 'feedback', icon: MessageSquare, label: 'Send feedback' },
-    { key: 'privacy', icon: Shield, label: 'Privacy policy' },
+    { key: 'help', icon: HelpCircle, label: 'Help center', onPress: () => comingSoon('Help center') },
+    { key: 'feedback', icon: MessageSquare, label: 'Send feedback', onPress: () => comingSoon('Send feedback') },
+    { key: 'privacy', icon: Shield, label: 'Privacy policy', onPress: () => comingSoon('Privacy policy') },
   ];
 
   return (
