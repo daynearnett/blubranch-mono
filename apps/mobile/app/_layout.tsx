@@ -1,6 +1,6 @@
 import { Stack, useRouter, useSegments } from 'expo-router';
-import { useEffect } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { Animated, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as SplashScreen from 'expo-splash-screen';
@@ -49,7 +49,45 @@ function RootGuard() {
   );
 }
 
+// Branded splash overlay — shows the BluBranch logo + slogan over the native
+// splash for an extra ~1s, then fades into the app. Both use the same navy so
+// the handoff from the native splash is seamless.
+function BrandSplash({ onDone }: { onDone: () => void }) {
+  const opacity = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    const t = setTimeout(() => {
+      Animated.timing(opacity, { toValue: 0, duration: 400, useNativeDriver: true }).start(
+        ({ finished }) => {
+          if (finished) onDone();
+        },
+      );
+    }, 1800);
+    return () => clearTimeout(t);
+  }, [opacity, onDone]);
+
+  return (
+    <Animated.View
+      pointerEvents="none"
+      style={[StyleSheet.absoluteFill, brandStyles.container, { opacity }]}
+    >
+      <Image
+        source={require('../assets/icon.png')}
+        style={brandStyles.logo}
+        resizeMode="contain"
+      />
+      <Text style={brandStyles.slogan}>Networking for the Blue Collar</Text>
+    </Animated.View>
+  );
+}
+
+const brandStyles = StyleSheet.create({
+  container: { backgroundColor: '#1B3A5C', alignItems: 'center', justifyContent: 'center', gap: 20 },
+  logo: { width: 96, height: 96, borderRadius: 20 },
+  slogan: { color: '#FFFFFF', fontSize: 16, fontWeight: '600', letterSpacing: 0.3 },
+});
+
 export default function RootLayout() {
+  const [brandDone, setBrandDone] = useState(false);
   return (
     <SafeAreaProvider>
       <AuthProvider>
@@ -62,6 +100,7 @@ export default function RootLayout() {
           </PostJobProvider>
         </SignupProvider>
       </AuthProvider>
+      {brandDone ? null : <BrandSplash onDone={() => setBrandDone(true)} />}
     </SafeAreaProvider>
   );
 }

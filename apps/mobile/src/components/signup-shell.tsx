@@ -4,6 +4,7 @@ import type { ReactNode } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArrowLeft, X } from 'lucide-react-native';
 import { ProgressBar } from './progress-bar.js';
+import { Logo } from './logo.js';
 import { useSignup } from '../lib/signup-context.js';
 import { colors, spacing } from '../theme.js';
 
@@ -37,6 +38,9 @@ export function SignupShell({ children, progress, showBack = true }: SignupShell
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
+      <View style={styles.brandRow}>
+        <Logo size={22} />
+      </View>
       <View style={styles.header}>
         {showBack ? (
           <Pressable onPress={() => router.back()} style={styles.headerBtn} accessibilityLabel="Back">
@@ -67,6 +71,7 @@ export function SignupShell({ children, progress, showBack = true }: SignupShell
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
+  brandRow: { alignItems: 'center', paddingTop: spacing.xs },
   header: {
     flexDirection: 'row',
     alignItems: 'center',

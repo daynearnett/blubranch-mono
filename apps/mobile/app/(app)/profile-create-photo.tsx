@@ -18,6 +18,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Sparkles } from 'lucide-react-native';
 import { Button, Input } from '../../src/components/ui.js';
+import { Logo } from '../../src/components/logo.js';
 import { ApiError, me, uploadImage, type MeResponse } from '../../src/lib/api.js';
 import { useAuth } from '../../src/lib/auth-context.js';
 import { colors, radius, spacing, typography } from '../../src/theme.js';
@@ -126,6 +127,9 @@ export default function ProfileCreatePhoto() {
       >
         <ScrollView contentContainerStyle={styles.scroll}>
           <View>
+            <View style={styles.brandRow}>
+              <Logo size={22} />
+            </View>
             <Text style={styles.title}>Add a photo & bio</Text>
             <Text style={styles.subtitle}>Last step — then you're in.</Text>
 
@@ -192,6 +196,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     justifyContent: 'space-between',
   },
+  brandRow: { alignItems: 'center', marginBottom: spacing.md },
   title: { ...typography.h2, color: colors.primaryDark, marginBottom: spacing.xs },
   subtitle: { ...typography.small, color: colors.textSecondary, marginBottom: spacing.md },
   avatarWrap: { alignItems: 'center', marginBottom: spacing.lg },
