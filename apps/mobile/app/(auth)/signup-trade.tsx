@@ -1,14 +1,14 @@
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
-import { ChevronDown, ChevronUp } from 'lucide-react-native';
+import { Check, ChevronDown, ChevronUp } from 'lucide-react-native';
 import { TRADE_LIST } from '@blubranch/shared';
 import { Button, Chip, Input } from '../../src/components/ui.js';
 import { SignupShell } from '../../src/components/signup-shell.js';
 import { ApiError, me, reference } from '../../src/lib/api.js';
 import { useAuth } from '../../src/lib/auth-context.js';
 import { useSignup } from '../../src/lib/signup-context.js';
-import { colors, spacing, typography } from '../../src/theme.js';
+import { colors, radius, spacing, typography } from '../../src/theme.js';
 
 interface TradeOption {
   id: number;
@@ -39,6 +39,7 @@ export default function SignupTrade() {
   const [submitting, setSubmitting] = useState(false);
   const [startErr, setStartErr] = useState<string | null>(null);
   const [endErr, setEndErr] = useState<string | null>(null);
+  const [seeking, setSeeking] = useState(false);
 
   useEffect(() => {
     reference
@@ -65,16 +66,16 @@ export default function SignupTrade() {
 
   const canSubmit =
     draft.tradeIds.length > 0 &&
-    draft.currentCompany.trim() !== '' &&
-    draft.currentTitle.trim() !== '';
+    (seeking || (draft.currentCompany.trim() !== '' && draft.currentTitle.trim() !== ''));
 
   const onCreate = async () => {
     if (!canSubmit) return;
 
     // Dates are optional; only validate format when present so a typo shows an
-    // inline hint instead of failing signup at the server.
-    const start = draft.currentStartDate.trim();
-    const end = draft.currentEndDate.trim();
+    // inline hint instead of failing signup at the server. Skipped entirely for
+    // someone who's seeking work (no current job to date).
+    const start = seeking ? '' : draft.currentStartDate.trim();
+    const end = seeking ? '' : draft.currentEndDate.trim();
     let badDate = false;
     if (start) {
       if (!MONTH_YEAR.test(start)) {
@@ -120,9 +121,10 @@ export default function SignupTrade() {
         city: draft.city,
         state: draft.state,
         zipCode: draft.zipCode,
-        jobAvailability: draft.jobAvailability,
-        currentCompany: draft.currentCompany.trim(),
-        currentTitle: draft.currentTitle.trim(),
+        // Seeking work → mark actively looking and skip the job details.
+        jobAvailability: seeking ? 'actively_looking' : draft.jobAvailability,
+        currentCompany: seeking ? null : draft.currentCompany.trim(),
+        currentTitle: seeking ? null : draft.currentTitle.trim(),
         currentStartDate: start || null,
         currentEndDate: end || null,
       });
@@ -170,49 +172,70 @@ export default function SignupTrade() {
           </Pressable>
         )}
 
-        <Input
-          label="Current company"
-          placeholder="e.g. Turner Construction"
-          value={draft.currentCompany}
-          onChangeText={(v) => update({ currentCompany: v })}
-        />
-        <Input
-          label="Job title"
-          placeholder="e.g. Journeyman Electrician"
-          value={draft.currentTitle}
-          onChangeText={(v) => update({ currentTitle: v })}
-        />
-        <View style={styles.dateRow}>
-          <Input
-            containerStyle={styles.dateField}
-            label="Start (MM/YYYY)"
-            placeholder="06/2021"
-            value={draft.currentStartDate}
-            onChangeText={(v) => {
-              update({ currentStartDate: v });
-              if (startErr) setStartErr(null);
-            }}
-            error={startErr ?? undefined}
-            keyboardType="numbers-and-punctuation"
-          />
-          <Input
-            containerStyle={styles.dateField}
-            label="End (MM/YYYY)"
-            placeholder="Now"
-            value={draft.currentEndDate}
-            onChangeText={(v) => {
-              update({ currentEndDate: v });
-              if (endErr) setEndErr(null);
-            }}
-            error={endErr ?? undefined}
-            keyboardType="numbers-and-punctuation"
-          />
-        </View>
+        <Pressable
+          style={styles.seekingRow}
+          onPress={() => setSeeking((v) => !v)}
+          accessibilityRole="checkbox"
+          accessibilityState={{ checked: seeking }}
+        >
+          <View style={[styles.checkbox, seeking && styles.checkboxActive]}>
+            {seeking ? <Check color={colors.textInverse} size={14} strokeWidth={3} /> : null}
+          </View>
+          <Text style={styles.seekingLabel}>I'm seeking a blue-collar job</Text>
+        </Pressable>
+
+        {seeking ? (
+          <Text style={styles.seekingNote}>
+            Got it — we'll mark you as open to work and skip the job details. You can add work
+            history anytime from your profile.
+          </Text>
+        ) : (
+          <>
+            <Input
+              label="Current company"
+              placeholder="e.g. Turner Construction"
+              value={draft.currentCompany}
+              onChangeText={(v) => update({ currentCompany: v })}
+            />
+            <Input
+              label="Job title"
+              placeholder="e.g. Journeyman Electrician"
+              value={draft.currentTitle}
+              onChangeText={(v) => update({ currentTitle: v })}
+            />
+            <View style={styles.dateRow}>
+              <Input
+                containerStyle={styles.dateField}
+                label="Start (MM/YYYY)"
+                placeholder="06/2021"
+                value={draft.currentStartDate}
+                onChangeText={(v) => {
+                  update({ currentStartDate: v });
+                  if (startErr) setStartErr(null);
+                }}
+                error={startErr ?? undefined}
+                keyboardType="numbers-and-punctuation"
+              />
+              <Input
+                containerStyle={styles.dateField}
+                label="End (MM/YYYY)"
+                placeholder="Now"
+                value={draft.currentEndDate}
+                onChangeText={(v) => {
+                  update({ currentEndDate: v });
+                  if (endErr) setEndErr(null);
+                }}
+                error={endErr ?? undefined}
+                keyboardType="numbers-and-punctuation"
+              />
+            </View>
+          </>
+        )}
       </View>
 
       <Button
         variant="ctaDark"
-        label="Create my BluBranch profile"
+        label="Start branching out"
         disabled={!canSubmit}
         onPress={onCreate}
         loading={submitting}
@@ -236,4 +259,28 @@ const styles = StyleSheet.create({
   viewMoreText: { ...typography.bodyBold, color: colors.orange },
   dateRow: { flexDirection: 'row', gap: spacing.md },
   dateField: { flex: 1 },
+  seekingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.sm,
+    marginBottom: spacing.xs,
+  },
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderRadius: radius.xs,
+    borderWidth: 2,
+    borderColor: colors.inputBorder,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkboxActive: { backgroundColor: colors.orange, borderColor: colors.orange },
+  seekingLabel: { ...typography.body, color: colors.textPrimary, fontWeight: '600' },
+  seekingNote: {
+    ...typography.small,
+    color: colors.textMuted,
+    lineHeight: 18,
+    marginBottom: spacing.sm,
+  },
 });
