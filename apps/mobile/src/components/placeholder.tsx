@@ -64,7 +64,7 @@ const styles = StyleSheet.create({
   },
   icon: { fontSize: 48, marginBottom: spacing.lg },
   title: { ...typography.h1, color: colors.primaryDark, marginBottom: spacing.sm },
-  coming: { ...typography.bodyBold, color: colors.primary, marginBottom: spacing.lg },
+  coming: { ...typography.bodyBold, color: colors.navy, marginBottom: spacing.lg },
   body: {
     ...typography.body,
     color: colors.textSecondary,

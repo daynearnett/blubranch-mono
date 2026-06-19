@@ -62,7 +62,7 @@ const buttonStyles = {
     base: { ...baseBtn, backgroundColor: colors.primary },
     pressed: { opacity: 0.85 },
     disabled: { opacity: 0.5 },
-    label: { ...typography.bodyBold, color: colors.textInverse },
+    label: { ...typography.bodyBold, color: colors.navy },
   }),
   ctaDark: StyleSheet.create({
     base: { ...baseBtn, backgroundColor: colors.ctaDark },
@@ -80,7 +80,7 @@ const buttonStyles = {
     base: { ...baseBtn, height: 36 },
     pressed: { opacity: 0.6 },
     disabled: { opacity: 0.5 },
-    label: { ...typography.body, color: colors.primary },
+    label: { ...typography.body, color: colors.navy },
   }),
 } as const;
 

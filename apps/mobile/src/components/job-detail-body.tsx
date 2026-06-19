@@ -241,9 +241,9 @@ const styles = StyleSheet.create({
   companyAvatarText: { color: colors.textInverse, fontWeight: '700' },
   companyName: { ...typography.bodyBold, color: colors.textPrimary },
   subtle: { ...typography.caption, color: colors.textSecondary, marginTop: 2 },
-  distance: { ...typography.caption, color: colors.primary, fontWeight: '700' },
+  distance: { ...typography.caption, color: colors.navy, fontWeight: '700' },
   title: { ...typography.h2, color: colors.primaryDark, marginBottom: spacing.xs },
-  pay: { ...typography.h3, color: colors.primary, marginBottom: spacing.sm },
+  pay: { ...typography.h3, color: colors.navy, marginBottom: spacing.sm },
   tagRow: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: spacing.lg },
   statsRow: {
     flexDirection: 'row',

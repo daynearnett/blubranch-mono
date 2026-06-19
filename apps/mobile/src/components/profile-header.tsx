@@ -209,7 +209,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
   },
   tabLabel: { ...typography.bodyBold, color: colors.textMuted },
-  tabLabelActive: { color: colors.orange },
+  tabLabelActive: { color: colors.navy },
   tabUnderline: {
     position: 'absolute',
     bottom: 0,

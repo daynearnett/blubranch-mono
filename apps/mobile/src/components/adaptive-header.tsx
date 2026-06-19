@@ -89,7 +89,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  logoMarkText: { ...typography.bodyBold, color: colors.textInverse, fontSize: 14 },
+  logoMarkText: { ...typography.bodyBold, color: colors.navy, fontSize: 14 },
   brand: { ...typography.h3, color: colors.primaryDark },
   searchWrap: {
     flex: 1,

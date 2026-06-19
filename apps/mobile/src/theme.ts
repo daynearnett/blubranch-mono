@@ -1,43 +1,46 @@
-// BluBranch v2 design tokens — Balint's exact palette from the build guide.
+// BluBranch design tokens — Workwear Denim + CAT Yellow palette.
 // System font stack on every platform. No webfont.
 
 export const colors = {
   // Brand
-  navy: '#0F2D52',
-  navyDark: '#0A2240',
-  navyMid: '#1A4A7A',
-  orange: '#E85D20',
-  orangeWarm: '#993C1D',
-  green: '#1B5E20', // verified badge ONLY — not for generic success
+  navy: '#3D5A80',      // Workwear Denim — primary brand surface
+  navyDark: '#2C4361',  // Darker denim — pressed/strokes
+  navyMid: '#5D7AA0',   // Lighter denim — accents
+  // `orange` token kept as a name for backwards compat (consumed widely) but
+  // now holds CAT Yellow. Use as a background/fill — for text on white,
+  // prefer `navy`/`primaryDark` (yellow has insufficient contrast on white).
+  orange: '#FFCD11',    // CAT Yellow — accent (bg/fill/icon)
+  orangeWarm: '#D4A017',// Darker yellow/amber — limited use
+  green: '#1B5E20',     // verified badge ONLY — not for generic success
   amber: '#FAC775',
   amberText: '#412402',
-  red: '#C0392B', // destructive actions only
+  red: '#C0392B',       // destructive actions only
 
   // Neutral
   surface: '#F5F7FA',
   cardBg: '#FFFFFF',
   divider: '#F1EFE8',
-  text: '#0F2D52',
+  text: '#1F3A55',      // Deep denim for body text (passes AA on white)
   textBody: '#2A3F58',
   textMuted: '#5C7A9B',
   textLight: '#8FB3D4',
-  border: 'rgba(15,45,82,0.18)',
-  borderSoft: 'rgba(15,45,82,0.08)',
+  border: 'rgba(45,67,97,0.18)',
+  borderSoft: 'rgba(45,67,97,0.08)',
 
   // Functional aliases (used by existing components)
-  primary: '#E85D20',
-  primaryDark: '#0F2D52',
-  ctaDark: '#0A2240',
+  primary: '#FFCD11',       // CAT Yellow — for CTA backgrounds / active fills
+  primaryDark: '#3D5A80',   // Workwear Denim — for text headers / brand
+  ctaDark: '#2C4361',       // Darker denim — for inverted CTAs
   background: '#FFFFFF',
-  textPrimary: '#0F2D52',
+  textPrimary: '#1F3A55',
   textSecondary: '#5C7A9B',
   textInverse: '#FFFFFF',
   success: '#1B5E20',
   danger: '#C0392B',
-  inputBorder: 'rgba(15,45,82,0.18)',
+  inputBorder: 'rgba(45,67,97,0.18)',
   chipBg: '#F5F7FA',
-  chipBgActive: '#FDEEE6',
-  chipBorderActive: '#E85D20',
+  chipBgActive: '#FFF6CC',     // Light yellow tint for active chip bg
+  chipBorderActive: '#FFCD11', // CAT Yellow for active chip border
 } as const;
 
 export const spacing = {

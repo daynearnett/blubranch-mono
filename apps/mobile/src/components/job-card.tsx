@@ -133,7 +133,7 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   featuredText: {
-    color: colors.textInverse,
+    color: colors.navy,
     ...typography.caption,
     fontWeight: '700',
     letterSpacing: 1,
@@ -151,10 +151,10 @@ const styles = StyleSheet.create({
   companyAvatarText: { color: colors.textInverse, fontWeight: '700' },
   companyName: { ...typography.bodyBold, color: colors.textPrimary },
   location: { ...typography.caption, color: colors.textSecondary, marginTop: 2 },
-  distance: { ...typography.caption, color: colors.primary, fontWeight: '600' },
+  distance: { ...typography.caption, color: colors.navy, fontWeight: '600' },
   bookmarkBtn: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
   title: { ...typography.h3, color: colors.primaryDark, marginBottom: spacing.xs },
-  pay: { ...typography.bodyBold, color: colors.primary, marginBottom: spacing.sm },
+  pay: { ...typography.bodyBold, color: colors.navy, marginBottom: spacing.sm },
   tagRow: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: spacing.md },
   applyBtn: {
     backgroundColor: colors.primary,
@@ -163,5 +163,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   applyBtnPressed: { opacity: 0.85 },
-  applyLabel: { color: colors.textInverse, fontWeight: '700' },
+  applyLabel: { color: colors.navy, fontWeight: '700' },
 });

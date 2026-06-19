@@ -58,7 +58,7 @@ export function ResponsiveTabBar({ state, descriptors, navigation }: BottomTabBa
             >
               {isPost ? (
                 <View style={styles.postFab}>
-                  <Plus color={colors.textInverse} size={28} strokeWidth={1.8} />
+                  <Plus color={colors.navy} size={28} strokeWidth={1.8} />
                 </View>
               ) : (
                 <>
@@ -152,7 +152,7 @@ const styles = StyleSheet.create({
   },
   bottomItemPost: { marginTop: -spacing.xl },
   bottomLabel: { ...typography.small, color: colors.textMuted, marginTop: 2 },
-  bottomLabelActive: { color: colors.orange, fontWeight: '600' },
+  bottomLabelActive: { color: colors.navy, fontWeight: '600' },
   postFab: {
     width: 56,
     height: 56,
@@ -192,7 +192,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  sidebarLogoText: { color: colors.textInverse, fontWeight: '700' },
+  sidebarLogoText: { color: colors.navy, fontWeight: '700' },
   sidebarBrandText: { ...typography.h3, color: colors.navy },
   sideItem: {
     flexDirection: 'row',
@@ -211,5 +211,5 @@ const styles = StyleSheet.create({
   },
   sideItemActive: { backgroundColor: colors.chipBgActive },
   sideLabel: { ...typography.body, color: colors.textPrimary },
-  sideLabelActive: { color: colors.orange, fontWeight: '600' },
+  sideLabelActive: { color: colors.navy, fontWeight: '600' },
 });
