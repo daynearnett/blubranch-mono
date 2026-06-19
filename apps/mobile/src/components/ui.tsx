@@ -58,11 +58,13 @@ const baseBtn: ViewStyle = {
 };
 
 const buttonStyles = {
+  // Primary CTA is navy (Workwear Denim); CAT Yellow stays an accent (FAB,
+  // active states, progress) rather than a large fill.
   primary: StyleSheet.create({
-    base: { ...baseBtn, backgroundColor: colors.primary },
-    pressed: { opacity: 0.85 },
+    base: { ...baseBtn, backgroundColor: colors.navy },
+    pressed: { opacity: 0.9 },
     disabled: { opacity: 0.5 },
-    label: { ...typography.bodyBold, color: colors.navy },
+    label: { ...typography.bodyBold, color: colors.textInverse },
   }),
   ctaDark: StyleSheet.create({
     base: { ...baseBtn, backgroundColor: colors.ctaDark },

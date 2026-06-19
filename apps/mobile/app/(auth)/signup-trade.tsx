@@ -38,7 +38,6 @@ export default function SignupTrade() {
   const [showAll, setShowAll] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [startErr, setStartErr] = useState<string | null>(null);
-  const [endErr, setEndErr] = useState<string | null>(null);
   const [seeking, setSeeking] = useState(false);
 
   useEffect(() => {
@@ -75,30 +74,16 @@ export default function SignupTrade() {
     // inline hint instead of failing signup at the server. Skipped entirely for
     // someone who's seeking work (no current job to date).
     const start = seeking ? '' : draft.currentStartDate.trim();
-    const end = seeking ? '' : draft.currentEndDate.trim();
-    let badDate = false;
     if (start) {
       if (!MONTH_YEAR.test(start)) {
         setStartErr('Use MM/YYYY');
-        badDate = true;
-      } else if (monthOrdinal(start) > currentOrdinal()) {
+        return;
+      }
+      if (monthOrdinal(start) > currentOrdinal()) {
         setStartErr("Can't be in the future");
-        badDate = true;
+        return;
       }
     }
-    if (end) {
-      if (!MONTH_YEAR.test(end)) {
-        setEndErr('Use MM/YYYY');
-        badDate = true;
-      } else if (monthOrdinal(end) > currentOrdinal()) {
-        setEndErr("Can't be in the future");
-        badDate = true;
-      } else if (start && MONTH_YEAR.test(start) && monthOrdinal(end) < monthOrdinal(start)) {
-        setEndErr('End is before start');
-        badDate = true;
-      }
-    }
-    if (badDate) return;
 
     setSubmitting(true);
     try {
@@ -126,7 +111,7 @@ export default function SignupTrade() {
         currentCompany: seeking ? null : draft.currentCompany.trim(),
         currentTitle: seeking ? null : draft.currentTitle.trim(),
         currentStartDate: start || null,
-        currentEndDate: end || null,
+        currentEndDate: null,
       });
 
       reset();
@@ -203,39 +188,24 @@ export default function SignupTrade() {
               value={draft.currentTitle}
               onChangeText={(v) => update({ currentTitle: v })}
             />
-            <View style={styles.dateRow}>
-              <Input
-                containerStyle={styles.dateField}
-                label="Start (MM/YYYY)"
-                placeholder="06/2021"
-                value={draft.currentStartDate}
-                onChangeText={(v) => {
-                  update({ currentStartDate: v });
-                  if (startErr) setStartErr(null);
-                }}
-                error={startErr ?? undefined}
-                keyboardType="numbers-and-punctuation"
-              />
-              <Input
-                containerStyle={styles.dateField}
-                label="End (MM/YYYY)"
-                placeholder="Now"
-                value={draft.currentEndDate}
-                onChangeText={(v) => {
-                  update({ currentEndDate: v });
-                  if (endErr) setEndErr(null);
-                }}
-                error={endErr ?? undefined}
-                keyboardType="numbers-and-punctuation"
-              />
-            </View>
+            <Input
+              label="Start date (MM/YYYY)"
+              placeholder="06/2021"
+              value={draft.currentStartDate}
+              onChangeText={(v) => {
+                update({ currentStartDate: v });
+                if (startErr) setStartErr(null);
+              }}
+              error={startErr ?? undefined}
+              keyboardType="numbers-and-punctuation"
+            />
           </>
         )}
       </View>
 
       <Button
         variant="ctaDark"
-        label="Start branching out"
+        label="Take me to my branch"
         disabled={!canSubmit}
         onPress={onCreate}
         loading={submitting}

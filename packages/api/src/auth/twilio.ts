@@ -12,6 +12,19 @@ import twilio from 'twilio';
 
 const memoryCodes = new Map<string, { code: string; expiresAt: number }>();
 
+/**
+ * Normalize a phone number to E.164 (e.g. +13173537345). Twilio Verify rejects
+ * bare numbers ("INVALID PARAMETER `to`"). Defaults a 10-digit number to US (+1).
+ */
+function toE164(phone: string): string {
+  const trimmed = phone.trim();
+  if (trimmed.startsWith('+')) return trimmed.replace(/[^\d+]/g, '');
+  const digits = trimmed.replace(/\D/g, '');
+  if (digits.length === 10) return `+1${digits}`;
+  if (digits.length === 11 && digits.startsWith('1')) return `+${digits}`;
+  return `+${digits}`;
+}
+
 function isTwilioConfigured(): boolean {
   return Boolean(
     process.env.TWILIO_ACCOUNT_SID?.startsWith('AC') &&
@@ -25,7 +38,7 @@ export async function sendVerificationCode(phone: string): Promise<{ devCode?: s
     const client = twilio(process.env.TWILIO_ACCOUNT_SID!, process.env.TWILIO_AUTH_TOKEN!);
     await client.verify.v2
       .services(process.env.TWILIO_VERIFY_SERVICE_SID!)
-      .verifications.create({ to: phone, channel: 'sms' });
+      .verifications.create({ to: toE164(phone), channel: 'sms' });
     return {};
   }
   // Dev fallback
@@ -40,7 +53,7 @@ export async function checkVerificationCode(phone: string, code: string): Promis
     const client = twilio(process.env.TWILIO_ACCOUNT_SID!, process.env.TWILIO_AUTH_TOKEN!);
     const result = await client.verify.v2
       .services(process.env.TWILIO_VERIFY_SERVICE_SID!)
-      .verificationChecks.create({ to: phone, code });
+      .verificationChecks.create({ to: toE164(phone), code });
     return result.status === 'approved';
   }
   // Dev fallback

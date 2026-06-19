@@ -65,9 +65,16 @@ export async function sendNotification(params: {
 
   // Email for meaningful, low-volume events (best-effort).
   if (EMAIL_TYPES.has(params.type)) {
+    const postId = params.data?.postId;
+    const link =
+      (params.type === 'post_like' || params.type === 'post_comment') && typeof postId === 'string'
+        ? `blubranch://post/${postId}`
+        : 'blubranch://';
     prisma.user
       .findUnique({ where: { id: params.userId }, select: { email: true } })
-      .then((u) => (u?.email ? sendNotificationEmail(u.email, params.title, params.body) : undefined))
+      .then((u) =>
+        u?.email ? sendNotificationEmail(u.email, params.title, params.body, link) : undefined,
+      )
       .catch(() => {});
   }
 

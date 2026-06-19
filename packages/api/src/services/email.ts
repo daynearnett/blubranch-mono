@@ -21,21 +21,31 @@ function escapeHtml(s: string): string {
  * Generic transactional email for an activity notification (connection
  * request/accept, post like/comment). Best-effort — callers should not block.
  */
-export async function sendNotificationEmail(to: string, title: string, body: string): Promise<void> {
+export async function sendNotificationEmail(
+  to: string,
+  title: string,
+  body: string,
+  link = 'blubranch://',
+): Promise<void> {
   if (!process.env.RESEND_API_KEY) {
     console.log(`[email] DEV MODE — notification email to ${to}: ${title}`);
     return;
   }
+  const base = process.env.PUBLIC_BASE_URL ?? 'https://api-staging.blubranch.com';
+  const logo = `${base}/share/logo.png`;
   await getResend().emails.send({
     from: FROM_ADDRESS,
     to,
-    subject: title,
+    subject: `🔨 ${title}`,
     html: `
-      <div style="font-family: -apple-system, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
-        <h2 style="color: #0F2D52;">${escapeHtml(title)}</h2>
-        <p style="color: #2A3F58; font-size: 15px;">${escapeHtml(body)}</p>
-        <p style="color: #5C7A9B; font-size: 13px; margin-top: 24px;">
-          You can manage which emails you receive in BluBranch → Settings → Notifications.
+      <div style="font-family: -apple-system, BlinkMacSystemFont, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px 24px; text-align: center;">
+        <img src="${logo}" width="56" height="56" alt="BluBranch" style="border-radius: 12px;" />
+        <h2 style="color: #3D5A80; margin: 16px 0 8px;">${escapeHtml(title)}</h2>
+        <p style="color: #5C7A9B; font-size: 15px; line-height: 22px; margin: 0 0 24px;">${escapeHtml(body)}</p>
+        <a href="${escapeHtml(link)}" style="display: inline-block; background: #3D5A80; color: #ffffff; padding: 13px 30px; border-radius: 10px; text-decoration: none; font-weight: 700;">Open BluBranch →</a>
+        <p style="color: #9AA8B8; font-size: 12px; line-height: 18px; margin-top: 32px;">
+          <strong style="color:#3D5A80;">Networking for the Blue Collar.</strong><br />
+          Manage which emails you get in BluBranch → Settings → Notifications.
         </p>
       </div>
     `,
