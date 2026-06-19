@@ -1,6 +1,17 @@
 import { getPrisma } from '../lib/prisma.js';
 import { getMessaging } from './firebase.js';
+import { sendNotificationEmail } from './email.js';
 import type { NotificationType } from '../../../db/src/generated/client/index.js';
+
+// Types that also send a transactional email (low-volume, meaningful events).
+// Deliberately excludes new_message / profile_view / job_match / nudges to
+// avoid flooding inboxes.
+const EMAIL_TYPES = new Set<NotificationType>([
+  'connection_request',
+  'connection_accepted',
+  'post_like',
+  'post_comment',
+]);
 
 /**
  * Create an in-app notification record and send a push notification
@@ -33,6 +44,8 @@ export async function sendNotification(params: {
       job_match: settings.notifyJobMatch,
       profile_view: settings.notifyProfileViews,
       profile_nudge: settings.notifyProfileNudges,
+      post_like: settings.notifyPostLikes,
+      post_comment: settings.notifyPostComments,
     };
     if (prefMap[params.type] === false) {
       return;
@@ -49,6 +62,14 @@ export async function sendNotification(params: {
       data: params.data ? (params.data as Record<string, string>) : undefined,
     },
   });
+
+  // Email for meaningful, low-volume events (best-effort).
+  if (EMAIL_TYPES.has(params.type)) {
+    prisma.user
+      .findUnique({ where: { id: params.userId }, select: { email: true } })
+      .then((u) => (u?.email ? sendNotificationEmail(u.email, params.title, params.body) : undefined))
+      .catch(() => {});
+  }
 
   // Send FCM push to registered devices.
   const devices = await prisma.deviceToken.findMany({
@@ -169,5 +190,56 @@ export async function notifyProfileView(viewerId: string, viewedId: string): Pro
     title: 'Someone viewed your profile',
     body: `${viewer.firstName} ${viewer.lastName} viewed your profile`,
     data: { viewerId },
+  });
+}
+
+/**
+ * Notify a post's author that someone liked it. No-op for self-likes.
+ * Best-effort — callers should not await/block on it.
+ */
+export async function notifyPostLike(
+  actorId: string,
+  postId: string,
+  postAuthorId: string,
+): Promise<void> {
+  if (!actorId || actorId === postAuthorId) return;
+  const prisma = getPrisma();
+  const actor = await prisma.user.findUnique({
+    where: { id: actorId },
+    select: { firstName: true, lastName: true },
+  });
+  if (!actor) return;
+  await sendNotification({
+    userId: postAuthorId,
+    type: 'post_like',
+    title: 'New like on your post',
+    body: `${actor.firstName} ${actor.lastName} liked your post`,
+    data: { postId, actorId },
+  });
+}
+
+/**
+ * Notify a post's author that someone commented. No-op for self-comments.
+ * Best-effort — callers should not await/block on it.
+ */
+export async function notifyPostComment(
+  actorId: string,
+  postId: string,
+  postAuthorId: string,
+  excerpt: string,
+): Promise<void> {
+  if (!actorId || actorId === postAuthorId) return;
+  const prisma = getPrisma();
+  const actor = await prisma.user.findUnique({
+    where: { id: actorId },
+    select: { firstName: true, lastName: true },
+  });
+  if (!actor) return;
+  await sendNotification({
+    userId: postAuthorId,
+    type: 'post_comment',
+    title: 'New comment on your post',
+    body: `${actor.firstName} ${actor.lastName} commented: ${excerpt.slice(0, 80)}`,
+    data: { postId, actorId },
   });
 }

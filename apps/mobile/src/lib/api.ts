@@ -265,6 +265,8 @@ export interface MeResponse {
     notifyJobMatch: boolean;
     notifyProfileViews: boolean;
     notifyProfileNudges: boolean;
+    notifyPostLikes: boolean;
+    notifyPostComments: boolean;
   } | null;
   trades: { id: number; name: string; slug: string }[];
   skills: { id: number; name: string; tradeId: number | null }[];
@@ -576,6 +578,12 @@ export const posts = {
   create: (input: PostInput) =>
     request<FeedPost>('/posts', { method: 'POST', body: JSON.stringify(input) }),
   get: (id: string) => request<FeedPost>(`/posts/${id}`),
+  remove: (id: string) => request<{ deleted: boolean }>(`/posts/${id}`, { method: 'DELETE' }),
+  archive: (id: string, archived = true) =>
+    request<{ archived: boolean }>(`/posts/${id}/archive`, {
+      method: 'PUT',
+      body: JSON.stringify({ archived }),
+    }),
   like: (id: string) => request<{ liked: boolean }>(`/posts/${id}/like`, { method: 'POST' }),
   unlike: (id: string) => request<{ liked: boolean }>(`/posts/${id}/like`, { method: 'DELETE' }),
   comments: (id: string) =>
@@ -739,6 +747,10 @@ export const notifications = {
     notifyConnectionRequests?: boolean;
     notifyApplicationStatus?: boolean;
     notifyJobMatch?: boolean;
+    notifyProfileViews?: boolean;
+    notifyProfileNudges?: boolean;
+    notifyPostLikes?: boolean;
+    notifyPostComments?: boolean;
   }) =>
     request<unknown>('/settings/notifications', { method: 'PUT', body: JSON.stringify(prefs) }),
 };

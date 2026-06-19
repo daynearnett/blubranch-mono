@@ -5,6 +5,7 @@ import { requireAuth } from '../auth/middleware.js';
 import { isPostGisEnabled } from '../lib/postgis.js';
 import { getPrisma } from '../lib/prisma.js';
 import { parseBody } from '../lib/validate.js';
+import { notifyPostComment, notifyPostLike } from '../services/push.js';
 
 export async function postRoutes(app: FastifyInstance): Promise<void> {
   const prisma = getPrisma();
@@ -40,6 +41,13 @@ export async function postRoutes(app: FastifyInstance): Promise<void> {
         await prisma.postLike.create({
           data: { postId: request.params.id, userId: request.user!.id },
         });
+        // Notify the post's author (best-effort, no self-notify).
+        prisma.post
+          .findUnique({ where: { id: request.params.id }, select: { userId: true } })
+          .then((post) =>
+            post ? notifyPostLike(request.user!.id, request.params.id, post.userId) : undefined,
+          )
+          .catch(() => {});
         return reply.code(201).send({ liked: true });
       } catch (err) {
         // Already liked → idempotent success.
@@ -59,6 +67,44 @@ export async function postRoutes(app: FastifyInstance): Promise<void> {
         where: { postId: request.params.id, userId: request.user!.id },
       });
       return reply.send({ liked: false });
+    },
+  );
+
+  // ── DELETE /posts/:id ───────────────────────────────────────────
+  app.delete<{ Params: { id: string } }>(
+    '/posts/:id',
+    { preHandler: requireAuth },
+    async (request, reply) => {
+      const post = await prisma.post.findUnique({
+        where: { id: request.params.id },
+        select: { userId: true },
+      });
+      if (!post) return reply.code(404).send({ error: 'NotFound', message: 'Post not found' });
+      if (post.userId !== request.user!.id) {
+        return reply.code(403).send({ error: 'Forbidden', message: 'Not your post' });
+      }
+      await prisma.post.delete({ where: { id: request.params.id } });
+      return reply.send({ deleted: true });
+    },
+  );
+
+  // ── PUT /posts/:id/archive ──────────────────────────────────────
+  // Toggle (or set via body.archived). Archived posts drop out of the feed.
+  app.put<{ Params: { id: string }; Body: { archived?: boolean } }>(
+    '/posts/:id/archive',
+    { preHandler: requireAuth },
+    async (request, reply) => {
+      const post = await prisma.post.findUnique({
+        where: { id: request.params.id },
+        select: { userId: true, archived: true },
+      });
+      if (!post) return reply.code(404).send({ error: 'NotFound', message: 'Post not found' });
+      if (post.userId !== request.user!.id) {
+        return reply.code(403).send({ error: 'Forbidden', message: 'Not your post' });
+      }
+      const archived = request.body?.archived ?? !post.archived;
+      await prisma.post.update({ where: { id: request.params.id }, data: { archived } });
+      return reply.send({ archived });
     },
   );
 
@@ -134,6 +180,15 @@ export async function postRoutes(app: FastifyInstance): Promise<void> {
           content: data.content,
         },
       });
+      // Notify the post's author (best-effort, no self-notify).
+      prisma.post
+        .findUnique({ where: { id: request.params.id }, select: { userId: true } })
+        .then((post) =>
+          post
+            ? notifyPostComment(request.user!.id, request.params.id, post.userId, data.content)
+            : undefined,
+        )
+        .catch(() => {});
       return reply.code(201).send(comment);
     },
   );
@@ -165,7 +220,10 @@ export async function postRoutes(app: FastifyInstance): Promise<void> {
       .concat(userId);
 
     const postsPromise = prisma.post.findMany({
-      where: connectionIds.length > 1 ? { userId: { in: connectionIds } } : undefined,
+      where: {
+        archived: false,
+        ...(connectionIds.length > 1 ? { userId: { in: connectionIds } } : {}),
+      },
       orderBy: { createdAt: 'desc' },
       take: q.limit,
       skip: (q.page - 1) * q.limit,

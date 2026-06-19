@@ -223,6 +223,8 @@ model UserSettings {
   notifyJobMatch            Boolean @default(true) @map("notify_job_match")
   notifyProfileViews        Boolean @default(true) @map("notify_profile_views")
   notifyProfileNudges       Boolean @default(true) @map("notify_profile_nudges")
+  notifyPostLikes           Boolean @default(true) @map("notify_post_likes")
+  notifyPostComments        Boolean @default(true) @map("notify_post_comments")
 
   @@map("user_settings")
 }
@@ -427,6 +429,7 @@ model Post {
   audience    PostAudience @default(anyone)
   locationTag String?      @map("location_tag") @db.VarChar(100)
   tradeTag    String?      @map("trade_tag") @db.VarChar(100)
+  archived    Boolean      @default(false)
   createdAt   DateTime     @default(now()) @map("created_at")
 
   photos   PostPhoto[]
@@ -616,6 +619,8 @@ enum NotificationType {
   job_match
   profile_view
   profile_nudge
+  post_like
+  post_comment
 }
 
 model Notification {

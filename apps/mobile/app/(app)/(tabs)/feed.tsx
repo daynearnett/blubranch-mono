@@ -100,7 +100,9 @@ export default function FeedTab() {
               </Pressable>
               {items.map((item, i) => {
                 if (item.kind === 'post') {
-                  return <PostCard key={`p-${item.data.id}`} post={item.data} />;
+                  return (
+                    <PostCard key={`p-${item.data.id}`} post={item.data} onMutated={load} />
+                  );
                 }
                 // Insert a "JOBS NEAR YOU" header before the first job each run.
                 const showHeader =

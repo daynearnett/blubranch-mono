@@ -1,18 +1,70 @@
 // Social feed post card (Mockup screen 4 — first item).
 import { useState } from 'react';
-import { Image, Pressable, Share, StyleSheet, Text, View } from 'react-native';
+import { Alert, Image, Pressable, Share, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Heart, MessageCircle, Share2 } from 'lucide-react-native';
+import { Heart, MessageCircle, MoreHorizontal, Share2 } from 'lucide-react-native';
 import { Badge } from './ui.js';
 import { VerifiedBadge } from './verified-badge.js';
+import { useAuth } from '../lib/auth-context.js';
 import { colors, radius, spacing, typography } from '../theme.js';
 import { apiBaseUrl, posts as postsApi, type FeedPost } from '../lib/api.js';
 
-export function PostCard({ post: initial }: { post: FeedPost }) {
+export function PostCard({
+  post: initial,
+  onMutated,
+}: {
+  post: FeedPost;
+  onMutated?: () => void;
+}) {
   const router = useRouter();
+  const { user } = useAuth();
   const [post, setPost] = useState(initial);
   const [busy, setBusy] = useState(false);
   const [expanded, setExpanded] = useState(false);
+  const [hidden, setHidden] = useState(false);
+  const isOwner = user?.id === post.user.id;
+
+  const onMore = () => {
+    Alert.alert('Post options', undefined, [
+      {
+        text: 'Archive',
+        onPress: async () => {
+          setHidden(true);
+          try {
+            await postsApi.archive(post.id);
+            onMutated?.();
+          } catch {
+            setHidden(false);
+          }
+        },
+      },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: () => {
+          Alert.alert('Delete post?', 'This cannot be undone.', [
+            { text: 'Cancel', style: 'cancel' },
+            {
+              text: 'Delete',
+              style: 'destructive',
+              onPress: async () => {
+                setHidden(true);
+                try {
+                  await postsApi.remove(post.id);
+                  onMutated?.();
+                } catch {
+                  setHidden(false);
+                }
+              },
+            },
+          ]);
+        },
+      },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+  };
+
+  if (hidden) return null;
   const initials = `${post.user.firstName[0] ?? ''}${post.user.lastName[0] ?? ''}`.toUpperCase();
   const elapsed = relativeTime(new Date(post.createdAt));
   const showSeeMore = post.content.length > 280 && !expanded;
@@ -77,6 +129,11 @@ export function PostCard({ post: initial }: { post: FeedPost }) {
           ) : null}
           <Text style={styles.elapsed}>{elapsed}</Text>
         </View>
+        {isOwner ? (
+          <Pressable onPress={onMore} hitSlop={8} style={styles.moreBtn} accessibilityLabel="Post options">
+            <MoreHorizontal color={colors.textMuted} size={20} strokeWidth={2} />
+          </Pressable>
+        ) : null}
       </View>
 
       <Text style={styles.content} numberOfLines={expanded ? undefined : 4}>
@@ -160,6 +217,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   headerRow: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.sm },
+  moreBtn: { width: 28, height: 28, alignItems: 'center', justifyContent: 'center' },
   avatar: { width: 44, height: 44, borderRadius: 22 },
   avatarFallback: {
     backgroundColor: colors.chipBg,
@@ -172,7 +230,7 @@ const styles = StyleSheet.create({
   headline: { ...typography.caption, color: colors.textSecondary, marginTop: 2 },
   elapsed: { ...typography.caption, color: colors.textSecondary },
   content: { ...typography.body, color: colors.textPrimary, marginBottom: spacing.sm, lineHeight: 22 },
-  seeMore: { ...typography.bodyBold, color: colors.orange, marginBottom: spacing.sm },
+  seeMore: { ...typography.bodyBold, color: colors.navy, marginBottom: spacing.sm },
   heroPhoto: {
     width: '100%',
     aspectRatio: 16 / 9,
@@ -189,7 +247,7 @@ const styles = StyleSheet.create({
   },
   engagementBtn: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
   engagementLabel: { ...typography.small, color: colors.textMuted },
-  engagementLabelActive: { color: colors.orange },
+  engagementLabelActive: { color: colors.navy },
   comments: {
     marginTop: spacing.sm,
     paddingTop: spacing.sm,

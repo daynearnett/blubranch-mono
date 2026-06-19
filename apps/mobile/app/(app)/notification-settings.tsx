@@ -21,11 +21,15 @@ type PrefKey =
   | 'notifyApplicationStatus'
   | 'notifyJobMatch'
   | 'notifyProfileViews'
-  | 'notifyProfileNudges';
+  | 'notifyProfileNudges'
+  | 'notifyPostLikes'
+  | 'notifyPostComments';
 
 const ROWS: { key: PrefKey; label: string; desc: string }[] = [
   { key: 'notifyMessages', label: 'Messages', desc: 'New direct messages' },
   { key: 'notifyConnectionRequests', label: 'Connections', desc: 'Requests and acceptances' },
+  { key: 'notifyPostLikes', label: 'Likes', desc: 'When someone likes your post' },
+  { key: 'notifyPostComments', label: 'Comments', desc: 'When someone comments on your post' },
   { key: 'notifyApplicationStatus', label: 'Application updates', desc: 'When an employer moves your application' },
   { key: 'notifyJobMatch', label: 'Job matches', desc: 'New jobs near you in your trade' },
   { key: 'notifyProfileViews', label: 'Profile views', desc: "When someone views your profile" },

@@ -9,6 +9,39 @@ function getResend(): Resend {
 
 const FROM_ADDRESS = process.env.EMAIL_FROM ?? 'BluBranch <noreply@blubranch.com>';
 
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+/**
+ * Generic transactional email for an activity notification (connection
+ * request/accept, post like/comment). Best-effort — callers should not block.
+ */
+export async function sendNotificationEmail(to: string, title: string, body: string): Promise<void> {
+  if (!process.env.RESEND_API_KEY) {
+    console.log(`[email] DEV MODE — notification email to ${to}: ${title}`);
+    return;
+  }
+  await getResend().emails.send({
+    from: FROM_ADDRESS,
+    to,
+    subject: title,
+    html: `
+      <div style="font-family: -apple-system, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
+        <h2 style="color: #0F2D52;">${escapeHtml(title)}</h2>
+        <p style="color: #2A3F58; font-size: 15px;">${escapeHtml(body)}</p>
+        <p style="color: #5C7A9B; font-size: 13px; margin-top: 24px;">
+          You can manage which emails you receive in BluBranch → Settings → Notifications.
+        </p>
+      </div>
+    `,
+  });
+}
+
 const codes = new Map<string, { code: string; expiresAt: number }>();
 
 export function generateVerificationCode(email: string): string {
