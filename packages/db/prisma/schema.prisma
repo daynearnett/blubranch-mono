@@ -225,6 +225,7 @@ model UserSettings {
   notifyProfileNudges       Boolean @default(true) @map("notify_profile_nudges")
   notifyPostLikes           Boolean @default(true) @map("notify_post_likes")
   notifyPostComments        Boolean @default(true) @map("notify_post_comments")
+  notifyMentions            Boolean @default(true) @map("notify_mentions")
 
   @@map("user_settings")
 }
@@ -621,6 +622,7 @@ enum NotificationType {
   profile_nudge
   post_like
   post_comment
+  post_mention
 }
 
 model Notification {

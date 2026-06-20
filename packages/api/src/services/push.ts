@@ -11,6 +11,7 @@ const EMAIL_TYPES = new Set<NotificationType>([
   'connection_accepted',
   'post_like',
   'post_comment',
+  'post_mention',
 ]);
 
 /**
@@ -46,6 +47,7 @@ export async function sendNotification(params: {
       profile_nudge: settings.notifyProfileNudges,
       post_like: settings.notifyPostLikes,
       post_comment: settings.notifyPostComments,
+      post_mention: settings.notifyMentions,
     };
     if (prefMap[params.type] === false) {
       return;
@@ -252,4 +254,36 @@ export async function notifyPostComment(
     body: `${actor.firstName} ${actor.lastName} commented: ${excerpt.slice(0, 80)}`,
     data: { postId, actorId },
   });
+}
+
+/**
+ * Notify connections tagged in a post or comment. Skips self-tags.
+ * Best-effort — callers should not await/block on it.
+ */
+export async function notifyMentions(
+  actorId: string,
+  mentionedUserIds: string[] | undefined,
+  postId: string,
+  where: 'post' | 'comment',
+): Promise<void> {
+  if (!actorId || !mentionedUserIds || mentionedUserIds.length === 0) return;
+  const prisma = getPrisma();
+  const actor = await prisma.user.findUnique({
+    where: { id: actorId },
+    select: { firstName: true, lastName: true },
+  });
+  if (!actor) return;
+  const name = `${actor.firstName} ${actor.lastName}`;
+  const unique = [...new Set(mentionedUserIds)].filter((id) => id && id !== actorId);
+  await Promise.all(
+    unique.map((userId) =>
+      sendNotification({
+        userId,
+        type: 'post_mention',
+        title: 'You were tagged',
+        body: `${name} tagged you in a ${where}`,
+        data: { postId, actorId },
+      }).catch(() => {}),
+    ),
+  );
 }

@@ -18,8 +18,9 @@ import {
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Briefcase, Camera, ChevronDown, ChevronRight, Globe, MapPin, Users, Wrench, X } from 'lucide-react-native';
+import { AtSign, Briefcase, Camera, ChevronDown, ChevronRight, Globe, MapPin, Users, Wrench, X } from 'lucide-react-native';
 import { Badge, Button, Chip } from '../../../src/components/ui.js';
+import { ConnectionPicker, type TaggedUser } from '../../../src/components/connection-picker.js';
 import { ApiError, me, posts, uploadImage } from '../../../src/lib/api.js';
 import { useAuth } from '../../../src/lib/auth-context.js';
 import { colors, radius, spacing, typography } from '../../../src/theme.js';
@@ -54,6 +55,8 @@ function PostComposer() {
   const [tradeTag, setTradeTag] = useState<string | null>(null);
   const [photoUrls, setPhotoUrls] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [tagged, setTagged] = useState<TaggedUser[]>([]);
+  const [pickerVisible, setPickerVisible] = useState(false);
   const [busy, setBusy] = useState(false);
 
   const pickPhoto = async () => {
@@ -110,6 +113,7 @@ function PostComposer() {
         locationTag,
         tradeTag,
         photoUrls: photoUrls.length ? photoUrls : undefined,
+        mentionedUserIds: tagged.length ? tagged.map((t) => t.id) : undefined,
       });
       // Reset the whole draft so the next time the + tab opens it's blank
       // (this screen stays mounted as a tab, so state would otherwise persist).
@@ -117,6 +121,7 @@ function PostComposer() {
       setPhotoUrls([]);
       setLocationTag(null);
       setTradeTag(null);
+      setTagged([]);
       setAudience('anyone');
       router.navigate('/(app)/(tabs)/feed');
     } catch (err) {
@@ -239,6 +244,17 @@ function PostComposer() {
                 <X color={colors.textMuted} size={10} strokeWidth={2} />
               </Pressable>
             ) : null}
+            {tagged.map((t) => (
+              <Pressable
+                key={t.id}
+                style={styles.tag}
+                onPress={() => setTagged((prev) => prev.filter((p) => p.id !== t.id))}
+              >
+                <AtSign color={colors.orange} size={12} strokeWidth={2} />
+                <Text style={styles.tagLabel}>{t.name}</Text>
+                <X color={colors.textMuted} size={10} strokeWidth={2} />
+              </Pressable>
+            ))}
           </View>
 
           {photoUrls.length > 0 || uploading ? (
@@ -283,8 +299,18 @@ function PostComposer() {
           >
             <MapPin color={locationTag ? colors.orange : colors.navy} size={22} strokeWidth={1.8} />
           </Pressable>
+          <Pressable style={styles.toolbarBtn} onPress={() => setPickerVisible(true)}>
+            <AtSign color={tagged.length ? colors.orange : colors.navy} size={22} strokeWidth={1.8} />
+          </Pressable>
         </View>
       </KeyboardAvoidingView>
+
+      <ConnectionPicker
+        visible={pickerVisible}
+        selected={tagged}
+        onClose={() => setPickerVisible(false)}
+        onConfirm={setTagged}
+      />
     </SafeAreaView>
   );
 }

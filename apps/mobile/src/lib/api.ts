@@ -272,6 +272,7 @@ export interface MeResponse {
     notifyProfileNudges: boolean;
     notifyPostLikes: boolean;
     notifyPostComments: boolean;
+    notifyMentions: boolean;
   } | null;
   trades: { id: number; name: string; slug: string }[];
   skills: { id: number; name: string; tradeId: number | null }[];
@@ -756,6 +757,7 @@ export const notifications = {
     notifyProfileNudges?: boolean;
     notifyPostLikes?: boolean;
     notifyPostComments?: boolean;
+    notifyMentions?: boolean;
   }) =>
     request<unknown>('/settings/notifications', { method: 'PUT', body: JSON.stringify(prefs) }),
 };

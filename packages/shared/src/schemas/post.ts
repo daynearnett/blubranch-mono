@@ -6,11 +6,14 @@ export const postInputSchema = z.object({
   audience: z.enum(['anyone', 'connections']).default('anyone'),
   locationTag: z.string().max(100).optional().nullable(),
   tradeTag: z.string().max(100).optional().nullable(),
+  // Tagged connections — notified when the post/comment is created.
+  mentionedUserIds: z.array(z.string().uuid()).max(10).optional(),
 });
 export type PostInput = z.infer<typeof postInputSchema>;
 
 export const postCommentInputSchema = z.object({
   content: z.string().min(1).max(2000),
+  mentionedUserIds: z.array(z.string().uuid()).max(10).optional(),
 });
 export type PostCommentInput = z.infer<typeof postCommentInputSchema>;
 

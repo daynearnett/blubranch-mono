@@ -22,5 +22,6 @@ export const notificationPreferencesSchema = z.object({
   notifyProfileNudges: z.boolean().optional(),
   notifyPostLikes: z.boolean().optional(),
   notifyPostComments: z.boolean().optional(),
+  notifyMentions: z.boolean().optional(),
 });
 export type NotificationPreferences = z.infer<typeof notificationPreferencesSchema>;

@@ -5,7 +5,7 @@ import { requireAuth } from '../auth/middleware.js';
 import { isPostGisEnabled } from '../lib/postgis.js';
 import { getPrisma } from '../lib/prisma.js';
 import { parseBody } from '../lib/validate.js';
-import { notifyPostComment, notifyPostLike } from '../services/push.js';
+import { notifyMentions, notifyPostComment, notifyPostLike } from '../services/push.js';
 
 export async function postRoutes(app: FastifyInstance): Promise<void> {
   const prisma = getPrisma();
@@ -29,6 +29,7 @@ export async function postRoutes(app: FastifyInstance): Promise<void> {
       },
       include: { photos: true },
     });
+    notifyMentions(request.user!.id, data.mentionedUserIds, post.id, 'post').catch(() => {});
     return reply.code(201).send(post);
   });
 
@@ -189,6 +190,10 @@ export async function postRoutes(app: FastifyInstance): Promise<void> {
             : undefined,
         )
         .catch(() => {});
+      // Notify tagged connections.
+      notifyMentions(request.user!.id, data.mentionedUserIds, request.params.id, 'comment').catch(
+        () => {},
+      );
       return reply.code(201).send(comment);
     },
   );

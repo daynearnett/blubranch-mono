@@ -17,9 +17,10 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ArrowLeft, Send } from 'lucide-react-native';
+import { ArrowLeft, AtSign, Send, X } from 'lucide-react-native';
 import { posts as postsApi, type FeedPost } from '../../../src/lib/api.js';
 import { Badge } from '../../../src/components/ui.js';
+import { ConnectionPicker, type TaggedUser } from '../../../src/components/connection-picker.js';
 import { colors, radius, spacing, typography } from '../../../src/theme.js';
 
 type Comment = Awaited<ReturnType<typeof postsApi.comments>>[number];
@@ -104,6 +105,8 @@ export default function PostComments() {
   const [loading, setLoading] = useState(true);
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
+  const [tagged, setTagged] = useState<TaggedUser[]>([]);
+  const [pickerVisible, setPickerVisible] = useState(false);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -124,8 +127,12 @@ export default function PostComments() {
     if (!content || !id || sending) return;
     setSending(true);
     try {
-      await postsApi.comment(id, { content });
+      await postsApi.comment(id, {
+        content,
+        mentionedUserIds: tagged.length ? tagged.map((t) => t.id) : undefined,
+      });
       setText('');
+      setTagged([]);
       // Refetch the real post (authoritative comment count) + the comment list
       // so the count and thread always reflect what's saved — no manual refresh.
       const [c, p] = await Promise.all([postsApi.comments(id), postsApi.get(id)]);
@@ -183,7 +190,30 @@ export default function PostComments() {
           />
         )}
 
+        {tagged.length > 0 ? (
+          <View style={styles.tagChips}>
+            {tagged.map((t) => (
+              <Pressable
+                key={t.id}
+                style={styles.tagChip}
+                onPress={() => setTagged((prev) => prev.filter((p) => p.id !== t.id))}
+              >
+                <AtSign color={colors.orange} size={11} strokeWidth={2} />
+                <Text style={styles.tagChipText}>{t.name}</Text>
+                <X color={colors.textMuted} size={9} strokeWidth={2} />
+              </Pressable>
+            ))}
+          </View>
+        ) : null}
+
         <View style={styles.composer}>
+          <Pressable
+            onPress={() => setPickerVisible(true)}
+            style={styles.tagBtn}
+            accessibilityLabel="Tag connections"
+          >
+            <AtSign color={tagged.length ? colors.orange : colors.textMuted} size={20} strokeWidth={2} />
+          </Pressable>
           <TextInput
             style={styles.input}
             placeholder="Add a comment…"
@@ -201,6 +231,13 @@ export default function PostComments() {
           </Pressable>
         </View>
       </KeyboardAvoidingView>
+
+      <ConnectionPicker
+        visible={pickerVisible}
+        selected={tagged}
+        onClose={() => setPickerVisible(false)}
+        onConfirm={setTagged}
+      />
     </SafeAreaView>
   );
 }
@@ -259,6 +296,24 @@ const styles = StyleSheet.create({
   },
   commentName: { ...typography.small, fontWeight: '700', color: colors.navy, marginBottom: 2 },
   commentText: { ...typography.body, color: colors.textPrimary },
+  tagChips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.xs,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.sm,
+  },
+  tagChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 3,
+    borderRadius: radius.pill,
+    backgroundColor: colors.chipBgActive,
+  },
+  tagChipText: { ...typography.caption, color: colors.orange, fontWeight: '600' },
+  tagBtn: { width: 36, height: 44, alignItems: 'center', justifyContent: 'center' },
   composer: {
     flexDirection: 'row',
     alignItems: 'flex-end',
