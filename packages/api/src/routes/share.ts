@@ -30,6 +30,19 @@ function esc(s: string): string {
 export async function shareRoutes(app: FastifyInstance): Promise<void> {
   const prisma = getPrisma();
 
+  // Apple App Site Association — lets iOS open https share links directly in
+  // the app (Universal Links) instead of showing the "Open in BluBranch?"
+  // browser prompt. Served unauthenticated at the well-known path; Apple
+  // fetches it to verify the app↔domain association.
+  app.get('/.well-known/apple-app-site-association', async (_request, reply) => {
+    return reply.header('Content-Type', 'application/json').send({
+      applinks: {
+        apps: [],
+        details: [{ appID: 'WXY2PMFQB7.com.blubranch.app', paths: ['/share/*'] }],
+      },
+    });
+  });
+
   // Generic https → app redirect, used by email buttons (email clients ignore
   // custom blubranch:// schemes, so links must be http(s)).
   app.get('/share/open', async (_request, reply) => {

@@ -149,6 +149,11 @@ export const auth = {
 // ── Profile ─────────────────────────────────────────────────────
 export const me = {
   get: () => request<MeResponse>('/users/me'),
+  updatePhoto: (profilePhotoUrl: string) =>
+    request<{ profilePhotoUrl: string | null }>('/users/me/photo', {
+      method: 'PUT',
+      body: JSON.stringify({ profilePhotoUrl }),
+    }),
   updateWorkerProfile: (input: WorkerProfileInput) =>
     request<unknown>('/users/me/worker-profile', {
       method: 'PUT',

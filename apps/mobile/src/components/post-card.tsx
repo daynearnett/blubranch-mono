@@ -233,7 +233,7 @@ const styles = StyleSheet.create({
   seeMore: { ...typography.bodyBold, color: colors.navy, marginBottom: spacing.sm },
   heroPhoto: {
     width: '100%',
-    aspectRatio: 16 / 9,
+    aspectRatio: 1, // matches the square crop the composer's editor produces
     borderRadius: radius.sm,
     backgroundColor: colors.surface,
     marginBottom: spacing.sm,

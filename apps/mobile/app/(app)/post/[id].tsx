@@ -5,6 +5,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   Image,
   KeyboardAvoidingView,
@@ -125,11 +126,13 @@ export default function PostComments() {
     try {
       await postsApi.comment(id, { content });
       setText('');
-      const c = await postsApi.comments(id);
+      // Refetch the real post (authoritative comment count) + the comment list
+      // so the count and thread always reflect what's saved — no manual refresh.
+      const [c, p] = await Promise.all([postsApi.comments(id), postsApi.get(id)]);
       setComments(c);
-      setPost((prev) => (prev ? { ...prev, commentCount: prev.commentCount + 1 } : prev));
+      setPost(p);
     } catch {
-      // keep the text so the user can retry
+      Alert.alert('Could not post comment', 'Please check your connection and try again.');
     } finally {
       setSending(false);
     }
@@ -229,7 +232,7 @@ const styles = StyleSheet.create({
   previewContent: { ...typography.body, color: colors.textPrimary, lineHeight: 22 },
   previewPhoto: {
     width: '100%',
-    aspectRatio: 16 / 9,
+    aspectRatio: 1,
     borderRadius: radius.sm,
     backgroundColor: colors.surface,
     marginTop: spacing.sm,

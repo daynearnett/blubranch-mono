@@ -68,6 +68,7 @@ function PostComposer() {
     }
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true, // show the crop frame so the user controls the crop
       quality: 0.8,
     });
     if (result.canceled || !result.assets[0]) return;
@@ -110,7 +111,13 @@ function PostComposer() {
         tradeTag,
         photoUrls: photoUrls.length ? photoUrls : undefined,
       });
+      // Reset the whole draft so the next time the + tab opens it's blank
+      // (this screen stays mounted as a tab, so state would otherwise persist).
       setContent('');
+      setPhotoUrls([]);
+      setLocationTag(null);
+      setTradeTag(null);
+      setAudience('anyone');
       router.navigate('/(app)/(tabs)/feed');
     } catch (err) {
       Alert.alert('Error', err instanceof ApiError ? err.message : 'Could not create post');

@@ -18,7 +18,8 @@ import { ProfileHeader } from '../../../src/components/profile-header.js';
 import { VerifiedBadge } from '../../../src/components/verified-badge.js';
 import { SectionDivider } from '../../../src/components/section-divider.js';
 import { ProgressBar } from '../../../src/components/progress-bar.js';
-import { ApiError, me, type MeResponse } from '../../../src/lib/api.js';
+import * as ImagePicker from 'expo-image-picker';
+import { ApiError, me, uploadImage, type MeResponse } from '../../../src/lib/api.js';
 import { useAuth } from '../../../src/lib/auth-context.js';
 import { colors, radius, spacing, typography } from '../../../src/theme.js';
 
@@ -26,7 +27,7 @@ type Tab = 'about' | 'portfolio' | 'posts';
 
 export default function Profile() {
   const router = useRouter();
-  const { signOut } = useAuth();
+  const { signOut, user, setUser } = useAuth();
   const [data, setData] = useState<MeResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>('about');
@@ -39,6 +40,29 @@ export default function Profile() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  const onChangePhoto = async () => {
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) {
+      Alert.alert('Permission needed', 'Allow photo access to set your profile picture.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+    if (result.canceled || !result.assets[0]) return;
+    try {
+      const url = await uploadImage(result.assets[0].uri);
+      await me.updatePhoto(url);
+      if (user) setUser({ ...user, profilePhotoUrl: url });
+      load();
+    } catch (err) {
+      Alert.alert('Upload failed', err instanceof ApiError ? err.message : 'Try again');
+    }
+  };
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
@@ -79,6 +103,7 @@ export default function Profile() {
           onTabChange={setTab}
           isMe
           onSettings={() => router.push('/(app)/settings')}
+          onAvatarPress={onChangePhoto}
         />
 
         {completeness < 100 ? (

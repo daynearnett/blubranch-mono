@@ -1,5 +1,5 @@
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
-import { MapPin, Pencil, Settings } from 'lucide-react-native';
+import { Camera, MapPin, Pencil, Settings } from 'lucide-react-native';
 import type { MeResponse, PublicProfile } from '../lib/api.js';
 import { colors, radius, spacing, typography } from '../theme.js';
 import { Badge } from './ui.js';
@@ -16,9 +16,10 @@ interface Props {
   isMe?: boolean;
   onSettings?: () => void;
   onEditProfile?: () => void;
+  onAvatarPress?: () => void;
 }
 
-export function ProfileHeader({ profile, stats, active, onTabChange, isMe, onSettings, onEditProfile }: Props) {
+export function ProfileHeader({ profile, stats, active, onTabChange, isMe, onSettings, onEditProfile, onAvatarPress }: Props) {
   const wp = profile.workerProfile;
   const fullName = `${profile.firstName} ${profile.lastName}`;
   const initials = `${profile.firstName[0] ?? ''}${profile.lastName[0] ?? ''}`.toUpperCase();
@@ -36,7 +37,12 @@ export function ProfileHeader({ profile, stats, active, onTabChange, isMe, onSet
           </Pressable>
         ) : null}
 
-        <View style={styles.avatarWrap}>
+        <Pressable
+          style={styles.avatarWrap}
+          onPress={isMe ? onAvatarPress : undefined}
+          disabled={!isMe || !onAvatarPress}
+          accessibilityLabel={isMe ? 'Change profile photo' : undefined}
+        >
           {profile.profilePhotoUrl ? (
             <Image source={{ uri: profile.profilePhotoUrl }} style={styles.avatar} />
           ) : (
@@ -44,12 +50,17 @@ export function ProfileHeader({ profile, stats, active, onTabChange, isMe, onSet
               <Text style={styles.avatarInitials}>{initials}</Text>
             </View>
           )}
+          {isMe ? (
+            <View style={styles.avatarCamera}>
+              <Camera color={colors.textInverse} size={15} strokeWidth={2} />
+            </View>
+          ) : null}
           {profile.isVerified ? (
             <View style={styles.verifiedPos}>
               <VerifiedBadge size="small" />
             </View>
           ) : null}
-        </View>
+        </Pressable>
 
         <View style={styles.nameRow}>
           <Text style={styles.name}>{fullName}</Text>
@@ -149,6 +160,19 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   avatarWrap: { marginBottom: spacing.md },
+  avatarCamera: {
+    position: 'absolute',
+    right: 2,
+    bottom: 2,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: colors.navy,
+  },
   avatar: { width: 100, height: 100, borderRadius: 50, backgroundColor: colors.surface },
   avatarFallback: { alignItems: 'center', justifyContent: 'center' },
   avatarInitials: { fontSize: 28, fontWeight: '700', color: colors.navy },

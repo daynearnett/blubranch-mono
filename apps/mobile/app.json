@@ -18,6 +18,7 @@
       "bundleIdentifier": "com.blubranch.app",
       "buildNumber": "3",
       "googleServicesFile": "./GoogleService-Info.plist",
+      "associatedDomains": ["applinks:api-staging.blubranch.com"],
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "UIBackgroundModes": [

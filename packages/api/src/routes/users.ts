@@ -181,6 +181,25 @@ export async function userRoutes(app: FastifyInstance): Promise<void> {
     return reply.send(profile);
   });
 
+  // ── PUT /users/me/photo ─────────────────────────────────────────
+  // Set the user's profile photo (URL from /upload/image).
+  app.put<{ Body: { profilePhotoUrl?: string } }>(
+    '/users/me/photo',
+    { preHandler: requireAuth },
+    async (request, reply) => {
+      const url = request.body?.profilePhotoUrl;
+      if (typeof url !== 'string' || !/^https?:\/\//.test(url) || url.length > 500) {
+        return reply.code(400).send({ error: 'BadRequest', message: 'Valid photo URL required' });
+      }
+      const user = await prisma.user.update({
+        where: { id: request.user!.id },
+        data: { profilePhotoUrl: url },
+        select: { profilePhotoUrl: true },
+      });
+      return reply.send({ profilePhotoUrl: user.profilePhotoUrl });
+    },
+  );
+
   // ── POST /users/me/trades ───────────────────────────────────────
   app.post('/users/me/trades', { preHandler: requireAuth }, async (request, reply) => {
     const data = parseBody(setTradesInputSchema, request, reply);
