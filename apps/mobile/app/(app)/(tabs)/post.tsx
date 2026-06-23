@@ -13,14 +13,13 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AtSign, Briefcase, Camera, ChevronDown, ChevronRight, Globe, MapPin, Users, Wrench, X } from 'lucide-react-native';
 import { Badge, Button, Chip } from '../../../src/components/ui.js';
-import { ConnectionPicker, type TaggedUser } from '../../../src/components/connection-picker.js';
+import { MentionTextInput, type Mention } from '../../../src/components/mention-text-input.js';
 import { ApiError, me, posts, uploadImage } from '../../../src/lib/api.js';
 import { useAuth } from '../../../src/lib/auth-context.js';
 import { colors, radius, spacing, typography } from '../../../src/theme.js';
@@ -55,8 +54,7 @@ function PostComposer() {
   const [tradeTag, setTradeTag] = useState<string | null>(null);
   const [photoUrls, setPhotoUrls] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
-  const [tagged, setTagged] = useState<TaggedUser[]>([]);
-  const [pickerVisible, setPickerVisible] = useState(false);
+  const [tagged, setTagged] = useState<Mention[]>([]);
   const [busy, setBusy] = useState(false);
 
   const pickPhoto = async () => {
@@ -212,15 +210,16 @@ function PostComposer() {
             </View>
           ) : null}
 
-          <TextInput
-            style={styles.textInput}
-            placeholder="Share your work, ask a question, or celebrate a milestone..."
-            placeholderTextColor={colors.textMuted}
+          <MentionTextInput
+            inputStyle={styles.textInput}
+            placeholder="Share your work, ask a question, or tag a connection with @…"
             multiline
             value={content}
             onChangeText={setContent}
             maxLength={MAX_CHARS}
             textAlignVertical="top"
+            mentions={tagged}
+            onMentionsChange={setTagged}
           />
 
           {charCount >= WARN_CHARS ? (
@@ -299,18 +298,8 @@ function PostComposer() {
           >
             <MapPin color={locationTag ? colors.orange : colors.navy} size={22} strokeWidth={1.8} />
           </Pressable>
-          <Pressable style={styles.toolbarBtn} onPress={() => setPickerVisible(true)}>
-            <AtSign color={tagged.length ? colors.orange : colors.navy} size={22} strokeWidth={1.8} />
-          </Pressable>
         </View>
       </KeyboardAvoidingView>
-
-      <ConnectionPicker
-        visible={pickerVisible}
-        selected={tagged}
-        onClose={() => setPickerVisible(false)}
-        onConfirm={setTagged}
-      />
     </SafeAreaView>
   );
 }

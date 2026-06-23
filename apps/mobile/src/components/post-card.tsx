@@ -108,27 +108,32 @@ export function PostCard({
   return (
     <View style={styles.card}>
       <View style={styles.headerRow}>
-        {post.user.profilePhotoUrl ? (
-          <Image source={{ uri: post.user.profilePhotoUrl }} style={styles.avatar} />
-        ) : (
-          <View style={[styles.avatar, styles.avatarFallback]}>
-            <Text style={styles.avatarInitials}>{initials}</Text>
+        <Pressable
+          style={styles.authorTap}
+          onPress={() => router.push(`/(app)/users/${post.user.id}`)}
+        >
+          {post.user.profilePhotoUrl ? (
+            <Image source={{ uri: post.user.profilePhotoUrl }} style={styles.avatar} />
+          ) : (
+            <View style={[styles.avatar, styles.avatarFallback]}>
+              <Text style={styles.avatarInitials}>{initials}</Text>
+            </View>
+          )}
+          <View style={{ flex: 1 }}>
+            <View style={styles.nameRow}>
+              <Text style={styles.name}>
+                {post.user.firstName} {post.user.lastName}
+              </Text>
+              {post.user.unionName ? <Badge label={post.user.unionName} tone="primary" /> : null}
+            </View>
+            {post.user.headline ? (
+              <Text style={styles.headline} numberOfLines={1}>
+                {post.user.headline}
+              </Text>
+            ) : null}
+            <Text style={styles.elapsed}>{elapsed}</Text>
           </View>
-        )}
-        <View style={{ flex: 1 }}>
-          <View style={styles.nameRow}>
-            <Text style={styles.name}>
-              {post.user.firstName} {post.user.lastName}
-            </Text>
-            {post.user.unionName ? <Badge label={post.user.unionName} tone="primary" /> : null}
-          </View>
-          {post.user.headline ? (
-            <Text style={styles.headline} numberOfLines={1}>
-              {post.user.headline}
-            </Text>
-          ) : null}
-          <Text style={styles.elapsed}>{elapsed}</Text>
-        </View>
+        </Pressable>
         {isOwner ? (
           <Pressable onPress={onMore} hitSlop={8} style={styles.moreBtn} accessibilityLabel="Post options">
             <MoreHorizontal color={colors.textMuted} size={20} strokeWidth={2} />
@@ -217,6 +222,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   headerRow: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.sm },
+  authorTap: { flexDirection: 'row', gap: spacing.sm, flex: 1, alignItems: 'center' },
   moreBtn: { width: 28, height: 28, alignItems: 'center', justifyContent: 'center' },
   avatar: { width: 44, height: 44, borderRadius: 22 },
   avatarFallback: {

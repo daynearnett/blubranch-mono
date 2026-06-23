@@ -257,6 +257,61 @@ export async function connectionRoutes(app: FastifyInstance): Promise<void> {
     },
   );
 
+  // ── GET /tag-suggestions ────────────────────────────────────────
+  // People the user can @-tag: within 3 "branches" (connection degrees),
+  // name-filtered. Capped BFS over the accepted-connection graph.
+  app.get<{ Querystring: { q?: string } }>(
+    '/tag-suggestions',
+    { preHandler: requireAuth },
+    async (request, reply) => {
+      const me = request.user!.id;
+      const q = (request.query.q ?? '').trim();
+
+      const within = new Set<string>([me]);
+      let frontier: string[] = [me];
+      const CAP = 1500; // safety cap on network size
+      for (let depth = 0; depth < 3 && frontier.length > 0 && within.size < CAP; depth++) {
+        const conns = await prisma.connection.findMany({
+          where: {
+            status: 'accepted',
+            OR: [{ requesterId: { in: frontier } }, { receiverId: { in: frontier } }],
+          },
+          select: { requesterId: true, receiverId: true },
+        });
+        const next: string[] = [];
+        for (const c of conns) {
+          for (const id of [c.requesterId, c.receiverId]) {
+            if (!within.has(id)) {
+              within.add(id);
+              next.push(id);
+            }
+          }
+        }
+        frontier = next;
+      }
+      within.delete(me);
+      if (within.size === 0) return reply.send({ items: [] });
+
+      const users = await prisma.user.findMany({
+        where: {
+          id: { in: [...within] },
+          ...(q
+            ? {
+                OR: [
+                  { firstName: { contains: q, mode: 'insensitive' as const } },
+                  { lastName: { contains: q, mode: 'insensitive' as const } },
+                ],
+              }
+            : {}),
+        },
+        select: { id: true, firstName: true, lastName: true, profilePhotoUrl: true },
+        take: 10,
+        orderBy: { firstName: 'asc' },
+      });
+      return reply.send({ items: users });
+    },
+  );
+
   // ── GET /network/suggestions ────────────────────────────────────
   app.get('/network/suggestions', { preHandler: requireAuth }, async (request, reply) => {
     const userId = request.user!.id;

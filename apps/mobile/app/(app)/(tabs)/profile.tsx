@@ -120,7 +120,13 @@ export default function Profile() {
         ) : null}
 
         <View style={styles.content}>
-          {tab === 'about' ? <AboutTab data={data} onVerify={() => router.push('/(app)/verifications')} /> : null}
+          {tab === 'about' ? (
+            <AboutTab
+              data={data}
+              onVerify={() => router.push('/(app)/verifications')}
+              onAddPhoto={onChangePhoto}
+            />
+          ) : null}
           {tab === 'portfolio' ? <PortfolioTab data={data} /> : null}
           {tab === 'posts' ? <PostsTab /> : null}
         </View>
@@ -143,7 +149,15 @@ function computeCompleteness(data: MeResponse): number {
 }
 
 // ── S9/S10: Enrichment cards ────────────────────────────────────
-function EnrichmentCards({ data, onVerify }: { data: MeResponse; onVerify?: () => void }) {
+function EnrichmentCards({
+  data,
+  onVerify,
+  onAddPhoto,
+}: {
+  data: MeResponse;
+  onVerify?: () => void;
+  onAddPhoto?: () => void;
+}) {
   const cards: { key: string; title: string; subtitle: string; icon: typeof Camera; onPress?: () => void }[] = [];
 
   if (!data.profilePhotoUrl) {
@@ -152,11 +166,7 @@ function EnrichmentCards({ data, onVerify }: { data: MeResponse; onVerify?: () =
       title: 'Add a profile photo',
       subtitle: 'Profiles with photos get 5x more views',
       icon: Camera,
-      onPress: () =>
-        Alert.alert(
-          'Add a profile photo',
-          "We're building photo uploads from your profile — coming in an upcoming update.",
-        ),
+      onPress: onAddPhoto,
     });
   }
   if (data.skills.length === 0) {
@@ -232,14 +242,22 @@ const enrichStyles = StyleSheet.create({
 });
 
 // ── S12: About tab ──────────────────────────────────────────────
-function AboutTab({ data, onVerify }: { data: MeResponse; onVerify?: () => void }) {
+function AboutTab({
+  data,
+  onVerify,
+  onAddPhoto,
+}: {
+  data: MeResponse;
+  onVerify?: () => void;
+  onAddPhoto?: () => void;
+}) {
   const [bioExpanded, setBioExpanded] = useState(false);
   const bio = data.workerProfile?.bio ?? '';
   const showSeeMore = bio.length > 150;
 
   return (
     <View>
-      <EnrichmentCards data={data} onVerify={onVerify} />
+      <EnrichmentCards data={data} onVerify={onVerify} onAddPhoto={onAddPhoto} />
 
       {bio ? (
         <Card>

@@ -13,14 +13,13 @@ import {
   Pressable,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArrowLeft, AtSign, Send, X } from 'lucide-react-native';
 import { posts as postsApi, type FeedPost } from '../../../src/lib/api.js';
 import { Badge } from '../../../src/components/ui.js';
-import { ConnectionPicker, type TaggedUser } from '../../../src/components/connection-picker.js';
+import { MentionTextInput, type Mention } from '../../../src/components/mention-text-input.js';
 import { colors, radius, spacing, typography } from '../../../src/theme.js';
 
 type Comment = Awaited<ReturnType<typeof postsApi.comments>>[number];
@@ -105,8 +104,7 @@ export default function PostComments() {
   const [loading, setLoading] = useState(true);
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
-  const [tagged, setTagged] = useState<TaggedUser[]>([]);
-  const [pickerVisible, setPickerVisible] = useState(false);
+  const [tagged, setTagged] = useState<Mention[]>([]);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -207,20 +205,15 @@ export default function PostComments() {
         ) : null}
 
         <View style={styles.composer}>
-          <Pressable
-            onPress={() => setPickerVisible(true)}
-            style={styles.tagBtn}
-            accessibilityLabel="Tag connections"
-          >
-            <AtSign color={tagged.length ? colors.orange : colors.textMuted} size={20} strokeWidth={2} />
-          </Pressable>
-          <TextInput
-            style={styles.input}
-            placeholder="Add a comment…"
-            placeholderTextColor={colors.textSecondary}
+          <MentionTextInput
+            containerStyle={styles.composerInput}
+            inputStyle={styles.input}
+            placeholder="Add a comment… tag with @"
             value={text}
             onChangeText={setText}
             multiline
+            mentions={tagged}
+            onMentionsChange={setTagged}
           />
           <Pressable
             onPress={send}
@@ -231,13 +224,6 @@ export default function PostComments() {
           </Pressable>
         </View>
       </KeyboardAvoidingView>
-
-      <ConnectionPicker
-        visible={pickerVisible}
-        selected={tagged}
-        onClose={() => setPickerVisible(false)}
-        onConfirm={setTagged}
-      />
     </SafeAreaView>
   );
 }
@@ -314,6 +300,7 @@ const styles = StyleSheet.create({
   },
   tagChipText: { ...typography.caption, color: colors.orange, fontWeight: '600' },
   tagBtn: { width: 36, height: 44, alignItems: 'center', justifyContent: 'center' },
+  composerInput: { flex: 1 },
   composer: {
     flexDirection: 'row',
     alignItems: 'flex-end',

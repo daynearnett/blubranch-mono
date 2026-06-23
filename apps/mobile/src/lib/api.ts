@@ -640,6 +640,13 @@ export interface ConnectionsListResponse {
 
 export type NetworkSuggestion = ConnectionUser & { score: number };
 
+export interface TaggableUser {
+  id: string;
+  firstName: string;
+  lastName: string;
+  profilePhotoUrl: string | null;
+}
+
 export const connections = {
   list: (params?: { search?: string; sort?: string; page?: number }) => {
     const q = new URLSearchParams();
@@ -658,6 +665,9 @@ export const connections = {
   remove: (id: string) =>
     request<void>(`/connections/${id}`, { method: 'DELETE' }),
   suggestions: () => request<NetworkSuggestion[]>('/network/suggestions'),
+  // People within 3 branches (degrees) the user can @-tag, name-filtered.
+  tagSuggestions: (q?: string) =>
+    request<{ items: TaggableUser[] }>(`/tag-suggestions?q=${encodeURIComponent(q ?? '')}`),
 };
 
 // ── Messages ──────────────────────────────────────────────────────
