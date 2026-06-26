@@ -19,7 +19,7 @@ export default function TabsLayout() {
       <Tabs.Screen name="network" options={{ title: 'Network' }} />
       <Tabs.Screen name="post" options={{ title: 'Post' }} />
       <Tabs.Screen name="jobs" options={{ title: 'Jobs' }} />
-      <Tabs.Screen name="profile" options={{ title: 'Me' }} />
+      <Tabs.Screen name="profile" options={{ title: 'My Branch' }} />
     </Tabs>
   );
 }

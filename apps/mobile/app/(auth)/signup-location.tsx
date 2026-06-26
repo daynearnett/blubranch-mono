@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { MapPin } from 'lucide-react-native';
 import * as Location from 'expo-location';
@@ -15,16 +15,16 @@ export default function SignupLocation() {
   const { draft, update } = useSignup();
   const [locating, setLocating] = useState(false);
 
-  useEffect(() => {
-    requestLocation();
-  }, []);
-
   const requestLocation = async () => {
     setLocating(true);
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
         setLocating(false);
+        Alert.alert(
+          'Location permission needed',
+          'Enable location access to auto-fill your city, or enter it manually below.',
+        );
         return;
       }
       const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
@@ -58,14 +58,12 @@ export default function SignupLocation() {
         <Text style={styles.title}>Where do you work?</Text>
         <Text style={styles.subtitle}>We'll use this to show jobs near you.</Text>
 
-        {!draft.city && (
-          <Pressable style={styles.locationBtn} onPress={requestLocation} disabled={locating}>
-            <MapPin color={colors.orange} size={20} strokeWidth={2} />
-            <Text style={styles.locationBtnText}>
-              {locating ? 'Getting your location...' : 'Use my current location'}
-            </Text>
-          </Pressable>
-        )}
+        <Pressable style={styles.locationBtn} onPress={requestLocation} disabled={locating}>
+          <MapPin color={colors.orange} size={20} strokeWidth={2} />
+          <Text style={styles.locationBtnText}>
+            {locating ? 'Getting your location...' : 'Use my current location'}
+          </Text>
+        </Pressable>
 
         <Input label="City" value={draft.city} onChangeText={(v) => update({ city: v })} />
         <Input

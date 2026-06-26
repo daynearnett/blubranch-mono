@@ -20,6 +20,7 @@
       "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
+        "NSLocationWhenInUseUsageDescription": "BluBranch uses your location to show jobs near you and set the city on your profile. Your exact location is never shared — only your city and region.",
         "UIBackgroundModes": [
           "remote-notification"
         ]
