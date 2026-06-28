@@ -10,6 +10,8 @@ import type {
   JobUpdate,
   LicenseInput,
   LoginInput,
+  PaymentSheetParams,
+  SubscriptionStatus,
   PortfolioPhotoInput,
   PostCommentInput,
   PostInput,
@@ -573,6 +575,27 @@ export const companies = {
     request<CompanyFields>('/companies', { method: 'POST', body: JSON.stringify(input) }),
   update: (id: string, input: CompanyInput) =>
     request<CompanyFields>(`/companies/${id}`, { method: 'PUT', body: JSON.stringify(input) }),
+};
+
+export const payments = {
+  // One-time Payment Sheet bootstrap for a Basic/Pro draft job.
+  jobIntent: (jobId: string) =>
+    request<PaymentSheetParams>(`/payments/jobs/${jobId}/intent`, { method: 'POST' }),
+  // Server-side verification backstop — publishes the job if the PI succeeded.
+  confirmJob: (jobId: string) =>
+    request<{ published: boolean; status: string }>(`/payments/jobs/${jobId}/confirm`, {
+      method: 'POST',
+    }),
+  // Unlimited subscription bootstrap (first invoice payment).
+  subscriptionIntent: () =>
+    request<PaymentSheetParams>('/payments/subscription/intent', { method: 'POST' }),
+  confirmSubscription: () =>
+    request<{ active: boolean; status: string }>('/payments/subscription/confirm', {
+      method: 'POST',
+    }),
+  subscriptionStatus: () => request<SubscriptionStatus>('/payments/subscription'),
+  cancelSubscription: () =>
+    request<{ canceledAtPeriodEnd: boolean }>('/payments/subscription/cancel', { method: 'POST' }),
 };
 
 export const feed = {

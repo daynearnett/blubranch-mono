@@ -1,9 +1,11 @@
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { Animated, Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import type { ReactNode } from 'react';
+import { Animated, Image, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as SplashScreen from 'expo-splash-screen';
+import { StripeProvider } from '@stripe/stripe-react-native';
 import { AuthProvider, useAuth } from '../src/lib/auth-context.js';
 import { DetailPanelProvider } from '../src/lib/detail-panel-context.js';
 import { PostJobProvider } from '../src/lib/post-job-context.js';
@@ -86,20 +88,36 @@ const brandStyles = StyleSheet.create({
   slogan: { color: '#FFFFFF', fontSize: 16, fontWeight: '600', letterSpacing: 0.3 },
 });
 
+// Wrap the tree in Stripe's provider on native so the Payment Sheet can mount.
+// Web export skips it (Payment Sheet is native-only) to keep the bundle clean.
+function PaymentProvider({ children }: { children: ReactNode }) {
+  if (Platform.OS === 'web') return <>{children}</>;
+  return (
+    <StripeProvider
+      publishableKey={process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? ''}
+      merchantIdentifier="merchant.com.blubranch.app"
+    >
+      <>{children}</>
+    </StripeProvider>
+  );
+}
+
 export default function RootLayout() {
   const [brandDone, setBrandDone] = useState(false);
   return (
     <SafeAreaProvider>
-      <AuthProvider>
-        <SignupProvider>
-          <PostJobProvider>
-            <DetailPanelProvider>
-              <StatusBar style="dark" />
-              <RootGuard />
-            </DetailPanelProvider>
-          </PostJobProvider>
-        </SignupProvider>
-      </AuthProvider>
+      <PaymentProvider>
+        <AuthProvider>
+          <SignupProvider>
+            <PostJobProvider>
+              <DetailPanelProvider>
+                <StatusBar style="dark" />
+                <RootGuard />
+              </DetailPanelProvider>
+            </PostJobProvider>
+          </SignupProvider>
+        </AuthProvider>
+      </PaymentProvider>
       {brandDone ? null : <BrandSplash onDone={() => setBrandDone(true)} />}
     </SafeAreaProvider>
   );

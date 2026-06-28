@@ -17,6 +17,7 @@ import { connectionRoutes } from './routes/connections.js';
 import { userRoutes } from './routes/users.js';
 import { messageRoutes } from './routes/messages.js';
 import { notificationRoutes } from './routes/notifications.js';
+import { paymentRoutes, stripeWebhookRoutes } from './routes/payments.js';
 
 // Origins that may call this API. Native iOS / Android apps don't send the
 // Origin header so we let those through unconditionally (the `if (!origin)`
@@ -80,6 +81,10 @@ export async function buildApp(): Promise<FastifyInstance> {
   await app.register(shareRoutes);
   await app.register(messageRoutes);
   await app.register(notificationRoutes);
+  await app.register(paymentRoutes);
+  // Stripe webhook is registered as its own encapsulated plugin so it can parse
+  // the raw request body (signature verification) without affecting JSON routes.
+  await app.register(stripeWebhookRoutes);
   await app.register(uploadRoutes);
 
   // BullMQ workers + repeatable job schedules (expire-jobs hourly,

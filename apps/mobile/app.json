@@ -73,7 +73,10 @@
           "ios": {
             "deploymentTarget": "15.1",
             "useFrameworks": "static",
-            "forceStaticLinking": ["RNFBApp", "RNFBMessaging"]
+            "forceStaticLinking": [
+              "RNFBApp",
+              "RNFBMessaging"
+            ]
           },
           "android": {
             "minSdkVersion": 24,
@@ -93,7 +96,8 @@
           }
         }
       ],
-      "@react-native-firebase/messaging"
+      "@react-native-firebase/messaging",
+      "@stripe/stripe-react-native"
     ],
     "experiments": {
       "typedRoutes": true

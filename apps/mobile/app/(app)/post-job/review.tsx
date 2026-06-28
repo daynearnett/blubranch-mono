@@ -1,12 +1,20 @@
 // Mockup 7E — Review & publish. Creates the company (or reuses existing),
-// then creates the job, then advances to the confirmation screen.
+// then creates the job and runs the Stripe Payment Sheet:
+//   • Basic / Pro  → one-time charge; job publishes once Stripe confirms.
+//   • Unlimited    → starts (or reuses) the $299/mo subscription, then posts.
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import type { CompanySize } from '@blubranch/shared';
+import { useStripe } from '@stripe/stripe-react-native';
+import type { CompanySize, PaymentSheetParams } from '@blubranch/shared';
 import { Button, Card, ProgressDots } from '../../../src/components/ui.js';
-import { ApiError, companies as companiesApi, jobs as jobsApi } from '../../../src/lib/api.js';
+import {
+  ApiError,
+  companies as companiesApi,
+  jobs as jobsApi,
+  payments as paymentsApi,
+} from '../../../src/lib/api.js';
 import { usePostJob } from '../../../src/lib/post-job-context.js';
 import { colors, radius, spacing, typography } from '../../../src/theme.js';
 
@@ -19,9 +27,37 @@ const PRICE: Record<'basic' | 'pro' | 'unlimited', string> = {
 export default function Review() {
   const router = useRouter();
   const { draft } = usePostJob();
+  const { initPaymentSheet, presentPaymentSheet } = useStripe();
   const [submitting, setSubmitting] = useState(false);
+  // Holds the draft job id after a first attempt so a cancel-then-retry pays
+  // for the SAME draft instead of creating a duplicate.
+  const [pendingJobId, setPendingJobId] = useState<string | null>(null);
 
   const ttlDays = draft.planTier === 'basic' ? 30 : 60;
+
+  // Present the native Payment Sheet for a given intent. Returns true on a
+  // completed payment, false if the user cancelled (we stay on the screen).
+  const runPaymentSheet = async (params: PaymentSheetParams): Promise<boolean> => {
+    const init = await initPaymentSheet({
+      merchantDisplayName: 'BluBranch',
+      customerId: params.customerId,
+      customerEphemeralKeySecret: params.ephemeralKeySecret,
+      paymentIntentClientSecret: params.paymentIntentClientSecret,
+      allowsDelayedPaymentMethods: false,
+      returnURL: 'blubranch://stripe-redirect',
+    });
+    if (init.error) throw new Error(init.error.message);
+
+    const { error } = await presentPaymentSheet();
+    if (error) {
+      if (error.code === 'Canceled') return false;
+      throw new Error(error.message);
+    }
+    return true;
+  };
+
+  const finish = (jobId: string) =>
+    router.replace({ pathname: '/(app)/post-job/published', params: { jobId } });
 
   const onPublish = async () => {
     setSubmitting(true);
@@ -29,57 +65,80 @@ export default function Review() {
       // 1. Reuse or create the company.
       const existing = await companiesApi.myCompany().catch(() => null);
       let companyId = existing?.id;
+      const companyPayload = {
+        name: draft.companyName,
+        industry: draft.industry || null,
+        sizeRange: draft.companySize as CompanySize,
+        website: draft.website || null,
+        description: draft.about || null,
+        contactEmail: draft.contactEmail,
+      };
       if (!companyId) {
-        const created = await companiesApi.create({
-          name: draft.companyName,
-          industry: draft.industry || null,
-          sizeRange: draft.companySize as CompanySize,
-          website: draft.website || null,
-          description: draft.about || null,
-          contactEmail: draft.contactEmail,
-        });
-        companyId = created.id;
+        companyId = (await companiesApi.create(companyPayload)).id;
       } else {
-        // Light update to keep contact email in sync.
-        await companiesApi
-          .update(existing!.id, {
-            name: draft.companyName,
-            industry: draft.industry || null,
-            sizeRange: draft.companySize as CompanySize,
-            website: draft.website || null,
-            description: draft.about || null,
-            contactEmail: draft.contactEmail,
-          })
-          .catch(() => undefined);
+        await companiesApi.update(existing!.id, companyPayload).catch(() => undefined);
       }
 
-      // 2. Create the job. Stripe payment is mocked — server will create
-      //    in 'open' status immediately.
-      const created = await jobsApi.create({
-        companyId,
-        title: draft.title,
-        tradeId: draft.tradeId!,
-        experienceLevel: draft.experienceLevel,
-        payMin: Number(draft.payMin),
-        payMax: Number(draft.payMax),
-        jobType: draft.jobType,
-        workSetting: draft.workSetting,
-        city: draft.city,
-        state: draft.state,
-        zipCode: draft.zipCode,
-        description: draft.description,
-        openingsCount: draft.openingsCount,
-        planTier: draft.planTier,
-        isUrgent: draft.isUrgent,
-        boostPushNotification: draft.boostPushNotification,
-        boostFeaturedPlacement: draft.boostFeaturedPlacement,
-        benefitIds: draft.benefitIds,
-        status: 'open',
-      });
+      // 2. Unlimited plan → ensure an active subscription before posting.
+      if (draft.planTier === 'unlimited') {
+        const sub = await paymentsApi.subscriptionStatus().catch(() => null);
+        if (!sub?.active) {
+          const params = await paymentsApi.subscriptionIntent();
+          const paid = await runPaymentSheet(params);
+          if (!paid) return; // user cancelled
+          await paymentsApi.confirmSubscription().catch(() => undefined);
+        }
+      }
 
-      router.replace({ pathname: '/(app)/post-job/published', params: { jobId: created.id } });
+      // 3. Create the job (or reuse a draft from a cancelled attempt). Server
+      //    decides the initial status from the plan + payment state: Basic/Pro
+      //    come back as 'draft' (pay-per-post), Unlimited (active sub) or
+      //    unconfigured dev → 'open'.
+      let jobId = pendingJobId;
+      let status: string = 'open';
+      if (!jobId) {
+        const created = await jobsApi.create({
+          companyId,
+          title: draft.title,
+          tradeId: draft.tradeId!,
+          experienceLevel: draft.experienceLevel,
+          payMin: Number(draft.payMin),
+          payMax: Number(draft.payMax),
+          jobType: draft.jobType,
+          workSetting: draft.workSetting,
+          city: draft.city,
+          state: draft.state,
+          zipCode: draft.zipCode,
+          description: draft.description,
+          openingsCount: draft.openingsCount,
+          planTier: draft.planTier,
+          isUrgent: draft.isUrgent,
+          boostPushNotification: draft.boostPushNotification,
+          boostFeaturedPlacement: draft.boostFeaturedPlacement,
+          benefitIds: draft.benefitIds,
+        });
+        jobId = created.id;
+        status = created.status;
+      } else {
+        status = 'draft'; // a reused pending job is, by definition, unpaid
+      }
+
+      // 4. Basic/Pro → pay for this post, then publish.
+      if (status === 'draft') {
+        setPendingJobId(jobId);
+        const params = await paymentsApi.jobIntent(jobId);
+        const paid = await runPaymentSheet(params);
+        if (!paid) {
+          Alert.alert('Payment cancelled', 'Your job was saved as a draft. Tap publish to pay for it.');
+          return;
+        }
+        await paymentsApi.confirmJob(jobId);
+      }
+
+      setPendingJobId(null);
+      finish(jobId);
     } catch (err) {
-      Alert.alert('Could not publish', err instanceof ApiError ? err.message : 'Try again');
+      Alert.alert('Could not publish', err instanceof ApiError ? err.message : (err as Error).message);
     } finally {
       setSubmitting(false);
     }

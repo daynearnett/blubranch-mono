@@ -52,6 +52,48 @@ export async function sendNotificationEmail(
   });
 }
 
+/**
+ * Receipt email after a successful payment (one-time job post or the first
+ * month of an Unlimited subscription). Best-effort — never blocks the webhook.
+ */
+export async function sendReceiptEmail(
+  to: string,
+  opts: { description: string; amountCents: number; recurring: boolean },
+): Promise<void> {
+  const amount = `$${(opts.amountCents / 100).toFixed(2)}`;
+  if (!process.env.RESEND_API_KEY) {
+    console.log(`[email] DEV MODE — receipt to ${to}: ${opts.description} ${amount}`);
+    return;
+  }
+  const base = process.env.PUBLIC_BASE_URL ?? 'https://api-staging.blubranch.com';
+  const logo = `${base}/share/logo.png`;
+  await getResend().emails.send({
+    from: FROM_ADDRESS,
+    to,
+    subject: `Your BluBranch receipt — ${amount}`,
+    html: `
+      <div style="font-family: -apple-system, BlinkMacSystemFont, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px 24px;">
+        <div style="text-align:center;"><img src="${logo}" width="56" height="56" alt="BluBranch" style="border-radius: 12px;" /></div>
+        <h2 style="color: #3D5A80; margin: 16px 0 8px; text-align:center;">Payment received</h2>
+        <div style="background:#F5F7FA; border-radius:10px; padding:20px; margin:20px 0;">
+          <div style="display:flex; justify-content:space-between; color:#2A3F58; font-size:15px; margin-bottom:8px;">
+            <span>${escapeHtml(opts.description)}</span>
+          </div>
+          <div style="font-size:28px; font-weight:700; color:#0F2D52;">${amount}${opts.recurring ? ' <span style="font-size:14px; font-weight:500; color:#5C7A9B;">/ month</span>' : ''}</div>
+        </div>
+        <p style="color: #5C7A9B; font-size: 13px; line-height: 19px;">
+          ${opts.recurring
+            ? 'Your Unlimited plan is active. Manage or cancel anytime in BluBranch → Settings → Billing.'
+            : 'Thanks for posting on BluBranch. No refunds after a job goes live.'}
+        </p>
+        <p style="color: #9AA8B8; font-size: 12px; margin-top: 28px; text-align:center;">
+          <strong style="color:#3D5A80;">Networking for the Blue Collar.</strong>
+        </p>
+      </div>
+    `,
+  });
+}
+
 const codes = new Map<string, { code: string; expiresAt: number }>();
 
 export function generateVerificationCode(email: string): string {

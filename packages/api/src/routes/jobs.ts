@@ -1,4 +1,5 @@
 import {
+  isSubscriptionPlan,
   jobInputSchema,
   jobSearchQuerySchema,
   jobUpdateSchema,
@@ -11,19 +12,27 @@ import { isPostGisEnabled } from '../lib/postgis.js';
 import { getPrisma } from '../lib/prisma.js';
 import { parseBody } from '../lib/validate.js';
 import { geocodeAddress, setGeographyPoint } from '../services/geocode.js';
+import { isStripeConfigured } from '../services/stripe.js';
+import { hasActiveSubscription } from './payments.js';
+import { planTtlDays } from '../lib/plans.js';
 
 const MILES_TO_METERS = 1609.344;
-
-function planTtlDays(plan: 'basic' | 'pro' | 'unlimited'): number {
-  return plan === 'basic' ? 30 : 60;
-}
 
 export async function jobRoutes(app: FastifyInstance): Promise<void> {
   const prisma = getPrisma();
 
   // ── POST /jobs ──────────────────────────────────────────────────
-  // Mockup screen 7E "Pay & publish". For Phase 3 we skip Stripe and
-  // create the job in `open` status immediately.
+  // Mockup screen 7E "Pay & publish".
+  //
+  // Phase 5 payment gating (only when Stripe is configured):
+  //   • Basic / Pro  → created as `draft`; the mobile Payment Sheet pays per
+  //     post and the job flips to `open` once Stripe confirms the
+  //     PaymentIntent (webhook + /payments/jobs/:id/confirm backstop).
+  //   • Unlimited    → requires an active subscription. With one, the job is
+  //     created `open` immediately (posting is free while subscribed); without
+  //     one we 402 so the client can start the subscription flow.
+  //   • Admin, or Stripe not configured (local/dev) → created `open`
+  //     immediately, preserving the pre-Phase-5 behavior.
   app.post(
     '/jobs',
     { preHandler: requireAuth },
@@ -41,6 +50,23 @@ export async function jobRoutes(app: FastifyInstance): Promise<void> {
         return reply
           .code(400)
           .send({ error: 'BadRequest', message: 'payMax must be ≥ payMin' });
+      }
+
+      // Decide the initial status from the plan + payment state.
+      let status: 'draft' | 'open';
+      if (!isStripeConfigured() || request.user!.role === 'admin') {
+        status = data.status === 'draft' ? 'draft' : 'open';
+      } else if (isSubscriptionPlan(data.planTier)) {
+        if (!(await hasActiveSubscription(prisma, request.user!.id))) {
+          return reply.code(402).send({
+            error: 'PaymentRequired',
+            reason: 'subscription_required',
+            message: 'An active Unlimited subscription is required to post on this plan.',
+          });
+        }
+        status = 'open';
+      } else {
+        status = 'draft';
       }
 
       const expiresAt = new Date(Date.now() + planTtlDays(data.planTier) * 24 * 60 * 60 * 1000);
@@ -63,7 +89,7 @@ export async function jobRoutes(app: FastifyInstance): Promise<void> {
           zipCode: data.zipCode,
           description: data.description,
           openingsCount: data.openingsCount,
-          status: data.status === 'draft' ? 'draft' : 'open',
+          status,
           planTier: data.planTier,
           isFeatured,
           isUrgent: data.isUrgent && data.planTier !== 'basic',

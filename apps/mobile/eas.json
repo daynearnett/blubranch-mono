@@ -29,7 +29,8 @@
       },
       "channel": "preview",
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://blubranch-production.up.railway.app"
+        "EXPO_PUBLIC_API_URL": "https://blubranch-production.up.railway.app",
+        "EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY": "pk_test_51Tn8AjEZf7BkcRJEj6Ghy6fk5MNdgW1ooP0ueJpihl4Kt364UXA6xXHQVx261MWEVWwn282FSUCFkzDNCh2Cju1K0090Fuegn0"
       }
     },
     "production": {
@@ -41,7 +42,8 @@
       },
       "channel": "production",
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://api.blubranch.com"
+        "EXPO_PUBLIC_API_URL": "https://api.blubranch.com",
+        "EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY": "pk_live_REPLACE_ME"
       }
     }
   },
