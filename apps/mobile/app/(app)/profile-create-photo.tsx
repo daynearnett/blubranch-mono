@@ -98,6 +98,10 @@ export default function ProfileCreatePhoto() {
     setBusy(true);
     try {
       const url = await uploadImage(result.assets[0].uri);
+      // Persist to the DB immediately so the photo survives a reload — the
+      // onboarding "finish" step only saves headline/bio, so without this the
+      // uploaded URL lived in local state only and was lost on next load.
+      await me.updatePhoto(url);
       setPhotoUrl(url);
       if (user) setUser({ ...user, profilePhotoUrl: url });
     } catch (err) {
