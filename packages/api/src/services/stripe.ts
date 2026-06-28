@@ -13,8 +13,16 @@ let _stripe: Stripe | null = null;
  * routes 503 when this is false so local dev / unconfigured envs degrade
  * cleanly instead of throwing opaque Stripe errors.
  */
+// Read an env var and trim surrounding whitespace. Railway/dashboard pastes
+// occasionally smuggle in a leading tab/newline (e.g. a price id arriving as
+// "\tprice_…"), which Stripe then rejects with "No such price". Trimming every
+// Stripe value defends against that.
+function env(name: string): string {
+  return (process.env[name] ?? '').trim();
+}
+
 export function isStripeConfigured(): boolean {
-  const key = process.env.STRIPE_SECRET_KEY;
+  const key = env('STRIPE_SECRET_KEY');
   return !!key && key !== 'sk_test_replace_me';
 }
 
@@ -23,14 +31,14 @@ export function getStripe(): Stripe {
     if (!isStripeConfigured()) {
       throw new Error('Stripe is not configured (STRIPE_SECRET_KEY missing)');
     }
-    _stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
+    _stripe = new Stripe(env('STRIPE_SECRET_KEY'));
   }
   return _stripe;
 }
 
 /** Publishable key handed to the mobile Payment Sheet. */
 export function getPublishableKey(): string {
-  return process.env.STRIPE_PUBLISHABLE_KEY ?? '';
+  return env('STRIPE_PUBLISHABLE_KEY');
 }
 
 /**
@@ -39,7 +47,7 @@ export function getPublishableKey(): string {
  * the subscription route 503s with a clear message.
  */
 export function getUnlimitedPriceId(): string {
-  return process.env.STRIPE_PRICE_UNLIMITED ?? '';
+  return env('STRIPE_PRICE_UNLIMITED');
 }
 
 /**

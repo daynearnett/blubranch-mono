@@ -380,7 +380,7 @@ export async function stripeWebhookRoutes(app: FastifyInstance): Promise<void> {
     async (request, reply) => {
       if (!isStripeConfigured()) return reply.code(503).send({ error: 'StripeNotConfigured' });
 
-      const secret = process.env.STRIPE_WEBHOOK_SECRET;
+      const secret = process.env.STRIPE_WEBHOOK_SECRET?.trim();
       const sig = request.headers['stripe-signature'];
       if (!secret || secret === 'whsec_replace_me' || !sig) {
         return reply.code(400).send({ error: 'BadRequest', message: 'Missing webhook signature/secret.' });
