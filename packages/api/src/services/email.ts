@@ -120,7 +120,10 @@ export async function sendVerificationEmail(email: string, code: string): Promis
     return;
   }
 
-  await getResend().emails.send({
+  // Resend returns { data, error } and does NOT throw on API-level failures
+  // (rate limit, blocked recipient, unverified domain, …). Surface the error so
+  // the caller can report it instead of falsely claiming the code was sent.
+  const { data, error } = await getResend().emails.send({
     from: FROM_ADDRESS,
     to: email,
     subject: 'Your BluBranch verification code',
@@ -135,4 +138,9 @@ export async function sendVerificationEmail(email: string, code: string): Promis
       </div>
     `,
   });
+  if (error) {
+    console.error('[email] verification send failed:', JSON.stringify(error));
+    throw new Error(`Resend error: ${error.message ?? error.name ?? 'send failed'}`);
+  }
+  console.log(`[email] verification code sent to ${email} (id ${data?.id ?? 'n/a'})`);
 }

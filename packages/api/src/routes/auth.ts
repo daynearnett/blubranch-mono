@@ -153,8 +153,15 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
     const data = parseBody(sendVerificationEmailSchema, request, reply);
     if (!data) return;
     const code = generateEmailCode(data.email);
-    await sendVerificationEmail(data.email, code);
     const isDev = !process.env.RESEND_API_KEY;
+    try {
+      await sendVerificationEmail(data.email, code);
+    } catch (err) {
+      request.log.error({ err, email: data.email }, 'verification email send failed');
+      return reply
+        .code(502)
+        .send({ error: 'EmailSendFailed', message: 'Could not send the verification email. Please try again.' });
+    }
     return reply.send({ sent: true, ...(isDev ? { devCode: code } : {}) });
   });
 
