@@ -160,7 +160,12 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
       request.log.error({ err, email: data.email }, 'verification email send failed');
       return reply
         .code(502)
-        .send({ error: 'EmailSendFailed', message: 'Could not send the verification email. Please try again.' });
+        .send({
+          error: 'EmailSendFailed',
+          message: 'Could not send the verification email. Please try again.',
+          // TEMP DIAGNOSTIC — remove after diagnosing the Resend rejection.
+          detail: err instanceof Error ? err.message : String(err),
+        });
     }
     return reply.send({ sent: true, ...(isDev ? { devCode: code } : {}) });
   });
