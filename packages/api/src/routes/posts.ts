@@ -6,6 +6,13 @@ import { isPostGisEnabled } from '../lib/postgis.js';
 import { getPrisma } from '../lib/prisma.js';
 import { parseBody } from '../lib/validate.js';
 import { notifyMentions, notifyPostComment, notifyPostLike } from '../services/push.js';
+import { moderateText } from '../services/content-moderation.js';
+
+// Shared 422 for auto-moderated content.
+const CONTENT_BLOCKED = {
+  error: 'ContentBlocked',
+  message: 'This content may violate our community guidelines and can’t be posted.',
+};
 
 export async function postRoutes(app: FastifyInstance): Promise<void> {
   const prisma = getPrisma();
@@ -14,6 +21,10 @@ export async function postRoutes(app: FastifyInstance): Promise<void> {
   app.post('/posts', { preHandler: requireAuth }, async (request, reply) => {
     const data = parseBody(postInputSchema, request, reply);
     if (!data) return;
+    // Auto-moderate the text (fail-open if unconfigured / API error).
+    if ((await moderateText(data.content)).blocked) {
+      return reply.code(422).send(CONTENT_BLOCKED);
+    }
     const post = await prisma.post.create({
       data: {
         userId: request.user!.id,
@@ -174,6 +185,9 @@ export async function postRoutes(app: FastifyInstance): Promise<void> {
     async (request, reply) => {
       const data = parseBody(postCommentInputSchema, request, reply);
       if (!data) return;
+      if ((await moderateText(data.content)).blocked) {
+        return reply.code(422).send(CONTENT_BLOCKED);
+      }
       const comment = await prisma.postComment.create({
         data: {
           postId: request.params.id,

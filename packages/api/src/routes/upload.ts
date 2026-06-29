@@ -7,6 +7,7 @@ import sharp from 'sharp';
 import type { FastifyInstance } from 'fastify';
 import { requireAuth } from '../auth/middleware.js';
 import { isS3Configured, uploadToS3 } from '../services/s3.js';
+import { moderateImageBuffer } from '../services/content-moderation.js';
 
 const MIME_BY_EXT: Record<string, string> = {
   '.jpg': 'image/jpeg',
@@ -55,6 +56,15 @@ export async function uploadRoutes(app: FastifyInstance): Promise<void> {
       .rotate() // auto-orient from EXIF before stripping
       .withMetadata({ orientation: undefined })
       .toBuffer();
+
+    // Auto-moderate BEFORE persisting so blocked images never hit storage
+    // (fail-open if unconfigured / API error).
+    if ((await moderateImageBuffer(stripped, contentType)).blocked) {
+      return reply.code(422).send({
+        error: 'ContentBlocked',
+        message: 'This image may violate our community guidelines and can’t be uploaded.',
+      });
+    }
 
     if (isS3Configured()) {
       const url = await uploadToS3(stripped, ext, contentType);
