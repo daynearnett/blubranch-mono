@@ -57,11 +57,12 @@ export async function jobRoutes(app: FastifyInstance): Promise<void> {
       if (!isStripeConfigured() || request.user!.role === 'admin') {
         status = data.status === 'draft' ? 'draft' : 'open';
       } else if (isSubscriptionPlan(data.planTier)) {
-        if (!(await hasActiveSubscription(prisma, request.user!.id))) {
+        if (!(await hasActiveSubscription(prisma, request.user!.id, data.planTier))) {
           return reply.code(402).send({
             error: 'PaymentRequired',
             reason: 'subscription_required',
-            message: 'An active Unlimited subscription is required to post on this plan.',
+            plan: data.planTier,
+            message: `An active ${data.planTier} subscription is required to post on this plan.`,
           });
         }
         status = 'open';

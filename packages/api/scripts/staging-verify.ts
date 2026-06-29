@@ -75,7 +75,7 @@ async function main() {
       zipCode: '60601',
       description: 'staging stripe verification',
       openingsCount: 1,
-      planTier: 'pro',
+      planTier: 'basic',
     },
   });
   console.log(`  job status: ${job.data?.status}  ${job.data?.status === 'draft' ? '✓ (Stripe configured → draft)' : '✗ (expected draft; got ' + job.data?.status + ' → STRIPE_SECRET_KEY likely NOT set)'}`);
@@ -89,13 +89,16 @@ async function main() {
     console.log('  /intent:', intent.status, JSON.stringify(intent.data).slice(0, 200));
   }
 
-  // Subscription price check (proves STRIPE_PRICE_UNLIMITED).
-  const subIntent = await api('/payments/subscription/intent', { method: 'POST', token });
-  if (subIntent.status === 200 && subIntent.data.subscriptionId) {
-    console.log('  /subscription/intent: ✓ 200 → STRIPE_PRICE_UNLIMITED OK');
+  // Subscription price checks (prove STRIPE_PRICE_PRO + STRIPE_PRICE_UNLIMITED).
+  const proSub = await api('/payments/subscription/intent', { method: 'POST', token, body: { plan: 'pro' } });
+  if (proSub.status === 200 && proSub.data.subscriptionId) {
+    console.log('  /subscription/intent (pro): ✓ 200 → STRIPE_PRICE_PRO OK');
   } else {
-    console.log('  /subscription/intent:', subIntent.status, JSON.stringify(subIntent.data).slice(0, 160));
+    console.log('  /subscription/intent (pro):', proSub.status, JSON.stringify(proSub.data).slice(0, 160));
   }
+  // Note: a second intent for the same user 409s (already has an active sub),
+  // so we only verify the pro price here; unlimited price is exercised by the
+  // device test + stripe-e2e.
 
   const ok =
     job.data?.status === 'draft' &&

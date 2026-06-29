@@ -77,10 +77,10 @@ async function main() {
     planTier,
   });
 
-  // ── 1. One-time Pro ($129) ──────────────────────────────────────
-  console.log('\n[1] One-time Pro ($129) post');
+  // ── 1. One-time Basic ($19) ─────────────────────────────────────
+  console.log('\n[1] One-time Basic ($19) post');
   const proJob = await app
-    .inject({ method: 'POST', url: '/jobs', headers: auth, payload: jobPayload('pro') })
+    .inject({ method: 'POST', url: '/jobs', headers: auth, payload: jobPayload('basic') })
     .then((r) => r.json());
   check('job created as draft', proJob.status === 'draft', proJob.status);
 
@@ -88,7 +88,7 @@ async function main() {
     .inject({ method: 'POST', url: `/payments/jobs/${proJob.id}/intent`, headers: auth })
     .then((r) => r.json());
   check('intent returns client secret', !!intent.paymentIntentClientSecret);
-  check('intent amount = 12900', intent.amount === 12900, intent.amount);
+  check('intent amount = 1900', intent.amount === 1900, intent.amount);
   check('intent returns ephemeral key + customer', !!intent.ephemeralKeySecret && !!intent.customerId);
 
   // Confirm the PaymentIntent with the 4242 test card (what the Payment Sheet does).
@@ -123,7 +123,7 @@ async function main() {
   check('unlimited post blocked w/o sub (402)', blocked.statusCode === 402, blocked.statusCode);
 
   const subIntent = await app
-    .inject({ method: 'POST', url: '/payments/subscription/intent', headers: auth })
+    .inject({ method: 'POST', url: '/payments/subscription/intent', headers: auth, payload: { plan: 'unlimited' } })
     .then((r) => r.json());
   check('sub intent returns client secret + subId', !!subIntent.paymentIntentClientSecret && !!subIntent.subscriptionId);
 
