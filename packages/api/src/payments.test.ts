@@ -143,21 +143,28 @@ describe('Phase 5 payments', () => {
   });
 
   it('payment routes 503 when Stripe is not configured', async () => {
-    // No STRIPE_SECRET_KEY in the test env → guarded routes degrade cleanly.
-    const intent = await app.inject({
-      method: 'POST',
-      url: `/payments/jobs/${draftJobId}/intent`,
-      headers: { authorization: `Bearer ${employer.token}` },
-    });
-    expect(intent.statusCode).toBe(503);
+    // Force the unconfigured state regardless of the dev's .env, then restore.
+    const prev = process.env.STRIPE_SECRET_KEY;
+    delete process.env.STRIPE_SECRET_KEY;
+    try {
+      const intent = await app.inject({
+        method: 'POST',
+        url: `/payments/jobs/${draftJobId}/intent`,
+        headers: { authorization: `Bearer ${employer.token}` },
+      });
+      expect(intent.statusCode).toBe(503);
 
-    const hook = await app.inject({
-      method: 'POST',
-      url: '/webhooks/stripe',
-      headers: { 'content-type': 'application/json' },
-      payload: { hello: 'world' },
-    });
-    expect(hook.statusCode).toBe(503);
+      const hook = await app.inject({
+        method: 'POST',
+        url: '/webhooks/stripe',
+        headers: { 'content-type': 'application/json' },
+        payload: { hello: 'world' },
+      });
+      expect(hook.statusCode).toBe(503);
+    } finally {
+      if (prev === undefined) delete process.env.STRIPE_SECRET_KEY;
+      else process.env.STRIPE_SECRET_KEY = prev;
+    }
   });
 
   it('requires auth on subscription status', async () => {
