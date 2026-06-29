@@ -178,6 +178,10 @@ model User {
   subscription Subscription?
   payments     Payment[]
 
+  // Phase 6 — moderation
+  reportsFiled   Report[]
+  issuesReported Issue[]
+
   @@index([role])
   @@map("users")
 }
@@ -710,4 +714,82 @@ model Subscription {
 
   @@index([status])
   @@map("subscriptions")
+}
+
+// ───────────────────────────── Phase 6: Moderation ─────────────────────────────
+
+enum ReportTargetType {
+  post
+  comment
+  user
+  message
+}
+
+enum ReportReason {
+  spam
+  harassment
+  explicit
+  scam
+  hate
+  violence
+  other
+}
+
+enum ReportStatus {
+  pending
+  reviewing
+  resolved
+  dismissed
+}
+
+// User-initiated content report. Target is polymorphic (targetType + targetId)
+// rather than a FK, so one table covers posts/comments/users/messages and
+// reports survive deletion of the offending content (kept for audit).
+model Report {
+  id             String           @id @default(uuid()) @db.Uuid
+  reporterId     String           @map("reporter_id") @db.Uuid
+  reporter       User             @relation(fields: [reporterId], references: [id], onDelete: Cascade)
+  targetType     ReportTargetType @map("target_type")
+  targetId       String           @map("target_id") @db.VarChar(64)
+  reason         ReportReason
+  details        String?          @db.Text
+  status         ReportStatus     @default(pending)
+  // Admin who actioned it (plain id — no relation to keep the User model lean).
+  resolvedById   String?          @map("resolved_by_id") @db.Uuid
+  resolvedAt     DateTime?        @map("resolved_at")
+  resolutionNote String?          @map("resolution_note") @db.Text
+  createdAt      DateTime         @default(now()) @map("created_at")
+
+  // One active report per reporter per target (re-reporting updates nothing).
+  @@unique([reporterId, targetType, targetId])
+  @@index([status, createdAt])
+  @@index([targetType, targetId])
+  @@map("reports")
+}
+
+enum IssueStatus {
+  open
+  in_progress
+  resolved
+  closed
+}
+
+// In-app bug report (header Bug icon → form). user is nullable so a report can
+// survive account deletion; device/app metadata is auto-attached client-side.
+model Issue {
+  id            String      @id @default(uuid()) @db.Uuid
+  userId        String?     @map("user_id") @db.Uuid
+  user          User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+  title         String      @db.VarChar(200)
+  description   String      @db.Text
+  screenshotUrl String?     @map("screenshot_url") @db.VarChar(500)
+  appVersion    String?     @map("app_version") @db.VarChar(50)
+  platform      String?     @db.VarChar(20)
+  deviceInfo    String?     @map("device_info") @db.VarChar(200)
+  status        IssueStatus @default(open)
+  resolvedAt    DateTime?   @map("resolved_at")
+  createdAt     DateTime    @default(now()) @map("created_at")
+
+  @@index([status, createdAt])
+  @@map("issues")
 }

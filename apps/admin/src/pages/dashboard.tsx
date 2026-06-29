@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import api from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { HardHat, Building2, Briefcase, FileText, BadgeCheck } from "lucide-react";
+import { HardHat, Building2, Briefcase, FileText, BadgeCheck, Flag, Bug } from "lucide-react";
 
 interface DashboardStats {
   total_workers: number;
@@ -9,6 +9,8 @@ interface DashboardStats {
   total_jobs: number;
   total_applications: number;
   pending_verifications: number;
+  pending_reports: number;
+  open_issues: number;
 }
 
 export default function DashboardPage() {
@@ -48,6 +50,18 @@ export default function DashboardPage() {
       value: data?.pending_verifications ?? 0,
       icon: BadgeCheck,
       color: "bg-amber-100 text-amber-600",
+    },
+    {
+      title: "Pending Reports",
+      value: data?.pending_reports ?? 0,
+      icon: Flag,
+      color: "bg-red-100 text-red-600",
+    },
+    {
+      title: "Open Bug Reports",
+      value: data?.open_issues ?? 0,
+      icon: Bug,
+      color: "bg-rose-100 text-rose-600",
     },
   ];
 

@@ -17,6 +17,8 @@ const LicensesPage = lazy(() => import("./pages/licenses"));
 const WorkplacesPage = lazy(() => import("./pages/workplaces"));
 const TradesPage = lazy(() => import("./pages/trades"));
 const SkillsPage = lazy(() => import("./pages/skills"));
+const ReportsPage = lazy(() => import("./pages/reports"));
+const IssuesPage = lazy(() => import("./pages/issues"));
 
 function PageLoader() {
   return (
@@ -131,6 +133,22 @@ export default function App() {
                   element={
                     <Suspense fallback={<PageLoader />}>
                       <SkillsPage />
+                    </Suspense>
+                  }
+                />
+                <Route
+                  path="reports"
+                  element={
+                    <Suspense fallback={<PageLoader />}>
+                      <ReportsPage />
+                    </Suspense>
+                  }
+                />
+                <Route
+                  path="issues"
+                  element={
+                    <Suspense fallback={<PageLoader />}>
+                      <IssuesPage />
                     </Suspense>
                   }
                 />

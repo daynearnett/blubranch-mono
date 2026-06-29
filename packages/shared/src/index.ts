@@ -10,4 +10,5 @@ export * from './schemas/search.js';
 export * from './schemas/message.js';
 export * from './schemas/notification.js';
 export * from './schemas/payment.js';
+export * from './schemas/moderation.js';
 export * from './reference.js';

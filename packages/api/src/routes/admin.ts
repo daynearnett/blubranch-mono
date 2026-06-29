@@ -1,7 +1,7 @@
 // Phase 6 — admin panel API. Backs apps/admin (Vite/React). Every route except
 // login/logout is gated by requireRole('admin'). The admin app stores only the
 // access token (no refresh), so re-login is expected after the 1h TTL.
-import { loginInputSchema } from '@blubranch/shared';
+import { issueUpdateSchema, loginInputSchema, reportResolveSchema } from '@blubranch/shared';
 import { Prisma } from '@blubranch/db';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
@@ -74,7 +74,7 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
 
   // ── Dashboard ───────────────────────────────────────────────────
   app.get('/admin/dashboard', admin, async () => {
-    const [workers, employers, jobs, applications, pendingLicenses, pendingWorkplaces] =
+    const [workers, employers, jobs, applications, pendingLicenses, pendingWorkplaces, pendingReports, openIssues] =
       await Promise.all([
         prisma.user.count({ where: { role: 'worker' } }),
         prisma.user.count({ where: { role: 'employer' } }),
@@ -82,6 +82,8 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
         prisma.jobApplication.count(),
         prisma.license.count({ where: { status: 'pending' } }),
         prisma.workPlace.count({ where: { status: 'pending' } }),
+        prisma.report.count({ where: { status: 'pending' } }),
+        prisma.issue.count({ where: { status: 'open' } }),
       ]);
     return {
       total_workers: workers,
@@ -89,6 +91,8 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
       total_jobs: jobs,
       total_applications: applications,
       pending_verifications: pendingLicenses + pendingWorkplaces,
+      pending_reports: pendingReports,
+      open_issues: openIssues,
     };
   });
 
@@ -373,5 +377,127 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
       prisma.skill.count({ where }),
     ]);
     return reply.send({ items, total, page: q.page, limit: q.limit });
+  });
+
+  // ── Moderation: content reports queue ───────────────────────────
+  app.get('/admin/reports', admin, async (request, reply) => {
+    const q = parseList(request, reply);
+    if (!q) return;
+    const where: Prisma.ReportWhereInput = {};
+    if (q.status) where.status = q.status as Prisma.ReportWhereInput['status'];
+
+    const [reports, total] = await Promise.all([
+      prisma.report.findMany({
+        where,
+        skip: (q.page - 1) * q.limit,
+        take: q.limit,
+        // Pending first, then newest — the queue surfaces work to do.
+        orderBy: [{ status: 'asc' }, { createdAt: 'desc' }],
+        include: { reporter: { select: { id: true, firstName: true, lastName: true, email: true } } },
+      }),
+      prisma.report.count({ where }),
+    ]);
+
+    // Resolve target previews in batch (avoid N+1).
+    const byType = (t: string) => reports.filter((r) => r.targetType === t).map((r) => r.targetId);
+    const [posts, comments, users] = await Promise.all([
+      prisma.post.findMany({
+        where: { id: { in: byType('post') } },
+        select: { id: true, content: true, archived: true, user: { select: { firstName: true, lastName: true } } },
+      }),
+      prisma.postComment.findMany({
+        where: { id: { in: byType('comment') } },
+        select: { id: true, content: true, user: { select: { firstName: true, lastName: true } } },
+      }),
+      prisma.user.findMany({
+        where: { id: { in: byType('user') } },
+        select: { id: true, firstName: true, lastName: true, email: true },
+      }),
+    ]);
+    const postMap = new Map(posts.map((p) => [p.id, p]));
+    const commentMap = new Map(comments.map((c) => [c.id, c]));
+    const userMap = new Map(users.map((u) => [u.id, u]));
+
+    const items = reports.map((r) => {
+      let target: Record<string, unknown> | null = null;
+      if (r.targetType === 'post') {
+        const p = postMap.get(r.targetId);
+        target = p
+          ? { summary: p.content.slice(0, 200), author: `${p.user.firstName} ${p.user.lastName}`, archived: p.archived }
+          : { summary: '(deleted post)' };
+      } else if (r.targetType === 'comment') {
+        const c = commentMap.get(r.targetId);
+        target = c
+          ? { summary: c.content.slice(0, 200), author: `${c.user.firstName} ${c.user.lastName}` }
+          : { summary: '(deleted comment)' };
+      } else if (r.targetType === 'user') {
+        const u = userMap.get(r.targetId);
+        target = u ? { summary: `${u.firstName} ${u.lastName}`, email: u.email } : { summary: '(deleted user)' };
+      }
+      return { ...r, target };
+    });
+
+    return reply.send({ items, total, page: q.page, limit: q.limit });
+  });
+
+  // PUT /admin/reports/:id — resolve / dismiss a report (optionally archive the post).
+  app.put<{ Params: { id: string } }>('/admin/reports/:id', admin, async (request, reply) => {
+    const data = parseBody(reportResolveSchema, request, reply);
+    if (!data) return;
+    const report = await prisma.report.findUnique({ where: { id: request.params.id } });
+    if (!report) return reply.code(404).send({ error: 'NotFound' });
+
+    // Optional takedown of the offending post.
+    if (data.archiveTarget && report.targetType === 'post') {
+      await prisma.post
+        .update({ where: { id: report.targetId }, data: { archived: true } })
+        .catch(() => {});
+    }
+
+    const terminal = data.status === 'resolved' || data.status === 'dismissed';
+    const updated = await prisma.report.update({
+      where: { id: report.id },
+      data: {
+        status: data.status,
+        resolutionNote: data.resolutionNote ?? null,
+        resolvedById: terminal ? request.user!.id : null,
+        resolvedAt: terminal ? new Date() : null,
+      },
+    });
+    return reply.send(updated);
+  });
+
+  // ── Moderation: in-app bug reports (issues) ─────────────────────
+  app.get('/admin/issues', admin, async (request, reply) => {
+    const q = parseList(request, reply);
+    if (!q) return;
+    const where: Prisma.IssueWhereInput = {};
+    if (q.status) where.status = q.status as Prisma.IssueWhereInput['status'];
+    if (q.q) where.title = { contains: q.q, mode: 'insensitive' };
+    const [items, total] = await Promise.all([
+      prisma.issue.findMany({
+        where,
+        skip: (q.page - 1) * q.limit,
+        take: q.limit,
+        orderBy: [{ status: 'asc' }, { createdAt: 'desc' }],
+        include: { user: { select: { id: true, firstName: true, lastName: true, email: true } } },
+      }),
+      prisma.issue.count({ where }),
+    ]);
+    return reply.send({ items, total, page: q.page, limit: q.limit });
+  });
+
+  // PUT /admin/issues/:id — update issue status.
+  app.put<{ Params: { id: string } }>('/admin/issues/:id', admin, async (request, reply) => {
+    const data = parseBody(issueUpdateSchema, request, reply);
+    if (!data) return;
+    const existing = await prisma.issue.findUnique({ where: { id: request.params.id } });
+    if (!existing) return reply.code(404).send({ error: 'NotFound' });
+    const terminal = data.status === 'resolved' || data.status === 'closed';
+    const updated = await prisma.issue.update({
+      where: { id: existing.id },
+      data: { status: data.status, resolvedAt: terminal ? new Date() : null },
+    });
+    return reply.send(updated);
   });
 }

@@ -7,7 +7,8 @@ import { Badge } from './ui.js';
 import { VerifiedBadge } from './verified-badge.js';
 import { useAuth } from '../lib/auth-context.js';
 import { colors, radius, spacing, typography } from '../theme.js';
-import { apiBaseUrl, posts as postsApi, type FeedPost } from '../lib/api.js';
+import { apiBaseUrl, posts as postsApi, reports as reportsApi, type FeedPost } from '../lib/api.js';
+import type { ReportReason } from '@blubranch/shared';
 
 export function PostCard({
   post: initial,
@@ -61,6 +62,33 @@ export function PostCard({
         },
       },
       { text: 'Cancel', style: 'cancel' },
+    ]);
+  };
+
+  // Non-owners can report a post. Pick a reason, then submit; on success we
+  // hide it locally so the reporter stops seeing it.
+  const onReport = () => {
+    const reasons: { label: string; value: ReportReason }[] = [
+      { label: 'Nudity or sexual content', value: 'explicit' },
+      { label: 'Harassment or bullying', value: 'harassment' },
+      { label: 'Hate speech', value: 'hate' },
+      { label: 'Spam', value: 'spam' },
+      { label: 'Something else', value: 'other' },
+    ];
+    Alert.alert('Report post', 'Why are you reporting this post?', [
+      ...reasons.map((r) => ({
+        text: r.label,
+        onPress: async () => {
+          try {
+            await reportsApi.create({ targetType: 'post', targetId: post.id, reason: r.value });
+            setHidden(true);
+            Alert.alert('Thanks for the report', "Our team will review this post. You won't see it again.");
+          } catch {
+            Alert.alert('Could not submit', 'Please try again.');
+          }
+        },
+      })),
+      { text: 'Cancel', style: 'cancel' as const },
     ]);
   };
 
@@ -134,11 +162,14 @@ export function PostCard({
             <Text style={styles.elapsed}>{elapsed}</Text>
           </View>
         </Pressable>
-        {isOwner ? (
-          <Pressable onPress={onMore} hitSlop={8} style={styles.moreBtn} accessibilityLabel="Post options">
-            <MoreHorizontal color={colors.textMuted} size={20} strokeWidth={2} />
-          </Pressable>
-        ) : null}
+        <Pressable
+          onPress={isOwner ? onMore : onReport}
+          hitSlop={8}
+          style={styles.moreBtn}
+          accessibilityLabel={isOwner ? 'Post options' : 'Report post'}
+        >
+          <MoreHorizontal color={colors.textMuted} size={20} strokeWidth={2} />
+        </Pressable>
       </View>
 
       <Text style={styles.content} numberOfLines={expanded ? undefined : 4}>

@@ -12,6 +12,8 @@ import {
   MapPin,
   Wrench,
   Hammer,
+  Flag,
+  Bug,
   LogOut,
   KeyRound,
   Menu,
@@ -55,6 +57,13 @@ const navSections: NavSection[] = [
   {
     section: "Community",
     items: [{ to: "/posts", icon: MessageSquare, label: "Posts" }],
+  },
+  {
+    section: "Moderation",
+    items: [
+      { to: "/reports", icon: Flag, label: "Reports" },
+      { to: "/issues", icon: Bug, label: "Bug reports" },
+    ],
   },
   {
     section: "Verification",

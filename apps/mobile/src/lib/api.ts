@@ -12,6 +12,8 @@ import type {
   LoginInput,
   PaymentSheetParams,
   SubscriptionStatus,
+  ReportInput,
+  IssueInput,
   PortfolioPhotoInput,
   PostCommentInput,
   PostInput,
@@ -596,6 +598,19 @@ export const payments = {
   subscriptionStatus: () => request<SubscriptionStatus>('/payments/subscription'),
   cancelSubscription: () =>
     request<{ canceledAtPeriodEnd: boolean }>('/payments/subscription/cancel', { method: 'POST' }),
+};
+
+export const reports = {
+  create: (input: ReportInput) =>
+    request<{ reported: boolean }>('/reports', { method: 'POST', body: JSON.stringify(input) }),
+};
+
+export const issues = {
+  create: (input: IssueInput) =>
+    request<{ id: string; submitted: boolean }>('/issues', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }),
 };
 
 export const feed = {

@@ -19,6 +19,7 @@ import { messageRoutes } from './routes/messages.js';
 import { notificationRoutes } from './routes/notifications.js';
 import { paymentRoutes, stripeWebhookRoutes } from './routes/payments.js';
 import { adminRoutes } from './routes/admin.js';
+import { moderationRoutes } from './routes/moderation.js';
 
 // Origins that may call this API. Native iOS / Android apps don't send the
 // Origin header so we let those through unconditionally (the `if (!origin)`
@@ -87,6 +88,7 @@ export async function buildApp(): Promise<FastifyInstance> {
   // the raw request body (signature verification) without affecting JSON routes.
   await app.register(stripeWebhookRoutes);
   await app.register(adminRoutes);
+  await app.register(moderationRoutes);
   await app.register(uploadRoutes);
 
   // BullMQ workers + repeatable job schedules (expire-jobs hourly,
