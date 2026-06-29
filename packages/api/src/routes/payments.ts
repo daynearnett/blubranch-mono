@@ -2,8 +2,6 @@ import type Stripe from 'stripe';
 import {
   PLAN_PRICE_CENTS,
   isSubscriptionPlan,
-  subscriptionCovers,
-  subscriptionIntentSchema,
   type PaymentSheetParams,
   type SubscriptionStatus,
 } from '@blubranch/shared';
@@ -11,35 +9,23 @@ import type { PrismaClient } from '@blubranch/db';
 import type { FastifyInstance } from 'fastify';
 import { requireAuth } from '../auth/middleware.js';
 import { getPrisma } from '../lib/prisma.js';
-import { parseBody } from '../lib/validate.js';
 import { sendReceiptEmail } from '../services/email.js';
 import {
   getOrCreateCustomer,
   getPublishableKey,
   getStripe,
-  getSubscriptionPriceId,
+  getUnlimitedPriceId,
   isStripeConfigured,
 } from '../services/stripe.js';
 import { planTtlDays } from '../lib/plans.js';
 
-type Tier = 'basic' | 'pro' | 'unlimited';
 const ACTIVE_SUB_STATUSES = ['active', 'trialing', 'past_due'];
 
 // ── Shared helpers (also imported by jobs.ts + the webhook) ───────────────
 
-/**
- * True when the user has an active subscription that covers posting at
- * `minPlan` (its tier rank ≥ the job's). Pro covers Pro; Unlimited covers Pro
- * and Unlimited.
- */
-export async function hasActiveSubscription(
-  prisma: PrismaClient,
-  userId: string,
-  minPlan: Tier = 'pro',
-): Promise<boolean> {
+export async function hasActiveSubscription(prisma: PrismaClient, userId: string): Promise<boolean> {
   const sub = await prisma.subscription.findUnique({ where: { userId } });
-  if (!sub || !['active', 'trialing'].includes(sub.status)) return false;
-  return subscriptionCovers(sub.plan as Tier, minPlan);
+  return !!sub && ['active', 'trialing'].includes(sub.status);
 }
 
 /** The Stripe API version this SDK is pinned to — reused for ephemeral keys. */
@@ -120,11 +106,6 @@ export async function syncSubscription(prisma: PrismaClient, sub: Stripe.Subscri
   const currentPeriodEnd = periodEndUnix ? new Date(periodEndUnix * 1000) : null;
   const customerId = typeof sub.customer === 'string' ? sub.customer : sub.customer.id;
 
-  // Which tier this subscription is for — carried in metadata at create time
-  // (and preserved by Stripe on later subscription events).
-  const planMeta = sub.metadata?.plan;
-  const plan: Tier | undefined = planMeta === 'pro' || planMeta === 'unlimited' ? planMeta : undefined;
-
   const justActivated = ACTIVE_SUB_STATUSES.includes(sub.status);
 
   const existing = await prisma.subscription.findUnique({ where: { userId } });
@@ -137,7 +118,6 @@ export async function syncSubscription(prisma: PrismaClient, sub: Stripe.Subscri
       status: sub.status,
       currentPeriodEnd,
       cancelAtPeriodEnd: sub.cancel_at_period_end,
-      ...(plan ? { plan } : {}),
     },
     update: {
       stripeSubscriptionId: sub.id,
@@ -145,7 +125,6 @@ export async function syncSubscription(prisma: PrismaClient, sub: Stripe.Subscri
       status: sub.status,
       currentPeriodEnd,
       cancelAtPeriodEnd: sub.cancel_at_period_end,
-      ...(plan ? { plan } : {}),
     },
   });
 
@@ -155,10 +134,9 @@ export async function syncSubscription(prisma: PrismaClient, sub: Stripe.Subscri
     try {
       const user = await prisma.user.findUnique({ where: { id: userId } });
       if (user) {
-        const tier = plan ?? 'unlimited';
         await sendReceiptEmail(user.email, {
-          description: `BluBranch ${tier[0]!.toUpperCase()}${tier.slice(1)} — monthly`,
-          amountCents: PLAN_PRICE_CENTS[tier],
+          description: 'BluBranch Unlimited — monthly',
+          amountCents: PLAN_PRICE_CENTS.unlimited,
           recurring: true,
         });
       }
@@ -285,27 +263,21 @@ export async function paymentRoutes(app: FastifyInstance): Promise<void> {
     },
   );
 
-  // POST /payments/subscription/intent — start a Pro or Unlimited subscription.
+  // POST /payments/subscription/intent — start the Unlimited subscription.
   app.post(
     '/payments/subscription/intent',
     { preHandler: requireAuth },
     async (request, reply) => {
       if (!ensureConfigured(reply)) return;
-      const data = parseBody(subscriptionIntentSchema, request, reply);
-      if (!data) return;
-
-      const priceId = getSubscriptionPriceId(data.plan);
+      const priceId = getUnlimitedPriceId();
       if (!priceId) {
         return reply
           .code(503)
-          .send({ error: 'StripeNotConfigured', message: `The ${data.plan} plan is not configured.` });
+          .send({ error: 'StripeNotConfigured', message: 'Subscription plan is not configured.' });
       }
       const userId = request.user!.id;
 
-      // Any active subscription blocks starting another (cross-tier upgrades are
-      // handled later via the dashboard / settings, not a second sub).
-      const existing = await prisma.subscription.findUnique({ where: { userId } });
-      if (existing && ['active', 'trialing'].includes(existing.status)) {
+      if (await hasActiveSubscription(prisma, userId)) {
         return reply.code(409).send({ error: 'Conflict', message: 'You already have an active subscription.' });
       }
 
@@ -318,7 +290,7 @@ export async function paymentRoutes(app: FastifyInstance): Promise<void> {
         items: [{ price: priceId }],
         payment_behavior: 'default_incomplete',
         payment_settings: { save_default_payment_method: 'on_subscription' },
-        metadata: { userId, plan: data.plan },
+        metadata: { userId },
         expand: ['latest_invoice.confirmation_secret'],
       });
 
@@ -338,7 +310,7 @@ export async function paymentRoutes(app: FastifyInstance): Promise<void> {
         ephemeralKeySecret: await ephemeralKeySecret(customerId),
         customerId,
         publishableKey: getPublishableKey(),
-        amount: PLAN_PRICE_CENTS[data.plan],
+        amount: PLAN_PRICE_CENTS.unlimited,
         currency: 'usd',
         subscriptionId: sub.id,
       };

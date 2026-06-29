@@ -3,18 +3,17 @@
 > Read this before deploying Phase 5. Code is complete + tested (branch
 > `phase-5-payments`); going live needs a Stripe account set up and env vars
 > wired. **Use TEST MODE end-to-end first.** Scope: employer→platform payments
-> only (Basic one-time + Pro/Unlimited subscriptions). Worker Connect payouts are
+> only (Basic/Pro one-time + Unlimited subscription). Worker Connect payouts are
 > deferred post-beta.
 
 ## What Phase 5 ships
 
-- **Basic $19/post** — one-time PaymentIntent per job post. The job is
+- **Basic $49 / Pro $129** — one-time PaymentIntent per job post. The job is
   created as a `draft` and only flips to `open` once Stripe confirms payment
   (webhook `payment_intent.succeeded`, with a server-side `/confirm` backstop).
-- **Pro $199/mo** and **Unlimited $299/mo** — Stripe Subscriptions (tier-ranked:
-  Unlimited covers Pro). While an active sub covers the job's tier, posting is
-  free (jobs go straight to `open`). Otherwise `POST /jobs` returns
-  `402 subscription_required`.
+- **Unlimited $299/mo** — Stripe Subscription. While active, posting is free
+  (jobs go straight to `open`). Without an active sub, `POST /jobs` for the
+  unlimited plan returns `402 subscription_required`.
 - **Mobile**: native Stripe Payment Sheet (`@stripe/stripe-react-native`) in the
   post-job review step. **Requires a new EAS build** (native module added).
 - **Webhooks**: `/webhooks/stripe` (raw-body, signature-verified) handles
@@ -29,10 +28,10 @@
 ## One-time Stripe account setup (test mode)
 
 1. **Create / log into Stripe**, switch to **Test mode**.
-2. **Create the subscription prices**: Products → add two products:
-   "BluBranch Pro" recurring **$199.00 / month** → `STRIPE_PRICE_PRO`, and
-   "BluBranch Unlimited" recurring **$299.00 / month** → `STRIPE_PRICE_UNLIMITED`.
-   (Basic needs no product — its $19 amount is set inline on the PaymentIntent.)
+2. **Create the Unlimited price**: Products → add product "BluBranch Unlimited",
+   recurring **$299.00 / month**. Copy the **Price id** (`price_…`) →
+   `STRIPE_PRICE_UNLIMITED`. (Basic/Pro need no products — amounts are set
+   inline on the PaymentIntent.)
 3. **Get API keys**: Developers → API keys → copy the **Secret key** (`sk_test_…`)
    → `STRIPE_SECRET_KEY`, and the **Publishable key** (`pk_test_…`) →
    `STRIPE_PUBLISHABLE_KEY` (server) **and** `EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY`
@@ -50,7 +49,6 @@
 STRIPE_SECRET_KEY=sk_test_…
 STRIPE_PUBLISHABLE_KEY=pk_test_…
 STRIPE_WEBHOOK_SECRET=whsec_…
-STRIPE_PRICE_PRO=price_…
 STRIPE_PRICE_UNLIMITED=price_…
 ```
 

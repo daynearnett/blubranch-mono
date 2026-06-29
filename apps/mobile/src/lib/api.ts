@@ -586,12 +586,9 @@ export const payments = {
     request<{ published: boolean; status: string }>(`/payments/jobs/${jobId}/confirm`, {
       method: 'POST',
     }),
-  // Subscription bootstrap (first invoice payment) for a Pro/Unlimited tier.
-  subscriptionIntent: (plan: 'pro' | 'unlimited') =>
-    request<PaymentSheetParams>('/payments/subscription/intent', {
-      method: 'POST',
-      body: JSON.stringify({ plan }),
-    }),
+  // Unlimited subscription bootstrap (first invoice payment).
+  subscriptionIntent: () =>
+    request<PaymentSheetParams>('/payments/subscription/intent', { method: 'POST' }),
   confirmSubscription: () =>
     request<{ active: boolean; status: string }>('/payments/subscription/confirm', {
       method: 'POST',

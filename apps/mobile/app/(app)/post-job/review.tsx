@@ -7,7 +7,6 @@ import { useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useStripe } from '@stripe/stripe-react-native';
-import { PLAN_RANK, isSubscriptionPlan } from '@blubranch/shared';
 import type { CompanySize, PaymentSheetParams } from '@blubranch/shared';
 import { Button, Card, ProgressDots } from '../../../src/components/ui.js';
 import {
@@ -20,8 +19,8 @@ import { usePostJob } from '../../../src/lib/post-job-context.js';
 import { colors, radius, spacing, typography } from '../../../src/theme.js';
 
 const PRICE: Record<'basic' | 'pro' | 'unlimited', string> = {
-  basic: '$19 one-time',
-  pro: '$199 / month',
+  basic: '$49 one-time',
+  pro: '$129 one-time',
   unlimited: '$299 / month',
 };
 
@@ -80,14 +79,11 @@ export default function Review() {
         await companiesApi.update(existing!.id, companyPayload).catch(() => undefined);
       }
 
-      // 2. Subscription plans (Pro/Unlimited) → ensure an active subscription
-      //    that covers this tier before posting.
-      if (isSubscriptionPlan(draft.planTier)) {
+      // 2. Unlimited plan → ensure an active subscription before posting.
+      if (draft.planTier === 'unlimited') {
         const sub = await paymentsApi.subscriptionStatus().catch(() => null);
-        const covered =
-          !!sub?.active && !!sub.plan && PLAN_RANK[sub.plan] >= PLAN_RANK[draft.planTier];
-        if (!covered) {
-          const params = await paymentsApi.subscriptionIntent(draft.planTier as 'pro' | 'unlimited');
+        if (!sub?.active) {
+          const params = await paymentsApi.subscriptionIntent();
           const paid = await runPaymentSheet(params);
           if (!paid) return; // user cancelled
           await paymentsApi.confirmSubscription().catch(() => undefined);

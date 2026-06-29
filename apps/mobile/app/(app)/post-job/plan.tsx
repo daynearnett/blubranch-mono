@@ -10,7 +10,7 @@ const PLANS = [
   {
     id: 'basic' as const,
     title: 'Basic',
-    price: '$19 per post',
+    price: '$49 per post',
     bullets: [
       'Listed in local feed',
       'Quick Apply',
@@ -21,13 +21,13 @@ const PLANS = [
   {
     id: 'pro' as const,
     title: 'Pro',
-    price: '$199 / month',
+    price: '$129 per post',
     badge: 'Most popular',
     bullets: [
-      'Unlimited Pro job posts',
       'Featured top placement',
       'Urgent badge',
       'Push alerts to matching workers',
+      '60-day listing',
       'Applicant analytics',
     ],
   },
