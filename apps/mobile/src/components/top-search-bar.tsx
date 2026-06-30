@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { Bell, MessageSquare, Search } from 'lucide-react-native';
+import { Bell, Bug, MessageSquare, Search } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { notifications as notificationsApi } from '../lib/api.js';
@@ -86,6 +86,15 @@ export function TopSearchBar({
       >
         <MessageSquare color={colors.navy} size={22} strokeWidth={1.8} />
         {unreadMessages > 0 && <View style={styles.unreadDot} />}
+      </Pressable>
+
+      <Pressable
+        style={styles.iconButton}
+        onPress={() => router.push('/(app)/report-bug')}
+        accessibilityLabel="Report a bug"
+        accessibilityRole="button"
+      >
+        <Bug color={colors.navy} size={22} strokeWidth={1.8} />
       </Pressable>
     </View>
   );
