@@ -64,7 +64,7 @@ describe('Phase 5 payments', () => {
         zipCode: '60601',
         description: 'Draft job awaiting payment',
         status: 'draft',
-        planTier: 'pro',
+        planTier: 'basic',
         expiresAt: new Date(),
       },
     });
@@ -82,9 +82,9 @@ describe('Phase 5 payments', () => {
         userId: employer.id,
         jobId: draftJobId,
         stripePaymentIntentId: `pi_test_${stamp}`,
-        amount: 12900,
+        amount: 1900,
         currency: 'usd',
-        plan: 'pro',
+        plan: 'basic',
         status: 'processing',
       },
     });
@@ -216,6 +216,12 @@ describe('Phase 5 payments', () => {
       const res = await postJob('basic');
       expect(res.statusCode).toBe(201);
       expect(res.json().status).toBe('draft');
+    });
+
+    it('Pro plan without an active subscription → 402', async () => {
+      const res = await postJob('pro');
+      expect(res.statusCode).toBe(402);
+      expect(res.json().reason).toBe('subscription_required');
     });
 
     it('Unlimited plan without an active subscription → 402', async () => {

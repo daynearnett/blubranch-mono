@@ -42,12 +42,13 @@ export function getPublishableKey(): string {
 }
 
 /**
- * Recurring Price id for the Unlimited subscription. Created once in the Stripe
- * dashboard (a $299/mo recurring price) and wired via env. Empty when unset —
- * the subscription route 503s with a clear message.
+ * Recurring Stripe Price id for a subscription tier. Each is a recurring price
+ * created in the Stripe dashboard and wired via env (STRIPE_PRICE_PRO $199/mo,
+ * STRIPE_PRICE_UNLIMITED $299/mo). Empty when unset — the subscription route
+ * 503s with a clear message.
  */
-export function getUnlimitedPriceId(): string {
-  return env('STRIPE_PRICE_UNLIMITED');
+export function getSubscriptionPriceId(plan: 'pro' | 'unlimited'): string {
+  return plan === 'pro' ? env('STRIPE_PRICE_PRO') : env('STRIPE_PRICE_UNLIMITED');
 }
 
 /**
