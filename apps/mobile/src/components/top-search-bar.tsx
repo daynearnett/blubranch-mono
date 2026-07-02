@@ -58,8 +58,10 @@ export function TopSearchBar({
         accessibilityLabel="Search"
         accessibilityRole="search"
       >
-        <Search color={colors.textMuted} size={16} strokeWidth={2} />
-        <Text style={styles.searchText}>{placeholder}</Text>
+        <Search color={colors.textMuted} size={16} strokeWidth={2} style={styles.searchIcon} />
+        <Text style={styles.searchText} numberOfLines={1} ellipsizeMode="tail">
+          {placeholder}
+        </Text>
       </Pressable>
 
       <Pressable
@@ -133,9 +135,11 @@ const styles = StyleSheet.create({
     height: 36,
     gap: 8,
   },
+  searchIcon: { flexShrink: 0 },
   searchText: {
     ...typography.body,
     color: colors.textMuted,
+    flex: 1, // fill remaining pill width so long placeholders ellipsize
   },
   iconButton: {
     width: 32,
