@@ -388,6 +388,7 @@ export interface JobDetail extends JobSummary {
   status: 'draft' | 'open' | 'closed' | 'expired';
   benefits: { id: number; name: string }[];
   applicantCount: number;
+  viewCount: number;
   myApplication: {
     id: string;
     status: 'applied' | 'reviewed' | 'shortlisted' | 'hired' | 'rejected';

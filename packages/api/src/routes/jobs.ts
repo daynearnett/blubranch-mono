@@ -276,6 +276,14 @@ export async function jobRoutes(app: FastifyInstance): Promise<void> {
     });
     if (!job) return reply.code(404).send({ error: 'NotFound' });
 
+    // Count a view when the viewer isn't the employer (feeds the analytics
+    // funnel). Fire-and-forget so it never slows the response.
+    if (request.user?.id !== job.employerId) {
+      prisma.job
+        .update({ where: { id: job.id }, data: { viewCount: { increment: 1 } } })
+        .catch(() => {});
+    }
+
     // `request.user` may not be set; if it is and they're a worker, surface
     // their existing application status so the UI can swap "Quick Apply"
     // for an applied state.

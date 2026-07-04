@@ -89,6 +89,7 @@ export default function ApplicantDashboard() {
       </View>
 
       <ScrollView contentContainerStyle={styles.scroll}>
+        {job && !loading ? <FunnelCard viewCount={job.viewCount} apps={apps} /> : null}
         {loading ? (
           <View style={styles.center}>
             <ActivityIndicator color={colors.primary} />
@@ -162,6 +163,39 @@ export default function ApplicantDashboard() {
   );
 }
 
+// Per-job funnel: views → applicants → status breakdown.
+function FunnelCard({ viewCount, apps }: { viewCount: number; apps: ApplicantSummary[] }) {
+  const applicants = apps.length;
+  const rate = viewCount > 0 ? Math.round((applicants / viewCount) * 100) : 0;
+  return (
+    <Card style={styles.funnel}>
+      <Text style={styles.funnelTitle}>Performance</Text>
+      <View style={styles.funnelRow}>
+        <FunnelStat value={viewCount} label="Views" />
+        <FunnelStat value={applicants} label="Applicants" />
+        <FunnelStat value={`${rate}%`} label="Apply rate" />
+      </View>
+      <View style={styles.breakdown}>
+        {STATUS_OPTIONS.map((s) => (
+          <View key={s} style={styles.breakdownRow}>
+            <Badge label={s} tone={STATUS_TONE[s]} />
+            <Text style={styles.breakdownValue}>{apps.filter((a) => a.status === s).length}</Text>
+          </View>
+        ))}
+      </View>
+    </Card>
+  );
+}
+
+function FunnelStat({ value, label }: { value: number | string; label: string }) {
+  return (
+    <View style={styles.funnelStat}>
+      <Text style={styles.funnelValue}>{value}</Text>
+      <Text style={styles.funnelStatLabel}>{label}</Text>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
   header: {
@@ -177,6 +211,20 @@ const styles = StyleSheet.create({
   headerTitle: { ...typography.h3, color: colors.primaryDark },
   headerSub: { ...typography.caption, color: colors.textSecondary },
   scroll: { padding: spacing.lg },
+  funnel: { marginBottom: spacing.md },
+  funnelTitle: { ...typography.h3, color: colors.primaryDark, marginBottom: spacing.md },
+  funnelRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing.md },
+  funnelStat: { alignItems: 'center', flex: 1 },
+  funnelValue: { ...typography.h2, color: colors.primary },
+  funnelStatLabel: { ...typography.caption, color: colors.textSecondary },
+  breakdown: {
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    paddingTop: spacing.sm,
+    gap: spacing.xs,
+  },
+  breakdownRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  breakdownValue: { ...typography.bodyBold, color: colors.textPrimary },
   center: { paddingVertical: spacing.xxl, alignItems: 'center' },
   error: { ...typography.body, color: colors.danger, textAlign: 'center' },
   empty: { ...typography.body, color: colors.textSecondary, textAlign: 'center' },
