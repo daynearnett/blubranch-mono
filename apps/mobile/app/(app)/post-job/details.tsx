@@ -48,10 +48,26 @@ export default function JobDetails() {
       .catch(() => undefined);
   }, []);
 
+  // Multi-select: keep the first pick as the primary tradeId/jobType.
+  const toggleTrade = (id: number) => {
+    const next = draft.tradeIds.includes(id)
+      ? draft.tradeIds.filter((x) => x !== id)
+      : [...draft.tradeIds, id];
+    update({ tradeIds: next, tradeId: next[0] ?? null });
+  };
+  const toggleType = (value: JobType) => {
+    const next = draft.jobTypes.includes(value)
+      ? draft.jobTypes.filter((x) => x !== value)
+      : [...draft.jobTypes, value];
+    update({ jobTypes: next, jobType: next[0] ?? draft.jobType });
+  };
+  const otherSelected = trades.some((t) => draft.tradeIds.includes(t.id) && t.name === 'Other');
+
   const onContinue = () => {
     if (
       !draft.title.trim() ||
-      !draft.tradeId ||
+      draft.tradeIds.length === 0 ||
+      !draft.jobTypes.length ||
       !draft.experienceLevel.trim() ||
       !draft.payMin.trim() ||
       !draft.payMax.trim() ||
@@ -67,7 +83,7 @@ export default function JobDetails() {
       setError('Min pay must be ≤ max pay.');
       return;
     }
-    if (trades.find((t) => t.id === draft.tradeId)?.name === 'Other' && !draft.tradeOther.trim()) {
+    if (otherSelected && !draft.tradeOther.trim()) {
       setError('Enter the trade for "Other".');
       return;
     }
@@ -90,18 +106,18 @@ export default function JobDetails() {
               onChangeText={(v) => update({ title: v })}
             />
 
-            <Text style={styles.fieldLabel}>Trade required</Text>
+            <Text style={styles.fieldLabel}>Trade(s) required</Text>
             <View style={styles.chipWrap}>
               {trades.map((t) => (
                 <Chip
                   key={t.id}
                   label={t.name}
-                  active={draft.tradeId === t.id}
-                  onPress={() => update({ tradeId: t.id })}
+                  active={draft.tradeIds.includes(t.id)}
+                  onPress={() => toggleTrade(t.id)}
                 />
               ))}
             </View>
-            {trades.find((t) => t.id === draft.tradeId)?.name === 'Other' ? (
+            {otherSelected ? (
               <Input
                 label="Which trade?"
                 placeholder="Type the trade"
@@ -139,14 +155,14 @@ export default function JobDetails() {
               />
             </View>
 
-            <Text style={styles.fieldLabel}>Job type</Text>
+            <Text style={styles.fieldLabel}>Job type(s)</Text>
             <View style={styles.chipWrap}>
               {TYPE_OPTIONS.map((o) => (
                 <Chip
                   key={o.value}
                   label={o.label}
-                  active={draft.jobType === o.value}
-                  onPress={() => update({ jobType: o.value })}
+                  active={draft.jobTypes.includes(o.value)}
+                  onPress={() => toggleType(o.value)}
                 />
               ))}
             </View>

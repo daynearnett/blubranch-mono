@@ -361,12 +361,16 @@ model Job {
   title                  String      @db.VarChar(200)
   tradeId                Int         @map("trade_id")
   trade                  Trade       @relation(fields: [tradeId], references: [id])
+  // Multi-select: `tradeId`/`jobType` stay the PRIMARY (first pick) that
+  // matching + search + display use; these arrays hold the full selection.
+  tradeIds               Int[]       @default([]) @map("trade_ids")
   // Free-text trade when the employer picks the "Other" trade option.
   tradeOther             String?     @map("trade_other") @db.VarChar(100)
   experienceLevel        String      @map("experience_level") @db.VarChar(50)
   payMin                 Decimal     @map("pay_min") @db.Decimal(8, 2)
   payMax                 Decimal     @map("pay_max") @db.Decimal(8, 2)
   jobType                JobType     @map("job_type")
+  jobTypes               JobType[]   @default([]) @map("job_types")
   workSetting            WorkSetting @map("work_setting")
   // geo is geography(Point, 4326) — added via raw SQL in migration; PostGIS GiST index also added there.
   // (Distinct from the human-readable `location` VARCHAR below, added in phase_3_5.)

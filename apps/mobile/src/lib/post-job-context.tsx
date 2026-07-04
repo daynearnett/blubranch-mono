@@ -15,12 +15,14 @@ export interface PostJobDraft {
   contactEmail: string;
   // 7C
   title: string;
-  tradeId: number | null;
+  tradeId: number | null; // primary (first selected) — matching/search/display
+  tradeIds: number[]; // full multi-selection
   tradeOther: string; // free text when the "Other" trade is picked
   experienceLevel: string;
   payMin: string;
   payMax: string;
-  jobType: JobType;
+  jobType: JobType; // primary (first selected)
+  jobTypes: JobType[]; // full multi-selection
   workSetting: WorkSetting;
   city: string;
   state: string;
@@ -44,11 +46,13 @@ const empty: PostJobDraft = {
   contactEmail: '',
   title: '',
   tradeId: null,
+  tradeIds: [],
   tradeOther: '',
   experienceLevel: '',
   payMin: '',
   payMax: '',
   jobType: 'full_time',
+  jobTypes: [],
   workSetting: 'commercial',
   city: '',
   state: '',

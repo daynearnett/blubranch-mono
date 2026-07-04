@@ -112,11 +112,13 @@ export default function Review() {
           companyId,
           title: draft.title,
           tradeId: draft.tradeId!,
+          tradeIds: draft.tradeIds,
           tradeOther: draft.tradeOther || null,
           experienceLevel: draft.experienceLevel,
           payMin: Number(draft.payMin),
           payMax: Number(draft.payMax),
           jobType: draft.jobType,
+          jobTypes: draft.jobTypes,
           workSetting: draft.workSetting,
           city: draft.city,
           state: draft.state,
@@ -171,8 +173,10 @@ export default function Review() {
               label="Pay"
               value={`$${draft.payMin || '—'}–$${draft.payMax || '—'} / hr`}
             />
-            <Row label="Type" value={prettyType(draft.jobType)} />
-            <Row label="Setting" value={prettySetting(draft.workSetting)} />
+            <Row
+              label="Type"
+              value={(draft.jobTypes.length ? draft.jobTypes : [draft.jobType]).map(prettyType).join(', ')}
+            />
             <Row
               label="Location"
               value={`${draft.city}, ${draft.state} ${draft.zipCode}`}
@@ -246,9 +250,6 @@ function prettyType(t: string) {
       : t === 'contract'
         ? 'Contract'
         : 'Temp-to-hire';
-}
-function prettySetting(s: string) {
-  return s.charAt(0).toUpperCase() + s.slice(1);
 }
 function prettyPlan(p: string) {
   return PLAN_LABELS[p as 'basic' | 'pro' | 'unlimited'] ?? p;
