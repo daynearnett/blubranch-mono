@@ -87,10 +87,17 @@ export default function Review() {
         const covered =
           !!sub?.active && !!sub.plan && PLAN_RANK[sub.plan] >= PLAN_RANK[draft.planTier];
         if (!covered) {
-          const params = await paymentsApi.subscriptionIntent(draft.planTier as 'pro' | 'unlimited');
-          const paid = await runPaymentSheet(params);
-          if (!paid) return; // user cancelled
-          await paymentsApi.confirmSubscription().catch(() => undefined);
+          try {
+            const params = await paymentsApi.subscriptionIntent(draft.planTier as 'pro' | 'unlimited');
+            const paid = await runPaymentSheet(params);
+            if (!paid) return; // user cancelled
+            await paymentsApi.confirmSubscription().catch(() => undefined);
+          } catch (err) {
+            // 409 = they already have an active subscription. Tier changes live
+            // in Account → Plan, not here — so just proceed to post rather than
+            // showing a scary error in the ad-hoc post flow.
+            if (!(err instanceof ApiError && err.status === 409)) throw err;
+          }
         }
       }
 

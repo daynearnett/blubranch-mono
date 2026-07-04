@@ -6,6 +6,7 @@ import {
   ArrowLeft,
   Bell,
   ChevronRight,
+  CreditCard,
   Globe,
   HelpCircle,
   KeyRound,
@@ -73,6 +74,7 @@ export default function Settings() {
     { key: 'profile', icon: User, label: 'Profile & visibility', onPress: () => comingSoon('Profile & visibility') },
     { key: 'security', icon: KeyRound, label: 'Sign in & security', onPress: () => comingSoon('Sign in & security') },
     { key: 'phone', icon: Phone, label: 'Phone number', onPress: () => router.push('/(app)/verify-phone') },
+    { key: 'plan', icon: CreditCard, label: 'Plan & billing', onPress: () => router.push('/(app)/plan-billing') },
   ];
 
   const preferencesSection: SettingsRow[] = [

@@ -389,6 +389,49 @@ export async function paymentRoutes(app: FastifyInstance): Promise<void> {
     await syncSubscription(prisma, sub);
     return reply.send({ canceledAtPeriodEnd: true, currentPeriodEnd: local.currentPeriodEnd });
   });
+
+  // POST /payments/subscription/change — up/downgrade between Blu (pro) and
+  // Blu Max (unlimited). Swaps the subscription's price with proration. Only
+  // valid when a subscription already exists (first-time uses /intent). This is
+  // the ONLY place plan tier changes; the post flow never changes plans.
+  app.post('/payments/subscription/change', { preHandler: requireAuth }, async (request, reply) => {
+    if (!ensureConfigured(reply)) return;
+    const data = parseBody(subscriptionIntentSchema, request, reply);
+    if (!data) return;
+
+    const local = await prisma.subscription.findUnique({ where: { userId: request.user!.id } });
+    if (!local || !['active', 'trialing', 'past_due'].includes(local.status)) {
+      return reply.code(400).send({ error: 'BadRequest', message: 'No active subscription to change.' });
+    }
+    if (local.plan === data.plan) {
+      // Same tier — the only meaningful action is resuming a pending cancel.
+      if (local.cancelAtPeriodEnd) {
+        const resumed = await getStripe().subscriptions.update(local.stripeSubscriptionId, {
+          cancel_at_period_end: false,
+        });
+        await syncSubscription(prisma, resumed);
+        return reply.send({ plan: local.plan, status: resumed.status });
+      }
+      return reply.send({ plan: local.plan, status: local.status, unchanged: true });
+    }
+    const priceId = getSubscriptionPriceId(data.plan);
+    if (!priceId) {
+      return reply.code(503).send({ error: 'StripeNotConfigured', message: `The ${data.plan} plan is not configured.` });
+    }
+
+    const current = await getStripe().subscriptions.retrieve(local.stripeSubscriptionId);
+    const itemId = current.items.data[0]?.id;
+    if (!itemId) return reply.code(500).send({ error: 'StripeError' });
+
+    const updated = await getStripe().subscriptions.update(local.stripeSubscriptionId, {
+      items: [{ id: itemId, price: priceId }],
+      proration_behavior: 'create_prorations',
+      cancel_at_period_end: false, // switching plans un-cancels
+      metadata: { userId: request.user!.id, plan: data.plan },
+    });
+    await syncSubscription(prisma, updated);
+    return reply.send({ plan: data.plan, status: updated.status });
+  });
 }
 
 // ── Stripe webhook (raw body — registered as its own encapsulated plugin) ──

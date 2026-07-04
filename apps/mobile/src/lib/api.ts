@@ -601,6 +601,12 @@ export const payments = {
   subscriptionStatus: () => request<SubscriptionStatus>('/payments/subscription'),
   cancelSubscription: () =>
     request<{ canceledAtPeriodEnd: boolean }>('/payments/subscription/cancel', { method: 'POST' }),
+  // Up/downgrade an existing subscription between pro (Blu) and unlimited (Blu Max).
+  changeSubscription: (plan: 'pro' | 'unlimited') =>
+    request<{ plan: string; status: string }>('/payments/subscription/change', {
+      method: 'POST',
+      body: JSON.stringify({ plan }),
+    }),
 };
 
 export const reports = {

@@ -1,9 +1,11 @@
-// Mockup 7A — Choose plan
+// Mockup 7A — Choose plan (skipped for active subscribers, who post at their tier)
 import { useRouter } from 'expo-router';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { PLAN_LABELS } from '@blubranch/shared';
+import { PLAN_LABELS, isSubscriptionPlan } from '@blubranch/shared';
 import { Badge, Button, ProgressDots } from '../../../src/components/ui.js';
+import { payments as paymentsApi } from '../../../src/lib/api.js';
 import { usePostJob } from '../../../src/lib/post-job-context.js';
 import { colors, radius, spacing, typography } from '../../../src/theme.js';
 
@@ -44,6 +46,38 @@ const PLANS = [
 export default function ChoosePlan() {
   const router = useRouter();
   const { draft, update } = usePostJob();
+  const [checking, setChecking] = useState(true);
+
+  // Active subscribers don't pick a plan per post — they post at their tier.
+  // Plan up/downgrade lives in Account → Plan, not this flow. So if the employer
+  // already has an active sub, lock the tier and skip straight to company info.
+  useEffect(() => {
+    let alive = true;
+    paymentsApi
+      .subscriptionStatus()
+      .then((sub) => {
+        if (!alive) return;
+        if (sub.active && sub.plan && isSubscriptionPlan(sub.plan)) {
+          update({ planTier: sub.plan });
+          router.replace('/(app)/post-job/company');
+        } else {
+          setChecking(false);
+        }
+      })
+      .catch(() => alive && setChecking(false));
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  if (checking) {
+    return (
+      <SafeAreaView style={[styles.safe, styles.center]} edges={['top', 'bottom']}>
+        <ActivityIndicator color={colors.primary} />
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
@@ -90,6 +124,7 @@ export default function ChoosePlan() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
+  center: { alignItems: 'center', justifyContent: 'center' },
   scroll: {
     paddingHorizontal: spacing.xl,
     paddingTop: spacing.lg,
