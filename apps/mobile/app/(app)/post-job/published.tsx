@@ -16,7 +16,6 @@ export default function Published() {
   const reach = {
     workers: draft.boostPushNotification ? 312 : 80,
     views: 40,
-    applicants: 12,
   };
 
   const onPostAnother = () => {
@@ -48,7 +47,6 @@ export default function Published() {
             <View style={styles.reachRow}>
               <Stat value={reach.workers} label="Workers notified" />
               <Stat value={`~${reach.views}`} label="Expected views" />
-              <Stat value={`~${reach.applicants}`} label="Est. applicants" />
             </View>
           </Card>
         </View>
@@ -72,10 +70,16 @@ export default function Published() {
 }
 
 function Stat({ value, label }: { value: number | string; label: string }) {
+  // Stack the label's words (one per line) so multi-word labels don't crowd
+  // across the columns — e.g. "Expected" over "views".
   return (
     <View style={styles.stat}>
       <Text style={styles.statValue}>{value}</Text>
-      <Text style={styles.statLabel}>{label}</Text>
+      {label.split(' ').map((word, i) => (
+        <Text key={i} style={styles.statLabel}>
+          {word}
+        </Text>
+      ))}
     </View>
   );
 }
