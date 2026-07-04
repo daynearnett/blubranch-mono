@@ -80,6 +80,7 @@ export async function jobRoutes(app: FastifyInstance): Promise<void> {
           companyId: data.companyId,
           title: data.title,
           tradeId: data.tradeId,
+          tradeOther: data.tradeOther ?? null,
           experienceLevel: data.experienceLevel,
           payMin: data.payMin,
           payMax: data.payMax,

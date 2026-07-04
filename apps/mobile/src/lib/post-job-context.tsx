@@ -16,6 +16,7 @@ export interface PostJobDraft {
   // 7C
   title: string;
   tradeId: number | null;
+  tradeOther: string; // free text when the "Other" trade is picked
   experienceLevel: string;
   payMin: string;
   payMax: string;
@@ -43,6 +44,7 @@ const empty: PostJobDraft = {
   contactEmail: '',
   title: '',
   tradeId: null,
+  tradeOther: '',
   experienceLevel: '',
   payMin: '',
   payMax: '',

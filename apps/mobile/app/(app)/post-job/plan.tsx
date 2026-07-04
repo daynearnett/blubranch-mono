@@ -2,6 +2,7 @@
 import { useRouter } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { PLAN_LABELS } from '@blubranch/shared';
 import { Badge, Button, ProgressDots } from '../../../src/components/ui.js';
 import { usePostJob } from '../../../src/lib/post-job-context.js';
 import { colors, radius, spacing, typography } from '../../../src/theme.js';
@@ -11,34 +12,29 @@ const PLANS = [
     id: 'basic' as const,
     title: 'Basic',
     price: '$19 per post',
-    bullets: [
-      'Listed in local feed',
-      'Quick Apply',
-      'Applicant dashboard',
-      'No featured placement',
-    ],
+    bullets: ['Listed in local feed', 'Quick Apply', 'Applicant dashboard'],
   },
   {
     id: 'pro' as const,
-    title: 'Pro',
-    price: '$199 / month',
+    title: 'Blu',
+    price: '$79 / month',
     badge: 'Most popular',
     bullets: [
-      'Unlimited Pro job posts',
+      'All Basic features',
+      'Unlimited Blu job posts',
       'Featured top placement',
       'Urgent badge',
-      'Push alerts to matching workers',
       'Applicant analytics',
     ],
   },
   {
     id: 'unlimited' as const,
-    title: 'Unlimited',
-    price: '$299 / month',
+    title: 'Blu Max',
+    price: '$139 / month',
     bullets: [
+      'All Blu features',
+      'Push alerts to matching workers',
       'Unlimited posts',
-      'All Pro features',
-      'Company profile page',
       'Direct message applicants',
       'Priority support',
     ],
@@ -82,7 +78,7 @@ export default function ChoosePlan() {
 
         <View>
           <Button
-            label={`Continue with ${draft.planTier[0]?.toUpperCase()}${draft.planTier.slice(1)}`}
+            label={`Continue with ${PLAN_LABELS[draft.planTier]}`}
             onPress={() => router.push('/(app)/post-job/company')}
           />
           <Text style={styles.helper}>30-day money back guarantee · Cancel anytime</Text>

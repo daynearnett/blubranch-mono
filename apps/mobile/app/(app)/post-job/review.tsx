@@ -1,13 +1,13 @@
 // Mockup 7E — Review & publish. Creates the company (or reuses existing),
 // then creates the job and runs the Stripe Payment Sheet:
-//   • Basic / Pro  → one-time charge; job publishes once Stripe confirms.
-//   • Unlimited    → starts (or reuses) the $299/mo subscription, then posts.
+//   • Basic     → one-time charge; job publishes once Stripe confirms.
+//   • Blu / Blu Max → starts (or reuses) the subscription, then posts.
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useStripe } from '@stripe/stripe-react-native';
-import { PLAN_RANK, isSubscriptionPlan } from '@blubranch/shared';
+import { PLAN_LABELS, PLAN_RANK, isSubscriptionPlan } from '@blubranch/shared';
 import type { CompanySize, PaymentSheetParams } from '@blubranch/shared';
 import { Button, Card, ProgressDots } from '../../../src/components/ui.js';
 import {
@@ -21,8 +21,8 @@ import { colors, radius, spacing, typography } from '../../../src/theme.js';
 
 const PRICE: Record<'basic' | 'pro' | 'unlimited', string> = {
   basic: '$19 one-time',
-  pro: '$199 / month',
-  unlimited: '$299 / month',
+  pro: '$79 / month',
+  unlimited: '$139 / month',
 };
 
 export default function Review() {
@@ -105,6 +105,7 @@ export default function Review() {
           companyId,
           title: draft.title,
           tradeId: draft.tradeId!,
+          tradeOther: draft.tradeOther || null,
           experienceLevel: draft.experienceLevel,
           payMin: Number(draft.payMin),
           payMax: Number(draft.payMax),
@@ -190,11 +191,11 @@ export default function Review() {
           </Card>
 
           <Text style={styles.legal}>
-            By publishing you agree to BluBranch's Employer Terms. No refunds after job goes live.
+            By publishing you agree to BluBranch's Employer Terms.
           </Text>
         </View>
 
-        <View>
+        <View style={styles.actions}>
           <Button
             variant="ctaDark"
             label={`Pay ${PRICE[draft.planTier].split(' ')[0]} & publish job`}
@@ -243,7 +244,7 @@ function prettySetting(s: string) {
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
 function prettyPlan(p: string) {
-  return p.charAt(0).toUpperCase() + p.slice(1);
+  return PLAN_LABELS[p as 'basic' | 'pro' | 'unlimited'] ?? p;
 }
 
 const styles = StyleSheet.create({
@@ -276,8 +277,12 @@ const styles = StyleSheet.create({
   priceCard: { backgroundColor: colors.surface, borderRadius: radius.md },
   price: { ...typography.h3, color: colors.primary },
   legal: {
-    ...typography.caption,
+    // Not typography.caption — that style uppercases text, which turned
+    // "BluBranch's" into "BLUBRANCH'S" (reads as "BLUB RANCH").
+    ...typography.small,
     color: colors.textSecondary,
     marginTop: spacing.lg,
   },
+  // Extra breathing room between the terms line and the Pay button.
+  actions: { marginTop: spacing.xl },
 });

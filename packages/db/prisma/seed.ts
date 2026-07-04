@@ -46,6 +46,9 @@ const TRADES: { name: string; slug: string; isPopular: boolean }[] = [
   { name: 'Solar Installer', slug: 'solar-installer', isPopular: false },
   { name: 'Surveyor', slug: 'surveyor', isPopular: false },
   { name: 'Well Driller', slug: 'well-driller', isPopular: false },
+  // "Other" — the post-job form reveals a free-text field when picked
+  // (stored on jobs.trade_other).
+  { name: 'Other', slug: 'other', isPopular: false },
 ];
 
 // Per-trade skills (mockup screen 3B shows the electrician set; rest are

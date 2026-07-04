@@ -82,6 +82,7 @@ export const jobInputSchema = z.object({
   companyId: z.string().uuid(),
   title: z.string().min(1).max(200),
   tradeId: z.number().int().positive(),
+  tradeOther: z.string().max(100).nullable().optional(),
   experienceLevel: z.string().min(1).max(50),
   payMin: z.number().nonnegative().max(999999),
   payMax: z.number().nonnegative().max(999999),

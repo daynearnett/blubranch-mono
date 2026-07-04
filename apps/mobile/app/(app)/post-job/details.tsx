@@ -11,8 +11,9 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import type { JobType, WorkSetting } from '@blubranch/shared';
+import type { JobType } from '@blubranch/shared';
 import { Button, Chip, Input, ProgressDots } from '../../../src/components/ui.js';
+import { StatePicker } from '../../../src/components/state-picker.js';
 import { reference } from '../../../src/lib/api.js';
 import { usePostJob } from '../../../src/lib/post-job-context.js';
 import { colors, radius, spacing, typography } from '../../../src/theme.js';
@@ -24,11 +25,14 @@ const TYPE_OPTIONS: { value: JobType; label: string }[] = [
   { value: 'temp_to_hire', label: 'Temp-to-hire' },
 ];
 
-const SETTING_OPTIONS: { value: WorkSetting; label: string }[] = [
-  { value: 'commercial', label: 'Commercial' },
-  { value: 'residential', label: 'Residential' },
-  { value: 'industrial', label: 'Industrial' },
-  { value: 'mixed', label: 'Mixed' },
+// Standard experience bands (years). Stored as the label string on the job.
+const EXPERIENCE_OPTIONS = [
+  '0–2 years',
+  '3–5 years',
+  '6–10 years',
+  '11–15 years',
+  '16–20 years',
+  '20+ years',
 ];
 
 export default function JobDetails() {
@@ -63,6 +67,10 @@ export default function JobDetails() {
       setError('Min pay must be ≤ max pay.');
       return;
     }
+    if (trades.find((t) => t.id === draft.tradeId)?.name === 'Other' && !draft.tradeOther.trim()) {
+      setError('Enter the trade for "Other".');
+      return;
+    }
     setError(null);
     router.push('/(app)/post-job/perks');
   };
@@ -93,13 +101,26 @@ export default function JobDetails() {
                 />
               ))}
             </View>
+            {trades.find((t) => t.id === draft.tradeId)?.name === 'Other' ? (
+              <Input
+                label="Which trade?"
+                placeholder="Type the trade"
+                value={draft.tradeOther}
+                onChangeText={(v) => update({ tradeOther: v })}
+              />
+            ) : null}
 
-            <Input
-              label="Experience level"
-              placeholder="e.g. Journeyman (4–10 yrs)"
-              value={draft.experienceLevel}
-              onChangeText={(v) => update({ experienceLevel: v })}
-            />
+            <Text style={styles.fieldLabel}>Experience level</Text>
+            <View style={styles.chipWrap}>
+              {EXPERIENCE_OPTIONS.map((o) => (
+                <Chip
+                  key={o}
+                  label={o}
+                  active={draft.experienceLevel === o}
+                  onPress={() => update({ experienceLevel: o })}
+                />
+              ))}
+            </View>
 
             <View style={{ flexDirection: 'row', gap: spacing.md }}>
               <Input
@@ -130,18 +151,6 @@ export default function JobDetails() {
               ))}
             </View>
 
-            <Text style={styles.fieldLabel}>Work setting</Text>
-            <View style={styles.chipWrap}>
-              {SETTING_OPTIONS.map((o) => (
-                <Chip
-                  key={o.value}
-                  label={o.label}
-                  active={draft.workSetting === o.value}
-                  onPress={() => update({ workSetting: o.value })}
-                />
-              ))}
-            </View>
-
             <Text style={styles.fieldLabel}>Job location</Text>
             <View style={{ flexDirection: 'row', gap: spacing.md }}>
               <Input
@@ -150,11 +159,9 @@ export default function JobDetails() {
                 onChangeText={(v) => update({ city: v })}
                 containerStyle={{ flex: 2 }}
               />
-              <Input
-                label="State"
+              <StatePicker
                 value={draft.state}
-                onChangeText={(v) => update({ state: v })}
-                autoCapitalize="characters"
+                onChange={(abbr) => update({ state: abbr })}
                 containerStyle={{ flex: 1 }}
               />
               <Input

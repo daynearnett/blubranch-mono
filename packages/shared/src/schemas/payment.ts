@@ -7,12 +7,20 @@ import { PlanTier } from '../enums.js';
 // are recurring monthly subscriptions that let the employer post unlimited jobs
 // at that tier (or below) while active.
 //   • Basic     $19 / post (one-time)
-//   • Pro       $199 / month (subscription)
-//   • Unlimited $299 / month (subscription, top tier)
+//   • Blu       $79 / month (subscription)  [internal tier: pro]
+//   • Blu Max   $139 / month (subscription, top tier)  [internal tier: unlimited]
 export const PLAN_PRICE_CENTS: Record<z.infer<typeof PlanTier>, number> = {
   basic: 1900,
-  pro: 19900,
-  unlimited: 29900,
+  pro: 7900,
+  unlimited: 13900,
+};
+
+// Display labels. Internal tier ids stay basic/pro/unlimited everywhere in the
+// data model; these are shown to users.
+export const PLAN_LABELS: Record<z.infer<typeof PlanTier>, string> = {
+  basic: 'Basic',
+  pro: 'Blu',
+  unlimited: 'Blu Max',
 };
 
 // Which tiers are billed once per post vs. via subscription.

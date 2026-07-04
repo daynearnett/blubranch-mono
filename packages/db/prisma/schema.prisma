@@ -361,6 +361,8 @@ model Job {
   title                  String      @db.VarChar(200)
   tradeId                Int         @map("trade_id")
   trade                  Trade       @relation(fields: [tradeId], references: [id])
+  // Free-text trade when the employer picks the "Other" trade option.
+  tradeOther             String?     @map("trade_other") @db.VarChar(100)
   experienceLevel        String      @map("experience_level") @db.VarChar(50)
   payMin                 Decimal     @map("pay_min") @db.Decimal(8, 2)
   payMax                 Decimal     @map("pay_max") @db.Decimal(8, 2)
