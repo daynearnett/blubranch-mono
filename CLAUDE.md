@@ -10,6 +10,7 @@ BluBranch is a two-sided professional networking and job marketplace platform bu
 
 ## Key reference docs
 
+- [docs/TESTING.md](./docs/TESTING.md) — the `@blubranch/api` integration test suite (the dev→staging→prod validation gate): how to run it, the local-Postgres + `prisma db push` prerequisite, and the flows covered (worker onboarding, posting, like/comment/share, apply, employer posts by plan tier, connections). **Run `pnpm --filter @blubranch/api test` before promoting a change.**
 - [docs/TESTFLIGHT.md](./docs/TESTFLIGHT.md) — first-time iOS TestFlight setup playbook. `eas login` / `eas init` / `eas build` / `eas submit` step-by-step, plus what's needed in the Apple Developer portal.
 - [docs/TESTFLIGHT-LESSONS.md](./docs/TESTFLIGHT-LESSONS.md) — gotchas hit during the first iOS TestFlight cycle (cert limits, SDK version requirements, SDK 52 → 55 launch crash, version-bump conventions). Read this **before** the next iOS rebuild.
 - [docs/RAILWAY-DEPLOY.md](./docs/RAILWAY-DEPLOY.md) — API deployment playbook for Railway: provisioning Postgres + PostGIS + Redis, env var matrix, custom-domain setup for `api-staging.blubranch.com` and `api.blubranch.com`, post-deploy seed step.
@@ -21,7 +22,12 @@ BluBranch is a two-sided professional networking and job marketplace platform bu
 - [docs/CR-LESSONS.md](./docs/CR-LESSONS.md) — gotchas from setting up the CR sync system (grep anchoring, `\K` portability, OAuth consent screen red herring). Read this if `pnpm sync-crs` or `CR-HANDLING.md` behaves unexpectedly.
 - [docs/CR-SETUP.md](./docs/CR-SETUP.md) — one-time setup for the Google Sheet sync (service account, env vars). Already completed 2026-05-14; only relevant if re-provisioning on a new machine or for a new contributor.
 
-## Current deployment state (last updated 2026-06-26)
+## Current deployment state (last updated 2026-07-05)
+
+### Employer analytics + post-job chip fix (2026-07-05, build `0.1.5 (23)` → TestFlight; `main` HEAD `3be2039`)
+Two cofounder-feedback items, deployed to staging + in build 23:
+- **Company-size chip now changeable** — the post-job "About your company" step re-ran its pre-fill effect on every draft change (dep was `hydrateCompanyFromExisting`, which the context recreates each `draft` change), so tapping a size chip snapped back to the saved company's size. Fixed to run the pre-fill **once on mount** (`apps/mobile/app/(app)/post-job/company.tsx`).
+- **Views/Applicants trend chart** on the applicant dashboard — new `JobView` event table (timestamped views; migration `20260705000000_job_views`) recorded alongside the fast `view_count` counter on each non-owner view; new `GET /jobs/:id/stats` (owner/admin) returns cumulative daily Views + Applicants over the posting's lifetime; mobile `JobStatsChart` (pure `react-native-svg`, shared Y-scale so the line gap reads as the view→apply funnel) fills the previously-blank space below the funnel card. **Stats route verified live on staging (401 unauth → deployed; server boots only if migration applied).** Note: views recorded before this table existed are in `view_count` (funnel total) but not the time series. 85/86 API tests pass (sole failure is the pre-existing Redis-less `/health` timeout — Redis isn't installed locally).
 
 > **Phase 4 is fully shipped + tested via cofounder device-testing. `main` is current (HEAD `b54d921`); branch `phase-4-messaging-notifications` is in sync. Mobile is at `0.1.5 (15)` on TestFlight. Phase 5 (payments) is next — but see "Open items before launch" below: several pre-beta blockers (content moderation, Twilio paid, security-key rotations, admin-panel wiring) are NOT part of Phase 5 and stand between "Phase 5 done" and "launch-ready."**
 
