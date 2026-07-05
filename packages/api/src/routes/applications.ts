@@ -110,6 +110,78 @@ export async function applicationRoutes(app: FastifyInstance): Promise<void> {
     },
   );
 
+  // ── GET /jobs/:id/stats ─────────────────────────────────────────
+  // Time-series for the employer analytics dashboard: cumulative views and
+  // applicants per day over the posting's lifetime. Owner (any role) or admin.
+  app.get<{ Params: { id: string } }>(
+    '/jobs/:id/stats',
+    { preHandler: requireAuth },
+    async (request, reply) => {
+      const job = await prisma.job.findUnique({
+        where: { id: request.params.id },
+        select: { id: true, employerId: true, createdAt: true, viewCount: true },
+      });
+      if (!job) return reply.code(404).send({ error: 'NotFound' });
+      if (job.employerId !== request.user!.id && request.user!.role !== 'admin') {
+        return reply.code(403).send({ error: 'Forbidden' });
+      }
+
+      const [views, applications] = await Promise.all([
+        prisma.jobView.findMany({
+          where: { jobId: job.id },
+          select: { createdAt: true },
+          orderBy: { createdAt: 'asc' },
+        }),
+        prisma.jobApplication.findMany({
+          where: { jobId: job.id },
+          select: { appliedAt: true },
+          orderBy: { appliedAt: 'asc' },
+        }),
+      ]);
+
+      // Bucket by UTC day from posting date → today. Cap the span so a very old
+      // posting doesn't produce a giant array.
+      const dayKey = (d: Date) => d.toISOString().slice(0, 10);
+      const MS_DAY = 86_400_000;
+      const MAX_DAYS = 120;
+      const start = new Date(job.createdAt);
+      const today = new Date();
+      let startMs = Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), start.getUTCDate());
+      const endMs = Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate());
+      if ((endMs - startMs) / MS_DAY > MAX_DAYS) startMs = endMs - MAX_DAYS * MS_DAY;
+
+      const days: string[] = [];
+      for (let ms = startMs; ms <= endMs; ms += MS_DAY) days.push(dayKey(new Date(ms)));
+
+      const perDay = new Map(days.map((d) => [d, { views: 0, applicants: 0 }]));
+      for (const v of views) {
+        const b = perDay.get(dayKey(v.createdAt));
+        if (b) b.views += 1;
+      }
+      for (const a of applications) {
+        const b = perDay.get(dayKey(a.appliedAt));
+        if (b) b.applicants += 1;
+      }
+
+      let cumViews = 0;
+      let cumApplicants = 0;
+      const series = days.map((date) => {
+        const b = perDay.get(date)!;
+        cumViews += b.views;
+        cumApplicants += b.applicants;
+        return { date, views: cumViews, applicants: cumApplicants };
+      });
+
+      return reply.send({
+        series,
+        // `viewCount` includes views recorded before per-view tracking existed,
+        // so it can exceed the series total — surface both.
+        totalViews: job.viewCount,
+        totalApplicants: applications.length,
+      });
+    },
+  );
+
   // ── PUT /jobs/:id/applications/:applicationId ───────────────────
   // The job owner (any role) or an admin updates application status. Gated by
   // ownership below, not by role.

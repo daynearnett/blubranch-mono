@@ -396,6 +396,18 @@ export interface JobDetail extends JobSummary {
   } | null;
 }
 
+export interface JobStatsPoint {
+  date: string; // YYYY-MM-DD
+  views: number; // cumulative
+  applicants: number; // cumulative
+}
+
+export interface JobStats {
+  series: JobStatsPoint[];
+  totalViews: number;
+  totalApplicants: number;
+}
+
 export interface CompanyFields {
   id: string;
   employerId: string;
@@ -557,6 +569,7 @@ export const jobs = {
     }),
   applications: (id: string) =>
     request<ApplicantSummary[]>(`/jobs/${id}/applications`),
+  stats: (id: string) => request<JobStats>(`/jobs/${id}/stats`),
   setApplicationStatus: (jobId: string, applicationId: string, input: ApplicationStatusUpdate) =>
     request<ApplicantSummary>(`/jobs/${jobId}/applications/${applicationId}`, {
       method: 'PUT',

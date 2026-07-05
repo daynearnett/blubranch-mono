@@ -396,11 +396,26 @@ model Job {
   benefits     JobBenefit[]
   applications JobApplication[]
   bookmarks    BookmarkedJob[]
+  views        JobView[]
 
   @@index([status, expiresAt])
   @@index([tradeId, status])
   @@index([city, state])
   @@map("jobs")
+}
+
+// One row per job view (non-owner). `viewCount` on Job stays the fast total;
+// these timestamped rows power the Views-over-time line on the analytics
+// dashboard. Views recorded before this table existed are counted in
+// `viewCount` but won't appear in the time series.
+model JobView {
+  id        String   @id @default(uuid()) @db.Uuid
+  jobId     String   @map("job_id") @db.Uuid
+  job       Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([jobId, createdAt])
+  @@map("job_views")
 }
 
 model Benefit {

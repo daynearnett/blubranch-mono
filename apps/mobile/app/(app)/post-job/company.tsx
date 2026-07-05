@@ -29,7 +29,10 @@ export default function CompanyInfo() {
   const { draft, update, hydrateCompanyFromExisting } = usePostJob();
   const [error, setError] = useState<string | null>(null);
 
-  // Pre-fill from /users/me/company so an employer doesn't retype.
+  // Pre-fill from /users/me/company so an employer doesn't retype. Run ONCE on
+  // mount — `hydrateCompanyFromExisting` gets a new identity on every draft
+  // change, so depending on it would re-hydrate (and reset the size chip /
+  // fields) on every keystroke or chip tap.
   useEffect(() => {
     companiesApi
       .myCompany()
@@ -37,7 +40,8 @@ export default function CompanyInfo() {
         if (c) hydrateCompanyFromExisting(c);
       })
       .catch(() => undefined);
-  }, [hydrateCompanyFromExisting]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const onContinue = () => {
     if (!draft.companyName.trim() || !draft.contactEmail.trim() || !draft.companySize) {

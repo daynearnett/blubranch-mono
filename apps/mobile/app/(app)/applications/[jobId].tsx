@@ -14,11 +14,13 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { ApplicationStatus } from '@blubranch/shared';
 import { Badge, Card } from '../../../src/components/ui.js';
+import { JobStatsChart } from '../../../src/components/job-stats-chart.js';
 import {
   ApiError,
   jobs as jobsApi,
   type ApplicantSummary,
   type JobDetail,
+  type JobStats,
 } from '../../../src/lib/api.js';
 import { colors, radius, spacing, typography } from '../../../src/theme.js';
 
@@ -43,6 +45,8 @@ export default function ApplicantDashboard() {
   const { jobId } = useLocalSearchParams<{ jobId: string }>();
   const [job, setJob] = useState<JobDetail | null>(null);
   const [apps, setApps] = useState<ApplicantSummary[]>([]);
+  const [stats, setStats] = useState<JobStats | null>(null);
+  const [chartWidth, setChartWidth] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -55,6 +59,11 @@ export default function ApplicantDashboard() {
       })
       .catch((err) => setError(err instanceof ApiError ? err.message : 'Could not load'))
       .finally(() => setLoading(false));
+    // Stats are best-effort — a failure here must not break the applicant list.
+    jobsApi
+      .stats(jobId)
+      .then(setStats)
+      .catch(() => setStats(null));
   }, [jobId]);
 
   const setStatus = async (a: ApplicantSummary, status: ApplicationStatus) => {
@@ -90,6 +99,19 @@ export default function ApplicantDashboard() {
 
       <ScrollView contentContainerStyle={styles.scroll}>
         {job && !loading ? <FunnelCard viewCount={job.viewCount} apps={apps} /> : null}
+        {job && !loading && stats ? (
+          <Card style={styles.trend}>
+            <Text style={styles.funnelTitle}>Views &amp; applicants over time</Text>
+            <View
+              onLayout={(e) => setChartWidth(e.nativeEvent.layout.width)}
+              style={styles.chartHost}
+            >
+              {chartWidth > 0 ? (
+                <JobStatsChart series={stats.series} width={chartWidth} />
+              ) : null}
+            </View>
+          </Card>
+        ) : null}
         {loading ? (
           <View style={styles.center}>
             <ActivityIndicator color={colors.primary} />
@@ -212,6 +234,8 @@ const styles = StyleSheet.create({
   headerSub: { ...typography.caption, color: colors.textSecondary },
   scroll: { padding: spacing.lg },
   funnel: { marginBottom: spacing.md },
+  trend: { marginBottom: spacing.md },
+  chartHost: { width: '100%' },
   funnelTitle: { ...typography.h3, color: colors.primaryDark, marginBottom: spacing.md },
   funnelRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing.md },
   funnelStat: { alignItems: 'center', flex: 1 },
