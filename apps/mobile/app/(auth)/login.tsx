@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button, Input } from '../../src/components/ui.js';
+import { SocialAuthButtons } from '../../src/components/social-auth-buttons.js';
 import { useAuth } from '../../src/lib/auth-context.js';
 import { ApiError } from '../../src/lib/api.js';
 import { colors, spacing, typography } from '../../src/theme.js';
@@ -98,6 +99,7 @@ export default function Login() {
 
           <View>
             <Button label="Log in" onPress={onSubmit} loading={submitting} />
+            <SocialAuthButtons />
             <Button
               variant="ghost"
               label="Create a new account"

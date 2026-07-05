@@ -14,6 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { HardHat, Shield, Users } from 'lucide-react-native';
 import type { LucideIcon } from 'lucide-react-native';
 import { Button } from '../../src/components/ui.js';
+import { SocialAuthButtons } from '../../src/components/social-auth-buttons.js';
 import { colors, radius, spacing, typography } from '../../src/theme.js';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -142,6 +143,8 @@ export default function Welcome() {
             label="Create a free account"
             onPress={() => router.push('/(auth)/signup-name')}
           />
+
+          <SocialAuthButtons />
 
           <Pressable
             style={styles.loginBtn}

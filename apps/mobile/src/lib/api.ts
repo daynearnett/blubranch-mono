@@ -20,6 +20,7 @@ import type {
   RegisterInput,
   SetSkillsInput,
   SetTradesInput,
+  SocialAuthInput,
   UserSettingsInput,
   WorkHistoryInput,
   WorkerProfileInput,
@@ -118,6 +119,8 @@ export const auth = {
     request<AuthResponse>('/auth/register', { method: 'POST', body: JSON.stringify(input) }),
   login: (input: LoginInput) =>
     request<AuthResponse>('/auth/login', { method: 'POST', body: JSON.stringify(input) }),
+  social: (input: SocialAuthInput) =>
+    request<AuthResponse>('/auth/social', { method: 'POST', body: JSON.stringify(input) }),
   refresh: (refreshToken: string) =>
     request<AuthResponse>('/auth/refresh', {
       method: 'POST',

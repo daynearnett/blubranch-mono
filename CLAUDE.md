@@ -24,6 +24,15 @@ BluBranch is a two-sided professional networking and job marketplace platform bu
 
 ## Current deployment state (last updated 2026-07-05)
 
+### Phase 7 chunk 1 — Social sign-in security fix (2026-07-05, BUILT + tested locally; NOT yet committed/deployed)
+Closed a real account-takeover hole: `POST /auth/social` was a stub that trusted client-supplied `email`/`providerUserId` with **no** id_token verification (anyone could POST any email → valid tokens for that account). Now:
+- **`packages/api/src/services/social-auth.ts`** verifies the provider `idToken` against the issuer JWKS (`jose` remote key set) — signature + `iss` + `aud` + `exp` — and derives identity from the **verified token only**. Apple aud = bundle id (`APPLE_CLIENT_IDS`, defaults `com.blubranch.app`); Google aud = `GOOGLE_CLIENT_IDS` (comma-sep web+iOS client ids).
+- **`routes/auth.ts`** `/auth/social`: 401 on unverifiable token; links provider id onto an existing email account; provisions new users (role worker + empty worker profile) from verified claims. Client email/sub are ignored even if sent.
+- **`socialAuthInputSchema`** slimmed to `{ provider(apple|google), idToken, role, firstName?, lastName? }` (Apple-first-signin name only, never trusted); **facebook dropped**.
+- **Mobile:** `expo-apple-authentication` + `@react-native-google-signin/google-signin` installed; `src/components/social-auth-buttons.tsx` on `welcome.tsx` + `login.tsx`; `signInWithSocial` in auth-context; `api.auth.social`. `app.json`: `ios.usesAppleSignIn:true`, apple + google plugins (google `iosUrlScheme` is a **placeholder** to replace).
+- **Tests:** 15 new (crypto aud/iss/exp/signature + route provisioning/linking/401/client-email-ignored). Full API suite **100/101** (sole failure = pre-existing Redis-less `/health` timeout). API + mobile typecheck clean.
+- **NEEDS THE USER before it works on device** (see [docs/SOCIAL-AUTH-SETUP.md](docs/SOCIAL-AUTH-SETUP.md)): (1) Google Cloud web + iOS OAuth client ids → `GOOGLE_CLIENT_IDS` (Railway+local), `EXPO_PUBLIC_GOOGLE_WEB/IOS_CLIENT_ID` (mobile), and the `iosUrlScheme` reversed-id in app.json; (2) **one interactive `eas build`** (Apple 2FA) to enable the Sign in with Apple capability on the App ID.
+
 ### Employer analytics + post-job chip fix (2026-07-05, build `0.1.5 (23)` → TestFlight; `main` HEAD `3be2039`)
 Two cofounder-feedback items, deployed to staging + in build 23:
 - **Company-size chip now changeable** — the post-job "About your company" step re-ran its pre-fill effect on every draft change (dep was `hydrateCompanyFromExisting`, which the context recreates each `draft` change), so tapping a size chip snapped back to the saved company's size. Fixed to run the pre-fill **once on mount** (`apps/mobile/app/(app)/post-job/company.tsx`).
