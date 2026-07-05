@@ -87,6 +87,7 @@ export async function jobRoutes(app: FastifyInstance): Promise<void> {
           payMax: data.payMax,
           jobType: data.jobType,
           jobTypes: data.jobTypes?.length ? data.jobTypes : [data.jobType],
+          workSetting: data.workSetting ?? 'commercial',
           workSetting: data.workSetting,
           city: data.city,
           state: data.state,

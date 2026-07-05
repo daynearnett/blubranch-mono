@@ -89,7 +89,8 @@ export const jobInputSchema = z.object({
   payMax: z.number().nonnegative().max(999999),
   jobType: JobType,
   jobTypes: z.array(JobType).max(4).optional(),
-  workSetting: WorkSetting,
+  // Retired from the post-job UI — optional; server defaults it.
+  workSetting: WorkSetting.optional(),
   city: z.string().min(1).max(100),
   state: z.string().min(1).max(50),
   zipCode: z.string().min(1).max(10),
