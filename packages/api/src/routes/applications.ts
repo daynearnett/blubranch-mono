@@ -66,10 +66,11 @@ export async function applicationRoutes(app: FastifyInstance): Promise<void> {
   );
 
   // ── GET /jobs/:id/applications ──────────────────────────────────
-  // Employer-only, must own the job.
+  // Whoever owns the job (any role — workers can post jobs too), or an admin.
+  // Gated by ownership below, not by role.
   app.get<{ Params: { id: string } }>(
     '/jobs/:id/applications',
-    { preHandler: requireRole('employer', 'admin') },
+    { preHandler: requireAuth },
     async (request, reply) => {
       const job = await prisma.job.findUnique({ where: { id: request.params.id } });
       if (!job) return reply.code(404).send({ error: 'NotFound' });
@@ -110,10 +111,11 @@ export async function applicationRoutes(app: FastifyInstance): Promise<void> {
   );
 
   // ── PUT /jobs/:id/applications/:applicationId ───────────────────
-  // Employer updates application status (reviewed, shortlisted, hired, rejected).
+  // The job owner (any role) or an admin updates application status. Gated by
+  // ownership below, not by role.
   app.put<{ Params: { id: string; applicationId: string } }>(
     '/jobs/:id/applications/:applicationId',
-    { preHandler: requireRole('employer', 'admin') },
+    { preHandler: requireAuth },
     async (request, reply) => {
       const data = parseBody(applicationStatusUpdateSchema, request, reply);
       if (!data) return;
