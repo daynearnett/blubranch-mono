@@ -12,12 +12,13 @@ vi.mock('./services/social-auth.js', () => ({
       e.name = 'SocialAuthError';
       throw e;
     }
-    const [, email = '', sub = '', first = '', last = ''] = idToken.split('|');
+    // Token format: `<marker>|email|sub|first|last`. marker 'u' = email unverified.
+    const [marker = 't', email = '', sub = '', first = '', last = ''] = idToken.split('|');
     return {
       provider,
       providerUserId: sub,
       email: email.toLowerCase(),
-      emailVerified: true,
+      emailVerified: marker !== 'u',
       firstName: first,
       lastName: last,
     };
@@ -96,6 +97,45 @@ describe('POST /auth/social', () => {
     expect(res.json().user.id).toBe(existing.id);
     const updated = await prisma.user.findUnique({ where: { id: existing.id } });
     expect(updated?.authProviderId).toBe(`apple-sub-${stamp}`);
+  });
+
+  it('refuses to link an UNVERIFIED provider email to an existing account (409)', async () => {
+    // Pre-verified-email takeover guard: an existing email-registered victim...
+    const email = `victim-${stamp}@test.local`;
+    const victim = await prisma.user.create({
+      data: {
+        firstName: 'Victim',
+        lastName: 'User',
+        email,
+        role: 'worker',
+        authProvider: 'email',
+        passwordHash: 'x',
+      },
+    });
+    // ...and an attacker presenting a valid token whose email claim is the
+    // victim's but is NOT verified (marker 'u') + the attacker's own sub.
+    const res = await app.inject({
+      method: 'POST',
+      url: '/auth/social',
+      payload: { provider: 'google', idToken: `u|${email}|attacker-sub-${stamp}|Mal|Ory` },
+    });
+    expect(res.statusCode).toBe(409);
+    // The victim account must be untouched — no provider id linked, no takeover.
+    const after = await prisma.user.findUnique({ where: { id: victim.id } });
+    expect(after?.authProviderId).toBeNull();
+    expect(after?.authProvider).toBe('email');
+  });
+
+  it('still provisions a NEW user from an unverified email when no account exists', async () => {
+    const email = `fresh-unv-${stamp}@test.local`;
+    const res = await app.inject({
+      method: 'POST',
+      url: '/auth/social',
+      payload: { provider: 'google', idToken: `u|${email}|goog-unv-${stamp}|Fresh|Start` },
+    });
+    expect(res.statusCode).toBe(200);
+    const user = await prisma.user.findUnique({ where: { email } });
+    expect(user?.emailVerified).toBe(false);
   });
 
   it('rejects an unverifiable token with 401', async () => {

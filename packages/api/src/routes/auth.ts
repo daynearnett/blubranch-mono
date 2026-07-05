@@ -200,15 +200,33 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
       });
     }
 
-    // Match an existing account by verified provider id first, then by verified email.
+    // Match an existing account by verified provider id first.
     let user = await prisma.user.findFirst({
       where: {
         authProvider: identity.provider,
         authProviderId: identity.providerUserId,
       },
     });
+
+    // Fall back to matching by email — but ONLY if the provider verified the
+    // email. Linking a provider id onto an existing account keyed on an
+    // *unverified* email is a classic pre-verified-email account takeover: an
+    // attacker who adds a victim's address (unverified) to their own provider
+    // account could otherwise sign in as the victim. If the email is taken but
+    // unverified, refuse the merge rather than granting access (or 500ing on the
+    // unique-email constraint when we'd otherwise try to create a duplicate).
     if (!user) {
-      user = await prisma.user.findUnique({ where: { email: identity.email } });
+      const byEmail = await prisma.user.findUnique({ where: { email: identity.email } });
+      if (byEmail) {
+        if (!identity.emailVerified) {
+          return reply.code(409).send({
+            error: 'EmailInUse',
+            message:
+              'This email is already registered. Sign in with your existing method, then link this provider from settings.',
+          });
+        }
+        user = byEmail;
+      }
     }
 
     if (user) {
