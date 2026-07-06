@@ -155,9 +155,9 @@ export default function Welcome() {
 
           <Text style={styles.legal}>
             By continuing you agree to BluBranch's{' '}
-            <Link href="/" style={styles.link}>Terms of Service</Link>{' '}
+            <Link href="/legal/terms" style={styles.link}>Terms of Service</Link>{' '}
             and{' '}
-            <Link href="/" style={styles.link}>Privacy Policy</Link>.{' '}
+            <Link href="/legal/privacy" style={styles.link}>Privacy Policy</Link>.{' '}
             <Text style={styles.legalBold}>Workers always free.</Text>
           </Text>
         </View>

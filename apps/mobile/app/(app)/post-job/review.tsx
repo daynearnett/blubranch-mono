@@ -202,7 +202,11 @@ export default function Review() {
           </Card>
 
           <Text style={styles.legal}>
-            By publishing you agree to BluBranch's Employer Terms.
+            By publishing you agree to BluBranch's{' '}
+            <Text style={styles.legalLink} onPress={() => router.push('/legal/terms')}>
+              Employer Terms
+            </Text>
+            .
           </Text>
         </View>
 
@@ -291,6 +295,7 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginTop: spacing.lg,
   },
+  legalLink: { color: colors.primary, textDecorationLine: 'underline' },
   // Extra breathing room between the terms line and the Pay button.
   actions: { marginTop: spacing.xl },
 });
