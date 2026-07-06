@@ -1,6 +1,9 @@
+// MUST be first: initializes Sentry before other modules load (no-op without DSN).
+import './instrument.js';
 import { buildApp } from './app.js';
 import { setupSocketIO, closeSocketIO } from './lib/socket.js';
 import { closeRedis } from './lib/redis.js';
+import { setupFastifySentry, captureError } from './lib/sentry.js';
 
 // Railway requires binding to all interfaces (0.0.0.0) so its proxy can
 // reach the container. localhost / 127.0.0.1 = container-internal only,
@@ -13,6 +16,9 @@ const host = '0.0.0.0';
 const port = Number(process.env.PORT) || 4000;
 
 const app = await buildApp();
+
+// Capture unhandled 500s to Sentry (no-op unless SENTRY_DSN is set).
+setupFastifySentry(app);
 
 // Graceful shutdown — close Socket.io and Redis on SIGTERM/SIGINT.
 // MUST be registered BEFORE listen(): Fastify throws
@@ -35,5 +41,6 @@ try {
   app.log.info(`BluBranch API listening on http://${host}:${port}`);
 } catch (err) {
   app.log.error(err);
+  captureError(err, { phase: 'startup' });
   process.exit(1);
 }

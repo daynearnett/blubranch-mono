@@ -7,6 +7,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as SplashScreen from 'expo-splash-screen';
 import { StripeProvider } from '@stripe/stripe-react-native';
 import { AuthProvider, useAuth } from '../src/lib/auth-context.js';
+import { initSentry, withSentry } from '../src/lib/sentry.js';
 import { DetailPanelProvider } from '../src/lib/detail-panel-context.js';
 import { PostJobProvider } from '../src/lib/post-job-context.js';
 import { SignupProvider } from '../src/lib/signup-context.js';
@@ -18,6 +19,9 @@ import { colors, radius, spacing, typography } from '../src/theme.js';
 // rare iOS conditions — failing to prevent the splash should never crash
 // the entire app.
 SplashScreen.preventAutoHideAsync().catch(() => undefined);
+
+// Initialize error monitoring before the tree mounts (no-op without a DSN).
+initSentry();
 
 function RootGuard() {
   const { status } = useAuth();
@@ -102,7 +106,7 @@ function PaymentProvider({ children }: { children: ReactNode }) {
   );
 }
 
-export default function RootLayout() {
+function RootLayout() {
   const [brandDone, setBrandDone] = useState(false);
   return (
     <SafeAreaProvider>
@@ -122,6 +126,10 @@ export default function RootLayout() {
     </SafeAreaProvider>
   );
 }
+
+// withSentry wraps the root for native crash + error-boundary capture (no-op
+// unless EXPO_PUBLIC_SENTRY_DSN is set).
+export default withSentry(RootLayout);
 
 // Fallback UI rendered by expo-router when a render error escapes the tree.
 // Keeps the user on a real screen they can read, even if the app's first
