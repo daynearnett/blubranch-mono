@@ -2,6 +2,7 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Bookmark } from 'lucide-react-native';
 import { JobDetailBody } from '../../../src/components/job-detail-body.js';
 import { colors, spacing, typography } from '../../../src/theme.js';
 
@@ -17,7 +18,7 @@ export default function JobDetailRoute() {
         </Pressable>
         <Text style={styles.title}>Job details</Text>
         <Pressable hitSlop={12} accessibilityLabel="Bookmark">
-          <Text style={styles.bookmark}>🔖</Text>
+          <Bookmark size={22} color={colors.primaryDark} strokeWidth={2} />
         </Pressable>
       </View>
       <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
@@ -40,5 +41,4 @@ const styles = StyleSheet.create({
   },
   title: { ...typography.h3, color: colors.primaryDark },
   back: { fontSize: 32, color: colors.primaryDark, lineHeight: 32 },
-  bookmark: { fontSize: 22 },
 });

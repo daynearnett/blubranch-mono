@@ -21,6 +21,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { X } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { Button } from './ui.js';
 import { ApiError, jobs as jobsApi } from '../lib/api.js';
@@ -115,8 +116,13 @@ export function QuickApplyModal({ visible, job, onClose, onApplied }: Props) {
                   </>
                 ) : null}
               </View>
-              <Pressable onPress={onClose} hitSlop={12} accessibilityLabel="Close">
-                <Text style={styles.close}>✕</Text>
+              <Pressable
+                onPress={onClose}
+                hitSlop={12}
+                accessibilityLabel="Close"
+                style={styles.close}
+              >
+                <X size={18} color={colors.textSecondary} strokeWidth={2} />
               </Pressable>
             </View>
 

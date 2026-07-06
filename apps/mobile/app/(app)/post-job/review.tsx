@@ -6,6 +6,7 @@ import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Check } from 'lucide-react-native';
 import { useStripe } from '@stripe/stripe-react-native';
 import { PLAN_LABELS, PLAN_RANK, isSubscriptionPlan } from '@blubranch/shared';
 import type { CompanySize, PaymentSheetParams } from '@blubranch/shared';
@@ -241,7 +242,11 @@ function Bool({ label, value }: { label: string; value: boolean }) {
   return (
     <View style={styles.row}>
       <Text style={styles.rowLabel}>{label}</Text>
-      <Text style={styles.rowValue}>{value ? '✓' : '—'}</Text>
+      {value ? (
+        <Check size={16} color={colors.primary} strokeWidth={2.5} />
+      ) : (
+        <Text style={styles.rowValue}>—</Text>
+      )}
     </View>
   );
 }

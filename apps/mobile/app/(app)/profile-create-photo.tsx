@@ -16,7 +16,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Sparkles } from 'lucide-react-native';
+import { Camera, Sparkles } from 'lucide-react-native';
 import { Button, Input } from '../../src/components/ui.js';
 import { Logo } from '../../src/components/logo.js';
 import { ApiError, me, uploadImage, type MeResponse } from '../../src/lib/api.js';
@@ -145,7 +145,7 @@ export default function ProfileCreatePhoto() {
                   <Text style={styles.avatarInitials}>{initials || '+'}</Text>
                 )}
                 <View style={styles.cameraDot}>
-                  <Text style={styles.cameraDotIcon}>📷</Text>
+                  <Camera size={14} color={colors.textInverse} strokeWidth={2} />
                 </View>
               </Pressable>
               <Text style={styles.nameLine}>
@@ -226,7 +226,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  cameraDotIcon: { fontSize: 15 },
   nameLine: { ...typography.bodyBold, color: colors.textPrimary },
   aboutHeader: {
     flexDirection: 'row',

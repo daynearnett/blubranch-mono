@@ -2,6 +2,7 @@
 // and the desktop right pane.
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Bookmark } from 'lucide-react-native';
 import { Badge, Button } from './ui.js';
 import { QuickApplyModal } from './quick-apply-modal.js';
 import { colors, radius, spacing, typography } from '../theme.js';
@@ -10,8 +11,8 @@ import { ApiError, jobs as jobsApi, type JobDetail } from '../lib/api.js';
 const STATUS_LABEL: Record<NonNullable<JobDetail['myApplication']>['status'], string> = {
   applied: 'Application sent',
   reviewed: 'Reviewed by employer',
-  shortlisted: '✓ Shortlisted',
-  hired: '🎉 Hired',
+  shortlisted: 'Shortlisted',
+  hired: 'Hired',
   rejected: 'Not selected',
 };
 
@@ -188,7 +189,7 @@ export function JobDetailBody({ jobId, stickyApply }: Props) {
         <View style={styles.stickyBar}>
           <View style={{ flex: 1 }}>{applyBtn}</View>
           <Pressable style={styles.bookmarkBtn} accessibilityLabel="Bookmark">
-            <Text style={styles.bookmarkIcon}>🔖</Text>
+            <Bookmark size={20} color={colors.primaryDark} strokeWidth={2} />
           </Pressable>
         </View>
       ) : null}
@@ -305,5 +306,4 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  bookmarkIcon: { fontSize: 22 },
 });

@@ -2,6 +2,7 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Check } from 'lucide-react-native';
 import { Button, Card, ProgressDots } from '../../../src/components/ui.js';
 import { usePostJob } from '../../../src/lib/post-job-context.js';
 import { colors, radius, spacing, typography } from '../../../src/theme.js';
@@ -30,7 +31,7 @@ export default function Published() {
           <ProgressDots count={6} current={5} />
 
           <View style={styles.successCircle}>
-            <Text style={styles.successCheck}>✓</Text>
+            <Check size={44} color={colors.textInverse} strokeWidth={3} />
           </View>
 
           <Text style={styles.title}>Your job is live</Text>
@@ -103,7 +104,6 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     marginVertical: spacing.xl,
   },
-  successCheck: { color: colors.textInverse, fontSize: 48, lineHeight: 52 },
   title: {
     ...typography.h1,
     color: colors.primaryDark,

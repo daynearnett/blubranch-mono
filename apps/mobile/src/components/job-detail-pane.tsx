@@ -2,6 +2,7 @@
 // detail (or worker profile preview) inline so users don't lose their
 // scroll position on the centre column.
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { X } from 'lucide-react-native';
 import { JobDetailBody } from './job-detail-body.js';
 import { useDetailPanel } from '../lib/detail-panel-context.js';
 import { colors, radius, spacing, typography } from '../theme.js';
@@ -15,7 +16,7 @@ export function JobDetailPane({ onClose }: { onClose?: () => void }) {
         <Text style={styles.headerTitle}>Detail</Text>
         {target && onClose ? (
           <Pressable onPress={onClose} hitSlop={8}>
-            <Text style={styles.close}>✕</Text>
+            <X size={18} color={colors.textSecondary} strokeWidth={2} />
           </Pressable>
         ) : null}
       </View>
@@ -54,7 +55,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   headerTitle: { ...typography.h3, color: colors.primaryDark },
-  close: { fontSize: 18, color: colors.textSecondary, paddingHorizontal: spacing.xs },
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
   emptyText: {
     ...typography.body,
