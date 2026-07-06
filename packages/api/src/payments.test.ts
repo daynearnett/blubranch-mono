@@ -251,6 +251,23 @@ describe('Phase 5 payments', () => {
       expect(job!.status).toBe('draft');
     });
 
+    it('GET /jobs/:id hides a draft job from non-owners (404) but not its owner', async () => {
+      const created = await postJob('basic');
+      const jobId = created.json().id;
+      expect(created.json().status).toBe('draft');
+
+      const anon = await app.inject({ method: 'GET', url: `/jobs/${jobId}` });
+      expect(anon.statusCode).toBe(404);
+
+      const owner = await app.inject({
+        method: 'GET',
+        url: `/jobs/${jobId}`,
+        headers: { authorization: `Bearer ${employer.token}` },
+      });
+      expect(owner.statusCode).toBe(200);
+      expect(owner.json().status).toBe('draft');
+    });
+
     it('an admin CAN set job status to open via PUT', async () => {
       const created = await postJob('basic');
       const jobId = created.json().id;
