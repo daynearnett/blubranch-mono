@@ -338,7 +338,16 @@ export async function jobRoutes(app: FastifyInstance): Promise<void> {
           ...(data.zipCode !== undefined && { zipCode: data.zipCode }),
           ...(data.description !== undefined && { description: data.description }),
           ...(data.openingsCount !== undefined && { openingsCount: data.openingsCount }),
-          ...(data.status !== undefined && { status: data.status }),
+          // Guard free publishing: an employer must not flip a draft (unpaid) job
+          // to `open` via a plain update — opening is gated by the payment/
+          // subscription flow (POST /jobs + the Stripe webhook/confirm path).
+          // Other status writes (e.g. closing, re-drafting) don't grant paid
+          // placement and stay allowed; an already-open job re-sending `open` is a
+          // no-op. Admins may set any status.
+          ...(data.status !== undefined &&
+            (data.status !== 'open' || request.user!.role === 'admin') && {
+              status: data.status,
+            }),
           ...(data.isUrgent !== undefined && { isUrgent: data.isUrgent }),
         },
       });
