@@ -141,12 +141,23 @@ Mirror the staging custom-domain setup (RAILWAY-DEPLOY.md §Custom Domains):
 
 - [ ] Prod service → **Settings → Networking → Custom Domains** → **Custom Domain**
       → enter `api.blubranch.com`.
-- [ ] Railway shows a CNAME target like `xxxx.up.railway.app`.
-- [ ] At **Network Solutions** (registrar for `blubranch.com`), add a CNAME:
-      `api` → `<the railway target>`. (Staging's `api-staging` CNAME points at
-      `baccg4xv.up.railway.app` — prod gets its **own** target.)
-- [ ] Wait for TLS to provision (Let's Encrypt, a few minutes), then:
-      `curl https://api.blubranch.com/health` → `{"status":"ok"}`.
+- [ ] Railway's **"Configure DNS Records"** dialog shows **TWO** records — **you must
+      add BOTH**:
+      1. **CNAME** `api` → `<xxxx>.up.railway.app` (the routing record).
+      2. **TXT** `_railway-verify.api` → `railway-verify=<token>` (the ownership
+         record — copy the **full** value, it's truncated with `…` in the dialog).
+- [ ] At **Network Solutions** (registrar for `blubranch.com`), add **both** via
+      *Add Advanced DNS Record*. (Staging's `api-staging` has the same pair —
+      `_railway-verify.api-staging` TXT — which is why it verified.)
+- [ ] ⚠️ **Adding only the CNAME leaves the domain stuck on "Waiting for DNS update"
+      forever, even with perfect DNS** — the CNAME routes to Railway's edge but
+      Railway won't bind the hostname or issue the cert until the `_railway-verify`
+      TXT is present. This cost ~1hr the first time. Confirm both show ✓ in Railway's
+      "Show DNS records".
+- [ ] Network Solutions propagation is slow (~15–30 min/record). Once both records
+      propagate, Railway auto-verifies + issues the Let's Encrypt cert. Then:
+      `curl https://api.blubranch.com/health` → `{"status":"ok"}` with a valid
+      `CN=api.blubranch.com` cert.
 
 The `eas.json` **production** profile already points the app at
 `https://api.blubranch.com` (`EXPO_PUBLIC_API_URL`), so no app change is needed for
