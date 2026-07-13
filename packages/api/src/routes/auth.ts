@@ -22,6 +22,7 @@ import {
 import { getPrisma } from '../lib/prisma.js';
 import { serializeUser } from '../lib/serialize.js';
 import { parseBody } from '../lib/validate.js';
+import { verifySocialIdToken } from '../services/social-auth.js';
 
 const TERMS_VERSION = '1.0';
 
@@ -180,42 +181,103 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
     return reply.send({ verified: true });
   });
 
-  // ── POST /auth/social (stub) ────────────────────────────────────
-  // Real implementation: verify provider id_token signature against issuer.
-  // For Phase 1 we accept the trusted-payload form so the flow is wired end to end.
+  // ── POST /auth/social ───────────────────────────────────────────
+  // Verifies the provider's signed id_token (Apple/Google) and signs in or
+  // provisions the matching user. Identity (email, provider user id) is taken
+  // from the verified token, never from the request body.
   app.post('/auth/social', async (request, reply) => {
     const data = parseBody(socialAuthInputSchema, request, reply);
     if (!data) return;
 
-    let user = await prisma.user.findUnique({ where: { email: data.email.toLowerCase() } });
-    if (!user) {
-      user = await prisma.user.create({
-        data: {
-          firstName: data.firstName,
-          lastName: data.lastName,
-          email: data.email.toLowerCase(),
-          phone: `social-${data.provider}-${data.providerUserId}`.slice(0, 20),
-          role: data.role,
-          authProvider: data.provider,
-          authProviderId: data.providerUserId,
-          ...(data.role === 'worker'
-            ? {
-                workerProfile: {
-                  create: {
-                    experienceLevel: 'years_0_2',
-                    city: '',
-                    state: '',
-                    zipCode: '',
-                    travelRadiusMiles: 25,
-                    jobAvailability: 'open',
-                  },
-                },
-                settings: { create: {} },
-              }
-            : {}),
-        },
+    let identity;
+    try {
+      identity = await verifySocialIdToken(data.provider, data.idToken);
+    } catch (err) {
+      request.log.warn({ err, provider: data.provider }, 'social auth token rejected');
+      return reply.code(401).send({
+        error: 'Unauthorized',
+        message: 'Could not verify the sign-in token. Please try again.',
       });
     }
+
+    // Match an existing account by verified provider id first.
+    let user = await prisma.user.findFirst({
+      where: {
+        authProvider: identity.provider,
+        authProviderId: identity.providerUserId,
+      },
+    });
+
+    // Fall back to matching by email — but ONLY if the provider verified the
+    // email. Linking a provider id onto an existing account keyed on an
+    // *unverified* email is a classic pre-verified-email account takeover: an
+    // attacker who adds a victim's address (unverified) to their own provider
+    // account could otherwise sign in as the victim. If the email is taken but
+    // unverified, refuse the merge rather than granting access (or 500ing on the
+    // unique-email constraint when we'd otherwise try to create a duplicate).
+    if (!user) {
+      const byEmail = await prisma.user.findUnique({ where: { email: identity.email } });
+      if (byEmail) {
+        if (!identity.emailVerified) {
+          return reply.code(409).send({
+            error: 'EmailInUse',
+            message:
+              'This email is already registered. Sign in with your existing method, then link this provider from settings.',
+          });
+        }
+        user = byEmail;
+      }
+    }
+
+    if (user) {
+      // Link the provider id onto an existing (e.g. email-registered) account.
+      if (user.authProviderId !== identity.providerUserId) {
+        user = await prisma.user.update({
+          where: { id: user.id },
+          data: {
+            authProviderId: identity.providerUserId,
+            ...(identity.emailVerified && !user.emailVerified
+              ? { emailVerified: true }
+              : {}),
+          },
+        });
+      }
+      const tokens = signTokenPair(user.id, user.role);
+      return reply.send({ ...tokens, user: serializeUser(user) });
+    }
+
+    // New user: prefer the token's name, fall back to the client-supplied
+    // Apple-first-signin name, then a placeholder.
+    const firstName = identity.firstName || data.firstName || 'New';
+    const lastName = identity.lastName || data.lastName || 'Member';
+    const role = data.role ?? 'worker';
+
+    user = await prisma.user.create({
+      data: {
+        firstName,
+        lastName,
+        email: identity.email,
+        role,
+        authProvider: identity.provider,
+        authProviderId: identity.providerUserId,
+        emailVerified: identity.emailVerified,
+        ...(role === 'worker'
+          ? {
+              workerProfile: {
+                create: {
+                  experienceLevel: 'years_0_2',
+                  city: '',
+                  state: '',
+                  zipCode: '',
+                  travelRadiusMiles: 25,
+                  jobAvailability: 'open',
+                },
+              },
+              settings: { create: {} },
+            }
+          : {}),
+      },
+    });
 
     const tokens = signTokenPair(user.id, user.role);
     return reply.send({ ...tokens, user: serializeUser(user) });

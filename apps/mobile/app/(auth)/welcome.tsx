@@ -14,6 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { HardHat, Shield, Users } from 'lucide-react-native';
 import type { LucideIcon } from 'lucide-react-native';
 import { Button } from '../../src/components/ui.js';
+import { SocialAuthButtons } from '../../src/components/social-auth-buttons.js';
 import { colors, radius, spacing, typography } from '../../src/theme.js';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -143,6 +144,8 @@ export default function Welcome() {
             onPress={() => router.push('/(auth)/signup-name')}
           />
 
+          <SocialAuthButtons />
+
           <Pressable
             style={styles.loginBtn}
             onPress={() => router.push('/(auth)/login')}
@@ -152,9 +155,9 @@ export default function Welcome() {
 
           <Text style={styles.legal}>
             By continuing you agree to BluBranch's{' '}
-            <Link href="/" style={styles.link}>Terms of Service</Link>{' '}
+            <Link href="/legal/terms" style={styles.link}>Terms of Service</Link>{' '}
             and{' '}
-            <Link href="/" style={styles.link}>Privacy Policy</Link>.{' '}
+            <Link href="/legal/privacy" style={styles.link}>Privacy Policy</Link>.{' '}
             <Text style={styles.legalBold}>Workers always free.</Text>
           </Text>
         </View>

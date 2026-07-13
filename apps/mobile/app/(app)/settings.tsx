@@ -7,6 +7,7 @@ import {
   Bell,
   ChevronRight,
   CreditCard,
+  FileText,
   Globe,
   HelpCircle,
   KeyRound,
@@ -90,7 +91,8 @@ export default function Settings() {
   const supportSection: SettingsRow[] = [
     { key: 'help', icon: HelpCircle, label: 'Help center', onPress: () => comingSoon('Help center') },
     { key: 'feedback', icon: MessageSquare, label: 'Send feedback', onPress: () => comingSoon('Send feedback') },
-    { key: 'privacy', icon: Shield, label: 'Privacy policy', onPress: () => comingSoon('Privacy policy') },
+    { key: 'privacy', icon: Shield, label: 'Privacy policy', onPress: () => router.push('/legal/privacy') },
+    { key: 'terms', icon: FileText, label: 'Terms of service', onPress: () => router.push('/legal/terms') },
   ];
 
   return (

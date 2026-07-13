@@ -3,6 +3,7 @@ import { Prisma } from '@blubranch/db';
 import type { FastifyInstance } from 'fastify';
 import { requireAuth } from '../auth/middleware.js';
 import { isPostGisEnabled } from '../lib/postgis.js';
+import { canViewPost } from '../lib/post-visibility.js';
 import { getPrisma } from '../lib/prisma.js';
 import { parseBody } from '../lib/validate.js';
 import { notifyMentions, notifyPostComment, notifyPostLike } from '../services/push.js';
@@ -146,6 +147,12 @@ export async function postRoutes(app: FastifyInstance): Promise<void> {
         },
       });
       if (!p) return reply.code(404).send({ error: 'NotFound', message: 'Post not found' });
+      // Respect the post's audience: 'connections' posts are only visible to the
+      // author + accepted connections; archived posts only to the author. 404
+      // (not 403) so we don't confirm the id to someone who may not see it.
+      if (!(await canViewPost(prisma, userId, p))) {
+        return reply.code(404).send({ error: 'NotFound', message: 'Post not found' });
+      }
       return reply.send({
         id: p.id,
         content: p.content,
@@ -167,17 +174,30 @@ export async function postRoutes(app: FastifyInstance): Promise<void> {
   );
 
   // ── Comments ────────────────────────────────────────────────────
-  app.get<{ Params: { id: string } }>('/posts/:id/comments', async (request) => {
-    return prisma.postComment.findMany({
-      where: { postId: request.params.id },
-      orderBy: { createdAt: 'asc' },
-      include: {
-        user: {
-          select: { id: true, firstName: true, lastName: true, profilePhotoUrl: true },
+  app.get<{ Params: { id: string } }>(
+    '/posts/:id/comments',
+    { preHandler: requireAuth },
+    async (request, reply) => {
+      // Gate comments behind the parent post's visibility so a 'connections'
+      // (or archived) post doesn't leak its commenters to non-viewers.
+      const post = await prisma.post.findUnique({
+        where: { id: request.params.id },
+        select: { userId: true, audience: true, archived: true },
+      });
+      if (!post || !(await canViewPost(prisma, request.user!.id, post))) {
+        return reply.code(404).send({ error: 'NotFound', message: 'Post not found' });
+      }
+      return prisma.postComment.findMany({
+        where: { postId: request.params.id },
+        orderBy: { createdAt: 'asc' },
+        include: {
+          user: {
+            select: { id: true, firstName: true, lastName: true, profilePhotoUrl: true },
+          },
         },
-      },
-    });
-  });
+      });
+    },
+  );
 
   app.post<{ Params: { id: string } }>(
     '/posts/:id/comments',

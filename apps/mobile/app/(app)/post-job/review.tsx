@@ -6,6 +6,7 @@ import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Check } from 'lucide-react-native';
 import { useStripe } from '@stripe/stripe-react-native';
 import { PLAN_LABELS, PLAN_RANK, isSubscriptionPlan } from '@blubranch/shared';
 import type { CompanySize, PaymentSheetParams } from '@blubranch/shared';
@@ -202,7 +203,11 @@ export default function Review() {
           </Card>
 
           <Text style={styles.legal}>
-            By publishing you agree to BluBranch's Employer Terms.
+            By publishing you agree to BluBranch's{' '}
+            <Text style={styles.legalLink} onPress={() => router.push('/legal/terms')}>
+              Employer Terms
+            </Text>
+            .
           </Text>
         </View>
 
@@ -237,7 +242,11 @@ function Bool({ label, value }: { label: string; value: boolean }) {
   return (
     <View style={styles.row}>
       <Text style={styles.rowLabel}>{label}</Text>
-      <Text style={styles.rowValue}>{value ? '✓' : '—'}</Text>
+      {value ? (
+        <Check size={16} color={colors.primary} strokeWidth={2.5} />
+      ) : (
+        <Text style={styles.rowValue}>—</Text>
+      )}
     </View>
   );
 }
@@ -291,6 +300,7 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginTop: spacing.lg,
   },
+  legalLink: { color: colors.primary, textDecorationLine: 'underline' },
   // Extra breathing room between the terms line and the Pay button.
   actions: { marginTop: spacing.xl },
 });

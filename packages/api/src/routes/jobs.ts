@@ -278,6 +278,18 @@ export async function jobRoutes(app: FastifyInstance): Promise<void> {
     });
     if (!job) return reply.code(404).send({ error: 'NotFound' });
 
+    // A draft job hasn't been paid for / published yet — only its owner (or an
+    // admin) may view it. Everyone else gets 404 (not 403, so we don't confirm
+    // the id exists). `closed` jobs stay visible so applicants can still resolve
+    // the posting they applied to.
+    if (
+      job.status === 'draft' &&
+      request.user?.id !== job.employerId &&
+      request.user?.role !== 'admin'
+    ) {
+      return reply.code(404).send({ error: 'NotFound' });
+    }
+
     // Count a view when the viewer isn't the employer (feeds the analytics
     // funnel). Fire-and-forget so it never slows the response. The counter is
     // the fast total; the JobView row gives the view a timestamp for the
@@ -338,7 +350,16 @@ export async function jobRoutes(app: FastifyInstance): Promise<void> {
           ...(data.zipCode !== undefined && { zipCode: data.zipCode }),
           ...(data.description !== undefined && { description: data.description }),
           ...(data.openingsCount !== undefined && { openingsCount: data.openingsCount }),
-          ...(data.status !== undefined && { status: data.status }),
+          // Guard free publishing: an employer must not flip a draft (unpaid) job
+          // to `open` via a plain update — opening is gated by the payment/
+          // subscription flow (POST /jobs + the Stripe webhook/confirm path).
+          // Other status writes (e.g. closing, re-drafting) don't grant paid
+          // placement and stay allowed; an already-open job re-sending `open` is a
+          // no-op. Admins may set any status.
+          ...(data.status !== undefined &&
+            (data.status !== 'open' || request.user!.role === 'admin') && {
+              status: data.status,
+            }),
           ...(data.isUrgent !== undefined && { isUrgent: data.isUrgent }),
         },
       });

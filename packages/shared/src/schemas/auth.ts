@@ -44,16 +44,17 @@ export const verifyPhoneCheckSchema = z.object({
 export type VerifyPhoneCheckInput = z.infer<typeof verifyPhoneCheckSchema>;
 
 // ── Social ────────────────────────────────────────────────────
-// Stub — full provider-specific flows come later
+// The server derives identity (email, provider user id, verified name) from the
+// cryptographically-verified `idToken`. The client MUST NOT send email/sub —
+// those are ignored. `firstName`/`lastName` are accepted only as the display-name
+// fallback for Apple's first sign-in (Apple omits the name from the token).
 export const socialAuthInputSchema = z.object({
-  provider: z.enum(['apple', 'google', 'facebook']),
+  provider: z.enum(['apple', 'google']),
   idToken: z.string().min(10),
-  // From the provider's id_token claims (stubbed; real impl verifies signature)
-  email: z.string().email(),
-  firstName: z.string().min(1).max(100),
-  lastName: z.string().min(1).max(100),
-  providerUserId: z.string().min(1).max(255),
-  role: z.enum(['worker', 'employer']),
+  role: z.enum(['worker', 'employer']).default('worker'),
+  // Apple-first-signin display name only; never trusted for identity.
+  firstName: z.string().max(100).optional(),
+  lastName: z.string().max(100).optional(),
 });
 export type SocialAuthInput = z.infer<typeof socialAuthInputSchema>;
 

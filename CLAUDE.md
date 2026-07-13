@@ -21,8 +21,21 @@ BluBranch is a two-sided professional networking and job marketplace platform bu
 - [docs/CR-HANDLING.md](./docs/CR-HANDLING.md) — procedure to follow when filing or editing CRs. **Read this** before filing a new ticket or modifying an existing one. Trigger phrases: "CR:", "file this as a CR", "ticket this", or pasted Slack content with a screenshot.
 - [docs/CR-LESSONS.md](./docs/CR-LESSONS.md) — gotchas from setting up the CR sync system (grep anchoring, `\K` portability, OAuth consent screen red herring). Read this if `pnpm sync-crs` or `CR-HANDLING.md` behaves unexpectedly.
 - [docs/CR-SETUP.md](./docs/CR-SETUP.md) — one-time setup for the Google Sheet sync (service account, env vars). Already completed 2026-05-14; only relevant if re-provisioning on a new machine or for a new contributor.
+- [docs/PROD-GO-LIVE.md](./docs/PROD-GO-LIVE.md) — **Phase 7 production go-live runbook.** Step-by-step to stand up prod: dedicated Railway project/DB at `api.blubranch.com`, the `jobs.location` migration-landmine fix, full prod env matrix (incl. Phase 7 additions), Stripe test→live flip (live keys + prices + webhook + Apple Pay), production admin user, and a go-live verification checklist. **Read before starting prod infra.**
+- [docs/SOCIAL-AUTH-SETUP.md](./docs/SOCIAL-AUTH-SETUP.md) — activating Apple + Google sign-in (Phase 7 chunk 1): Google OAuth client ids, env vars, and the one interactive `eas build` for the Apple capability. The secure `/auth/social` id_token verification is built; this is the external config to turn it on.
+- [docs/LEGAL.md](./docs/LEGAL.md) — Privacy Policy + Terms of Service (Phase 7 chunk 3). Canonical source in `packages/shared/src/legal/documents.ts`; served at `/legal/*`; **drafts pending counsel review** (which URL to use for App Store Connect's Privacy field).
+- [docs/MONITORING.md](./docs/MONITORING.md) — Sentry (API + mobile) + uptime (Phase 7 chunk 4). Both inert until a DSN is set; activation env vars + external-uptime recommendation.
 
 ## Current deployment state (last updated 2026-07-05)
+
+### Phase 7 chunk 1 — Social sign-in security fix (2026-07-05, BUILT + tested locally; NOT yet committed/deployed)
+Closed a real account-takeover hole: `POST /auth/social` was a stub that trusted client-supplied `email`/`providerUserId` with **no** id_token verification (anyone could POST any email → valid tokens for that account). Now:
+- **`packages/api/src/services/social-auth.ts`** verifies the provider `idToken` against the issuer JWKS (`jose` remote key set) — signature + `iss` + `aud` + `exp` — and derives identity from the **verified token only**. Apple aud = bundle id (`APPLE_CLIENT_IDS`, defaults `com.blubranch.app`); Google aud = `GOOGLE_CLIENT_IDS` (comma-sep web+iOS client ids).
+- **`routes/auth.ts`** `/auth/social`: 401 on unverifiable token; links provider id onto an existing email account; provisions new users (role worker + empty worker profile) from verified claims. Client email/sub are ignored even if sent.
+- **`socialAuthInputSchema`** slimmed to `{ provider(apple|google), idToken, role, firstName?, lastName? }` (Apple-first-signin name only, never trusted); **facebook dropped**.
+- **Mobile:** `expo-apple-authentication` + `@react-native-google-signin/google-signin` installed; `src/components/social-auth-buttons.tsx` on `welcome.tsx` + `login.tsx`; `signInWithSocial` in auth-context; `api.auth.social`. `app.json`: `ios.usesAppleSignIn:true`, apple + google plugins (google `iosUrlScheme` is a **placeholder** to replace).
+- **Tests:** 15 new (crypto aud/iss/exp/signature + route provisioning/linking/401/client-email-ignored). Full API suite **100/101** (sole failure = pre-existing Redis-less `/health` timeout). API + mobile typecheck clean.
+- **NEEDS THE USER before it works on device** (see [docs/SOCIAL-AUTH-SETUP.md](docs/SOCIAL-AUTH-SETUP.md)): (1) Google Cloud web + iOS OAuth client ids → `GOOGLE_CLIENT_IDS` (Railway+local), `EXPO_PUBLIC_GOOGLE_WEB/IOS_CLIENT_ID` (mobile), and the `iosUrlScheme` reversed-id in app.json; (2) **one interactive `eas build`** (Apple 2FA) to enable the Sign in with Apple capability on the App ID.
 
 ### Employer analytics + post-job chip fix (2026-07-05, build `0.1.5 (23)` → TestFlight; `main` HEAD `3be2039`)
 Two cofounder-feedback items, deployed to staging + in build 23:

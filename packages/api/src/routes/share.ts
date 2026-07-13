@@ -78,7 +78,10 @@ export async function shareRoutes(app: FastifyInstance): Promise<void> {
         where: { id: request.params.id },
         include: { user: { select: { firstName: true, lastName: true } } },
       });
-      if (post) {
+      // Share pages are public (no viewer), so only reveal author + content for
+      // posts that are actually public: 'anyone' audience and not archived.
+      // Otherwise fall back to the generic BluBranch preview — no leak.
+      if (post && post.audience === 'anyone' && !post.archived) {
         title = `${post.user.firstName} ${post.user.lastName} on BluBranch`;
         description =
           post.content.length > 160 ? `${post.content.slice(0, 160)}…` : post.content;

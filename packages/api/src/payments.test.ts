@@ -229,5 +229,67 @@ describe('Phase 5 payments', () => {
       expect(res.statusCode).toBe(402);
       expect(res.json().reason).toBe('subscription_required');
     });
+
+    // Security regression: PUT /jobs/:id must not let an employer flip a draft
+    // (unpaid) job to `open` — that bypassed the whole payment gate above.
+    it('PUT /jobs/:id cannot flip a draft job to open (free-publish guard)', async () => {
+      const created = await postJob('basic');
+      expect(created.statusCode).toBe(201);
+      expect(created.json().status).toBe('draft');
+      const jobId = created.json().id;
+
+      const res = await app.inject({
+        method: 'PUT',
+        url: `/jobs/${jobId}`,
+        headers: { authorization: `Bearer ${employer.token}` },
+        payload: { status: 'open' },
+      });
+      // The update call succeeds, but the status write is silently dropped.
+      expect(res.statusCode).toBe(200);
+      expect(res.json().status).toBe('draft');
+      const job = await prisma.job.findUnique({ where: { id: jobId } });
+      expect(job!.status).toBe('draft');
+    });
+
+    it('GET /jobs/:id hides a draft job from non-owners (404) but not its owner', async () => {
+      const created = await postJob('basic');
+      const jobId = created.json().id;
+      expect(created.json().status).toBe('draft');
+
+      const anon = await app.inject({ method: 'GET', url: `/jobs/${jobId}` });
+      expect(anon.statusCode).toBe(404);
+
+      const owner = await app.inject({
+        method: 'GET',
+        url: `/jobs/${jobId}`,
+        headers: { authorization: `Bearer ${employer.token}` },
+      });
+      expect(owner.statusCode).toBe(200);
+      expect(owner.json().status).toBe('draft');
+    });
+
+    it('an admin CAN set job status to open via PUT', async () => {
+      const created = await postJob('basic');
+      const jobId = created.json().id;
+      const adminUser = await prisma.user.create({
+        data: {
+          firstName: 'Ad',
+          lastName: 'Min',
+          email: `admin-jobs-${stamp}@test.local`,
+          role: 'admin',
+          authProvider: 'email',
+          passwordHash: 'x',
+        },
+      });
+      const adminToken = signAccessToken(adminUser.id, 'admin');
+      const res = await app.inject({
+        method: 'PUT',
+        url: `/jobs/${jobId}`,
+        headers: { authorization: `Bearer ${adminToken}` },
+        payload: { status: 'open' },
+      });
+      expect(res.statusCode).toBe(200);
+      expect(res.json().status).toBe('open');
+    });
   });
 });

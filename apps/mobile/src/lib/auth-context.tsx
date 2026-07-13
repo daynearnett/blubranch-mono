@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
-import type { AuthResponse } from '@blubranch/shared';
+import type { AuthResponse, SocialAuthInput } from '@blubranch/shared';
 import * as api from './api.js';
 import { secureStorage } from './storage.js';
 
@@ -14,6 +14,7 @@ interface AuthState {
   user: AuthUser | null;
   status: 'loading' | 'signed-in' | 'signed-out';
   signIn: (email: string, password: string) => Promise<void>;
+  signInWithSocial: (input: SocialAuthInput) => Promise<void>;
   register: (input: import('@blubranch/shared').RegisterInput) => Promise<void>;
   signOut: () => Promise<void>;
   refresh: () => Promise<void>;
@@ -88,6 +89,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [persist],
   );
 
+  const signInWithSocial = useCallback(
+    async (input: SocialAuthInput) => {
+      const res = await api.auth.social(input);
+      await persist(res);
+    },
+    [persist],
+  );
+
   const register = useCallback(
     async (input: import('@blubranch/shared').RegisterInput) => {
       const res = await api.auth.register(input);
@@ -139,8 +148,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [persist, signOut]);
 
   const value = useMemo<AuthState>(
-    () => ({ user, status, signIn, register, signOut, refresh, setUser }),
-    [user, status, signIn, register, signOut, refresh],
+    () => ({ user, status, signIn, signInWithSocial, register, signOut, refresh, setUser }),
+    [user, status, signIn, signInWithSocial, register, signOut, refresh],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
