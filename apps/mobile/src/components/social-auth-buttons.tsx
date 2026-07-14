@@ -118,6 +118,15 @@ export function SocialAuthButtons({ onDone, role = 'worker' }: Props) {
     }
   }, [finish, role, signInWithSocial]);
 
+  const showApple = Platform.OS === 'ios' && appleAvailable;
+  // Google is only shown once its OAuth client id is configured at build time.
+  // Until then (e.g. Apple-only launch) the button stays hidden rather than
+  // rendering a non-functional control.
+  const showGoogle = GOOGLE_WEB_CLIENT_ID.length > 0;
+  // No providers to offer (e.g. Android before Google is set up) — render
+  // nothing so there's no dangling "or" divider.
+  if (!showApple && !showGoogle) return null;
+
   return (
     <View style={styles.wrap}>
       <View style={styles.divider}>
@@ -126,7 +135,7 @@ export function SocialAuthButtons({ onDone, role = 'worker' }: Props) {
         <View style={styles.line} />
       </View>
 
-      {Platform.OS === 'ios' && appleAvailable && (
+      {showApple && (
         <AppleAuthentication.AppleAuthenticationButton
           buttonType={AppleAuthentication.AppleAuthenticationButtonType.CONTINUE}
           buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
@@ -136,21 +145,23 @@ export function SocialAuthButtons({ onDone, role = 'worker' }: Props) {
         />
       )}
 
-      <Pressable
-        style={({ pressed }) => [styles.googleButton, pressed && styles.pressed]}
-        onPress={handleGoogle}
-        disabled={busy !== null}
-        accessibilityRole="button"
-        accessibilityLabel="Continue with Google"
-      >
-        {busy === 'google' ? (
-          <ActivityIndicator color={colors.navy} />
-        ) : (
-          <Text style={styles.googleLabel}>
-            <Text style={styles.googleG}>G</Text>  Continue with Google
-          </Text>
-        )}
-      </Pressable>
+      {showGoogle && (
+        <Pressable
+          style={({ pressed }) => [styles.googleButton, pressed && styles.pressed]}
+          onPress={handleGoogle}
+          disabled={busy !== null}
+          accessibilityRole="button"
+          accessibilityLabel="Continue with Google"
+        >
+          {busy === 'google' ? (
+            <ActivityIndicator color={colors.navy} />
+          ) : (
+            <Text style={styles.googleLabel}>
+              <Text style={styles.googleG}>G</Text>  Continue with Google
+            </Text>
+          )}
+        </Pressable>
+      )}
 
       {busy === 'apple' && (
         <ActivityIndicator style={styles.appleSpinner} color={colors.navy} />
