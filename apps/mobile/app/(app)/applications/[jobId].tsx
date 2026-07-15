@@ -239,7 +239,7 @@ const styles = StyleSheet.create({
   funnelTitle: { ...typography.h3, color: colors.primaryDark, marginBottom: spacing.md },
   funnelRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing.md },
   funnelStat: { alignItems: 'center', flex: 1 },
-  funnelValue: { ...typography.h2, color: colors.primary },
+  funnelValue: { ...typography.h2, color: colors.navy },
   funnelStatLabel: { ...typography.caption, color: colors.textSecondary },
   breakdown: {
     borderTopWidth: 1,

@@ -169,7 +169,7 @@ const styles = StyleSheet.create({
   empty: { ...typography.body, color: colors.textSecondary, textAlign: 'center' },
   sectionLabel: {
     ...typography.caption,
-    color: colors.primary,
+    color: colors.navy,
     fontWeight: '700',
     letterSpacing: 1,
     marginBottom: spacing.sm,

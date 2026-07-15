@@ -415,7 +415,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   completenessTitle: { ...typography.bodyBold, color: colors.navy },
-  completenessPercent: { ...typography.bodyBold, color: colors.orange },
+  completenessPercent: { ...typography.bodyBold, color: colors.navy },
   completenessHint: { ...typography.small, color: colors.textMuted, marginTop: spacing.sm },
   sectionHeader: {
     flexDirection: 'row',
@@ -424,7 +424,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   sectionTitle: { ...typography.h3, color: colors.navy },
-  seeMore: { ...typography.bodyBold, color: colors.orange, marginTop: spacing.xs },
+  seeMore: { ...typography.bodyBold, color: colors.navy, marginTop: spacing.xs },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', marginTop: spacing.xs },
   chipBadge: { marginRight: spacing.xs, marginBottom: spacing.xs },
   certRow: {

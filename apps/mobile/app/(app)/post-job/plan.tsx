@@ -149,7 +149,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xs,
   },
   planTitle: { ...typography.h3, color: colors.primaryDark },
-  planPrice: { ...typography.bodyBold, color: colors.primary, marginBottom: spacing.sm },
+  planPrice: { ...typography.bodyBold, color: colors.navy, marginBottom: spacing.sm },
   planBullet: { ...typography.body, color: colors.textPrimary, marginBottom: 2 },
   helper: {
     ...typography.caption,

@@ -370,7 +370,7 @@ const styles = StyleSheet.create({
   },
   audienceOptionActive: { backgroundColor: colors.chipBgActive },
   audienceOptionLabel: { ...typography.body, color: colors.textPrimary },
-  audienceOptionLabelActive: { color: colors.orange, fontWeight: '600' },
+  audienceOptionLabelActive: { color: colors.navy, fontWeight: '600' },
   textInput: {
     ...typography.body,
     color: colors.textPrimary,
@@ -390,7 +390,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
     backgroundColor: colors.chipBgActive,
   },
-  tagLabel: { ...typography.small, color: colors.orange, fontWeight: '600' },
+  tagLabel: { ...typography.small, color: colors.navy, fontWeight: '600' },
   photoRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.md },
   photoThumb: { width: 88, height: 88, borderRadius: radius.md, overflow: 'hidden' },
   photoImg: { width: '100%', height: '100%' },

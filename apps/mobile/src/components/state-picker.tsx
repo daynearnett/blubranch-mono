@@ -126,6 +126,6 @@ const styles = StyleSheet.create({
   },
   rowActive: { backgroundColor: colors.chipBgActive },
   rowText: { ...typography.body, color: colors.textPrimary },
-  rowTextActive: { color: colors.orange, fontWeight: '600' },
+  rowTextActive: { color: colors.navy, fontWeight: '600' },
   rowAbbr: { ...typography.small, color: colors.textMuted },
 });

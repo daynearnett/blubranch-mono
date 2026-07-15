@@ -226,7 +226,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     marginBottom: spacing.md,
   },
-  viewMoreText: { ...typography.bodyBold, color: colors.orange },
+  viewMoreText: { ...typography.bodyBold, color: colors.navy },
   dateRow: { flexDirection: 'row', gap: spacing.md },
   dateField: { flex: 1 },
   seekingRow: {

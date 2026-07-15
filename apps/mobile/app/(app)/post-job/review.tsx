@@ -292,7 +292,7 @@ const styles = StyleSheet.create({
   rowValue: { ...typography.body, color: colors.textPrimary, fontWeight: '600' },
   subtle: { ...typography.small, color: colors.textSecondary, marginBottom: spacing.sm },
   priceCard: { backgroundColor: colors.surface, borderRadius: radius.md },
-  price: { ...typography.h3, color: colors.primary },
+  price: { ...typography.h3, color: colors.navy },
   legal: {
     // Not typography.caption — that style uppercases text, which turned
     // "BluBranch's" into "BLUBRANCH'S" (reads as "BLUB RANCH").
@@ -300,7 +300,7 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginTop: spacing.lg,
   },
-  legalLink: { color: colors.primary, textDecorationLine: 'underline' },
+  legalLink: { color: colors.navy, textDecorationLine: 'underline' },
   // Extra breathing room between the terms line and the Pay button.
   actions: { marginTop: spacing.xl },
 });

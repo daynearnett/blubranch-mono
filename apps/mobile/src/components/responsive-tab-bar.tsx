@@ -63,7 +63,7 @@ export function ResponsiveTabBar({ state, descriptors, navigation }: BottomTabBa
               ) : (
                 <>
                   <Icon
-                    color={focused ? colors.orange : colors.textMuted}
+                    color={focused ? colors.navy : colors.textMuted}
                     size={22}
                     strokeWidth={1.8}
                   />
@@ -120,7 +120,7 @@ export function ResponsiveTabBar({ state, descriptors, navigation }: BottomTabBa
             accessibilityState={focused ? { selected: true } : {}}
           >
             <Icon
-              color={focused ? colors.orange : colors.textMuted}
+              color={focused ? colors.navy : colors.textMuted}
               size={22}
               strokeWidth={1.8}
             />

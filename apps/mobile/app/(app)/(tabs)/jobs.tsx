@@ -273,10 +273,10 @@ const styles = StyleSheet.create({
   },
   sortBtnActive: { backgroundColor: colors.chipBgActive },
   sortLabel: { ...typography.small, color: colors.textSecondary },
-  sortLabelActive: { color: colors.primary, fontWeight: '600' },
+  sortLabelActive: { color: colors.navy, fontWeight: '600' },
   sectionLabel: {
     ...typography.caption,
-    color: colors.primary,
+    color: colors.navy,
     fontWeight: '700',
     letterSpacing: 1,
     paddingHorizontal: spacing.lg,

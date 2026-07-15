@@ -331,7 +331,7 @@ const styles = StyleSheet.create({
   tab: { flex: 1, alignItems: 'center', paddingVertical: spacing.md },
   tabActive: { borderBottomWidth: 2, borderBottomColor: colors.orange },
   tabLabel: { ...typography.bodyBold, color: colors.textMuted },
-  tabLabelActive: { color: colors.orange },
+  tabLabelActive: { color: colors.navy },
   filterRow: {
     flexDirection: 'row',
     gap: spacing.sm,
@@ -369,7 +369,7 @@ const styles = StyleSheet.create({
   },
   resultTitle: { ...typography.bodyBold, color: colors.navy },
   resultSub: { ...typography.small, color: colors.textMuted, marginTop: 2 },
-  resultPay: { ...typography.small, color: colors.orange, fontWeight: '600', marginTop: 2 },
+  resultPay: { ...typography.small, color: colors.navy, fontWeight: '600', marginTop: 2 },
   nameRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
   avatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.surface },
   avatarFallback: { alignItems: 'center', justifyContent: 'center', backgroundColor: colors.navy },

@@ -373,7 +373,7 @@ const styles = StyleSheet.create({
     borderTopColor: colors.divider,
     marginTop: spacing.sm,
   },
-  addLabel: { ...typography.bodyBold, color: colors.orange, flex: 1 },
+  addLabel: { ...typography.bodyBold, color: colors.navy, flex: 1 },
   submitBtn: { marginTop: spacing.lg },
   checkRow: {
     flexDirection: 'row',

@@ -174,6 +174,6 @@ const styles = StyleSheet.create({
   error: { ...typography.small, color: colors.danger, marginBottom: spacing.md },
   verifyingText: { ...typography.body, color: colors.textMuted, marginBottom: spacing.md },
   resendBtn: { paddingVertical: spacing.sm },
-  resendText: { ...typography.bodyBold, color: colors.orange },
+  resendText: { ...typography.bodyBold, color: colors.navy },
   resendTextDisabled: { color: colors.textMuted },
 });

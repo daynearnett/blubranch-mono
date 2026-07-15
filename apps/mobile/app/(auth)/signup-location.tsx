@@ -119,7 +119,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.chipBgActive,
     marginBottom: spacing.lg,
   },
-  locationBtnText: { ...typography.bodyBold, color: colors.orange },
+  locationBtnText: { ...typography.bodyBold, color: colors.navy },
   fieldLabel: {
     ...typography.small,
     fontWeight: '600',

@@ -120,6 +120,6 @@ const styles = StyleSheet.create({
   reachTitle: { ...typography.h3, color: colors.textPrimary, marginBottom: spacing.sm },
   reachRow: { flexDirection: 'row', justifyContent: 'space-between' },
   stat: { alignItems: 'center', flex: 1 },
-  statValue: { ...typography.h3, color: colors.primary },
+  statValue: { ...typography.h3, color: colors.navy },
   statLabel: { ...typography.caption, color: colors.textSecondary, textAlign: 'center' },
 });

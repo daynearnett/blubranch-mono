@@ -354,7 +354,7 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.orange,
   },
   subTabLabel: { ...typography.bodyBold, color: colors.textMuted },
-  subTabLabelActive: { color: colors.orange },
+  subTabLabelActive: { color: colors.navy },
   content: { padding: spacing.lg },
   loader: { marginTop: spacing.xxl },
   section: { marginBottom: spacing.xl },
@@ -402,7 +402,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.orange,
   },
-  connectLabel: { ...typography.small, color: colors.orange, fontWeight: '600' },
+  connectLabel: { ...typography.small, color: colors.navy, fontWeight: '600' },
   quickMsgBtn: {
     width: 36,
     height: 36,

@@ -236,7 +236,7 @@ const styles = StyleSheet.create({
   },
   fieldLabel: { ...typography.small, fontWeight: '600' },
   generateBtn: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  generateText: { ...typography.small, color: colors.primary, fontWeight: '600' },
+  generateText: { ...typography.small, color: colors.navy, fontWeight: '600' },
   textarea: {
     minHeight: 96,
     borderWidth: 1,

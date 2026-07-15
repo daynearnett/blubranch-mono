@@ -173,7 +173,8 @@ const fallbackStyles = StyleSheet.create({
   },
   brand: {
     ...typography.h2,
-    color: colors.primary,
+    // On the dark error screen (primaryDark bg) the brand must stay light.
+    color: colors.textInverse,
     marginBottom: spacing.lg,
   },
   title: {

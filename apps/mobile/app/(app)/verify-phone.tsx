@@ -287,5 +287,5 @@ const styles = StyleSheet.create({
   },
   devText: { ...typography.caption, color: '#92400E', fontWeight: '600' },
   resendLink: { marginTop: spacing.lg, padding: spacing.md },
-  resendText: { ...typography.body, color: colors.orange, fontWeight: '600' },
+  resendText: { ...typography.body, color: colors.navy, fontWeight: '600' },
 });

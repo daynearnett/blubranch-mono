@@ -298,7 +298,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
     backgroundColor: colors.chipBgActive,
   },
-  tagChipText: { ...typography.caption, color: colors.orange, fontWeight: '600' },
+  tagChipText: { ...typography.caption, color: colors.navy, fontWeight: '600' },
   tagBtn: { width: 36, height: 44, alignItems: 'center', justifyContent: 'center' },
   composerInput: { flex: 1 },
   composer: {

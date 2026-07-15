@@ -227,7 +227,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.border,
     marginHorizontal: 4,
   },
-  dotActive: { backgroundColor: colors.orange, width: 24 },
+  dotActive: { backgroundColor: colors.navy, width: 24 },
   actions: {
     paddingHorizontal: spacing.xl,
   },
@@ -236,13 +236,13 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.lg,
   },
   loginLabel: { ...typography.body, color: colors.textMuted },
-  loginLink: { color: colors.orange, fontWeight: '600' },
+  loginLink: { color: colors.navy, fontWeight: '600' },
   legal: {
     ...typography.small,
     color: colors.textMuted,
     textAlign: 'center',
     paddingHorizontal: spacing.md,
   },
-  legalBold: { fontWeight: '700', color: colors.orange },
+  legalBold: { fontWeight: '700', color: colors.navy },
   link: { textDecorationLine: 'underline', color: colors.textMuted },
 });
