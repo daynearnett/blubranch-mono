@@ -87,9 +87,9 @@ function BrandSplash({ onDone }: { onDone: () => void }) {
 }
 
 const brandStyles = StyleSheet.create({
-  container: { backgroundColor: '#1B3A5C', alignItems: 'center', justifyContent: 'center', gap: 20 },
+  container: { backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', gap: 20 },
   logo: { width: 96, height: 96, borderRadius: 20 },
-  slogan: { color: '#FFFFFF', fontSize: 16, fontWeight: '600', letterSpacing: 0.3 },
+  slogan: { color: '#3D5A80', fontSize: 16, fontWeight: '600', letterSpacing: 0.3 },
 });
 
 // Wrap the tree in Stripe's provider on native so the Payment Sheet can mount.

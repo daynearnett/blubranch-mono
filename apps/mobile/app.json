@@ -10,8 +10,8 @@
     "newArchEnabled": true,
     "splash": {
       "image": "./assets/splash.png",
-      "resizeMode": "cover",
-      "backgroundColor": "#3D5A80"
+      "resizeMode": "contain",
+      "backgroundColor": "#FFFFFF"
     },
     "ios": {
       "supportsTablet": true,
@@ -33,7 +33,7 @@
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#3D5A80"
+        "backgroundColor": "#FFFFFF"
       }
     },
     "web": {
@@ -54,7 +54,7 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#3D5A80",
+          "backgroundColor": "#FFFFFF",
           "image": "./assets/splash.png",
           "imageWidth": 220
         }
@@ -63,7 +63,7 @@
         "expo-notifications",
         {
           "icon": "./assets/notification-icon.png",
-          "color": "#FFCD11",
+          "color": "#3D5A80",
           "androidMode": "default",
           "androidCollapsedTitle": "BluBranch"
         }
