@@ -7,6 +7,7 @@ import {
 } from '@react-native-google-signin/google-signin';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../lib/auth-context.js';
+import { GoogleGLogo } from './google-g-logo.js';
 import { ApiError } from '../lib/api.js';
 import { colors, radius, spacing, typography } from '../theme.js';
 
@@ -156,9 +157,10 @@ export function SocialAuthButtons({ onDone, role = 'worker' }: Props) {
           {busy === 'google' ? (
             <ActivityIndicator color={colors.navy} />
           ) : (
-            <Text style={styles.googleLabel}>
-              <Text style={styles.googleG}>G</Text>  Continue with Google
-            </Text>
+            <>
+              <GoogleGLogo size={18} />
+              <Text style={styles.googleLabel}>Continue with Google</Text>
+            </>
           )}
         </Pressable>
       )}
@@ -201,10 +203,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',
+    gap: spacing.sm,
   },
   pressed: { opacity: 0.7 },
   googleLabel: { ...typography.body, color: colors.textPrimary, fontWeight: '600' },
-  googleG: { color: '#4285F4', fontWeight: '800', fontSize: 18 },
   error: {
     ...typography.small,
     color: colors.danger,
