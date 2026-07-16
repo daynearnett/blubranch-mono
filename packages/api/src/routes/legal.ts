@@ -78,6 +78,28 @@ export async function legalRoutes(app: FastifyInstance): Promise<void> {
   app.get('/legal/privacy', async (_req, reply) => send(reply, legalDocuments.privacy));
   app.get('/legal/terms', async (_req, reply) => send(reply, legalDocuments.terms));
 
+  // Support page — used as the App Store "Support URL".
+  app.get('/support', async (_req, reply) =>
+    reply.header('Content-Type', 'text/html; charset=utf-8').send(
+      `<!doctype html><html lang="en"><head><meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/><title>BluBranch — Support</title>
+<style>body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;color:#1F3A55;line-height:1.6;max-width:640px;margin:0 auto;padding:48px 20px}h1{color:#0F2D52}a{color:#4682B4}h2{color:#0F2D52;font-size:18px;margin-top:28px}</style>
+</head><body>
+<h1>BluBranch Support</h1>
+<p>BluBranch is the professional network and job marketplace built for the blue collar — skilled tradespeople, contractors, and the employers who hire them.</p>
+<h2>Contact us</h2>
+<p>Questions, feedback, or an account issue? Email <a href="mailto:support@blubranch.com">support@blubranch.com</a> and we'll get back to you.</p>
+<h2>Common help</h2>
+<p>• <strong>Signing in:</strong> use Apple, Google, or your email and password.<br/>
+• <strong>Workers are always free.</strong> Employers pay to post jobs.<br/>
+• <strong>Report content or a user:</strong> tap the ••• menu on a post, or contact support.<br/>
+• <strong>Delete your account:</strong> email support@blubranch.com and we'll remove your data.</p>
+<h2>Legal</h2>
+<p><a href="/legal/privacy">Privacy Policy</a> · <a href="/legal/terms">Terms of Service</a></p>
+</body></html>`,
+    ),
+  );
+
   // Simple index linking both.
   app.get('/legal', async (_req, reply) =>
     reply.header('Content-Type', 'text/html; charset=utf-8').send(
