@@ -6,6 +6,7 @@ export const colors = {
   navy: '#3D5A80',      // Workwear Denim — primary brand surface
   navyDark: '#2C4361',  // Darker denim — pressed/strokes
   navyMid: '#5D7AA0',   // Lighter denim — accents
+  steel: '#4682B4',     // Blue Steel — logo-gradient blue; primary-action accent (FAB)
   // `orange` token kept as a name for backwards compat (consumed widely) but
   // now holds CAT Yellow. Use as a background/fill — for text on white,
   // prefer `navy`/`primaryDark` (yellow has insufficient contrast on white).

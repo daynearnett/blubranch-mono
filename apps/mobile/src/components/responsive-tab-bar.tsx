@@ -58,7 +58,7 @@ export function ResponsiveTabBar({ state, descriptors, navigation }: BottomTabBa
             >
               {isPost ? (
                 <View style={styles.postFab}>
-                  <Plus color={colors.navy} size={28} strokeWidth={1.8} />
+                  <Plus color={colors.textInverse} size={28} strokeWidth={1.8} />
                 </View>
               ) : (
                 <>
@@ -157,7 +157,7 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: colors.orange,
+    backgroundColor: colors.steel,
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000',
