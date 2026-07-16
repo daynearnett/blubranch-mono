@@ -47,7 +47,7 @@
       "env": {
         "EXPO_PUBLIC_API_URL": "https://api.blubranch.com",
         "SENTRY_DISABLE_AUTO_UPLOAD": "true",
-        "EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY": "pk_live_REPLACE_ME",
+        "EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY": "pk_test_51Tn8AjEZf7BkcRJEj6Ghy6fk5MNdgW1ooP0ueJpihl4Kt364UXA6xXHQVx261MWEVWwn282FSUCFkzDNCh2Cju1K0090Fuegn0",
         "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "1021030466216-eubn7rn9htom8jdj9a1q6gvliu2pkq4i.apps.googleusercontent.com",
         "EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID": "1021030466216-q8542rhk5uvfr5r19k3a025f6ukm5eop.apps.googleusercontent.com"
       }
