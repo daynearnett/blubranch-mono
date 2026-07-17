@@ -157,11 +157,11 @@ const styles = StyleSheet.create({
   pay: { ...typography.bodyBold, color: colors.navy, marginBottom: spacing.sm },
   tagRow: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: spacing.md },
   applyBtn: {
-    backgroundColor: colors.primary,
+    backgroundColor: colors.navy,
     paddingVertical: spacing.sm,
     borderRadius: radius.md,
     alignItems: 'center',
   },
   applyBtnPressed: { opacity: 0.85 },
-  applyLabel: { color: colors.navy, fontWeight: '700' },
+  applyLabel: { color: colors.textInverse, fontWeight: '700' },
 });
