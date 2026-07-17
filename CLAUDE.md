@@ -26,6 +26,7 @@ BluBranch is a two-sided professional networking and job marketplace platform bu
 - [docs/LEGAL.md](./docs/LEGAL.md) — Privacy Policy + Terms of Service (Phase 7 chunk 3). Canonical source in `packages/shared/src/legal/documents.ts`; served at `/legal/*`; **drafts pending counsel review** (which URL to use for App Store Connect's Privacy field).
 - [docs/MONITORING.md](./docs/MONITORING.md) — Sentry (API + mobile) + uptime (Phase 7 chunk 4). Both inert until a DSN is set; activation env vars + external-uptime recommendation.
 - [docs/SENTRY-SETUP.md](./docs/SENTRY-SETUP.md) — **do-it-now Sentry activation runbook**: create the two projects, activate the API instantly via a Railway `SENTRY_DSN` var (no rebuild), wire mobile `EXPO_PUBLIC_SENTRY_DSN` on the next build, optional source-map upload, external uptime. Companion to MONITORING.md.
+- [docs/KEY-ROTATION.md](./docs/KEY-ROTATION.md) — **pre-beta key-rotation runbook** for the two secrets exposed in chat history: `RESEND_API_KEY` (new key → set on both Railway services → verify send → delete old) and `TWILIO_AUTH_TOKEN` (secondary token → set → verify SMS → promote, zero-downtime). Staging-first, no code change; exact Railway vars + verify curls.
 
 ## Current deployment state (last updated 2026-07-05)
 
