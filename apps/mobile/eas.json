@@ -36,6 +36,15 @@
         "EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID": "1021030466216-q8542rhk5uvfr5r19k3a025f6ukm5eop.apps.googleusercontent.com"
       }
     },
+    "simulator": {
+      "extends": "preview",
+      "distribution": "internal",
+      "ios": {
+        "simulator": true,
+        "resourceClass": "m-medium",
+        "image": "macos-sequoia-15.6-xcode-26.2"
+      }
+    },
     "production": {
       "distribution": "store",
       "autoIncrement": true,

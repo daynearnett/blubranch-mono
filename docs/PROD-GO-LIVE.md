@@ -85,6 +85,25 @@ exit
 > `prisma migrate reset --force` then revert to `migrate deploy`. **Never** do that
 > once real users exist.
 
+### 2b. Seed reference data (do once, per fresh DB) — REQUIRED
+
+⚠️ The Railway deploy runs `migrate deploy` but **NOT** `prisma db seed`, so a fresh
+prod DB has **no trades/skills/benefits**. Without them, **onboarding (trade pick)
+and job-posting are broken** (`jobs_trade_id_fkey`). Run the reference seed once, in
+the prod container:
+
+```bash
+railway ssh --service <prod-service-name>
+# inside the container, from repo root:
+pnpm --filter @blubranch/db exec prisma db seed   # → ~41 trades, ~242 skills, 9 benefits
+exit
+```
+
+- [ ] Reference seed run; `curl https://api.blubranch.com/reference/trades` returns a
+      non-empty list.
+- [ ] (Optional) Demo content + reviewer account for App Store review:
+      `DEMO_EMAIL=… DEMO_PASSWORD='…' pnpm --filter @blubranch/api exec tsx scripts/seed-demo.ts`
+
 ---
 
 ## 3. Production environment variables
