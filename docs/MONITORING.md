@@ -1,5 +1,9 @@
 # Monitoring — Sentry + uptime
 
+> **To turn it on, follow [SENTRY-SETUP.md](./SENTRY-SETUP.md)** — the click-through
+> runbook (create projects → activate API via one Railway var → mobile on next
+> build). This file is the code-map/reference behind it.
+
 Error monitoring is wired for both the API and the mobile app, and is **inert
 until you provide a DSN** — nothing is sent in dev/CI/TestFlight until then, so
 this can ship without any account setup and be activated later by adding env vars.

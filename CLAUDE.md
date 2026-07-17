@@ -25,6 +25,7 @@ BluBranch is a two-sided professional networking and job marketplace platform bu
 - [docs/SOCIAL-AUTH-SETUP.md](./docs/SOCIAL-AUTH-SETUP.md) — activating Apple + Google sign-in (Phase 7 chunk 1): Google OAuth client ids, env vars, and the one interactive `eas build` for the Apple capability. The secure `/auth/social` id_token verification is built; this is the external config to turn it on.
 - [docs/LEGAL.md](./docs/LEGAL.md) — Privacy Policy + Terms of Service (Phase 7 chunk 3). Canonical source in `packages/shared/src/legal/documents.ts`; served at `/legal/*`; **drafts pending counsel review** (which URL to use for App Store Connect's Privacy field).
 - [docs/MONITORING.md](./docs/MONITORING.md) — Sentry (API + mobile) + uptime (Phase 7 chunk 4). Both inert until a DSN is set; activation env vars + external-uptime recommendation.
+- [docs/SENTRY-SETUP.md](./docs/SENTRY-SETUP.md) — **do-it-now Sentry activation runbook**: create the two projects, activate the API instantly via a Railway `SENTRY_DSN` var (no rebuild), wire mobile `EXPO_PUBLIC_SENTRY_DSN` on the next build, optional source-map upload, external uptime. Companion to MONITORING.md.
 
 ## Current deployment state (last updated 2026-07-05)
 
