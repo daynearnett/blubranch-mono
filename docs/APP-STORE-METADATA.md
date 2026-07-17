@@ -83,8 +83,8 @@ URL: `https://api.blubranch.com/legal/privacy`.
 BluBranch is a two-sided marketplace for skilled trades. Workers use the app for free.
 
 Demo account (worker):
-  Email: <demo email>
-  Password: <demo password>
+  Email: demo@blubranch.com
+  Password: BluBranch-demo-2026!
 
 Sign in with the email/password above (Apple/Google sign-in require your own
 accounts). The demo worker can browse the feed, search and view jobs, apply to a
@@ -92,4 +92,4 @@ job, edit their profile, and message. User-generated content is auto-moderated a
 users can report/block. Employer job-posting uses Stripe in test mode for this
 review build; the free worker experience covers the core flows.
 ```
-*(Fill the demo email/password from the account we provision on prod.)*
+*(Demo account is seeded on prod via `scripts/seed-demo.ts` — see PROD-GO-LIVE §2b. Verified working on both staging and prod as of 2026-07-17.)*

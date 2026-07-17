@@ -30,6 +30,15 @@ const SETTING_LABEL = {
   mixed: 'Mixed',
 } as const;
 
+const EXPERIENCE_LABEL: Record<string, string> = {
+  years_0_2: '0–2 years',
+  years_3_5: '3–5 years',
+  years_6_10: '6–10 years',
+  years_11_15: '11–15 years',
+  years_16_20: '16–20 years',
+  years_20_plus: '20+ years',
+};
+
 interface Props {
   jobId: string;
   /** Render the sticky-bottom Quick Apply button. The desktop pane uses inline. */
@@ -154,7 +163,9 @@ export function JobDetailBody({ jobId, stickyApply }: Props) {
         {job.experienceLevel ? (
           <>
             <Text style={styles.sectionTitle}>Experience</Text>
-            <Text style={styles.body}>{job.experienceLevel}</Text>
+            <Text style={styles.body}>
+              {EXPERIENCE_LABEL[job.experienceLevel] ?? job.experienceLevel}
+            </Text>
           </>
         ) : null}
 
