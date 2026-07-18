@@ -30,6 +30,16 @@ describe('Legal pages', () => {
     expect(res.body).toContain('Limitation of Liability');
   });
 
+  it('GET /support renders the App Store support page, no auth required', async () => {
+    const res = await app.inject({ method: 'GET', url: '/support' });
+    expect(res.statusCode).toBe(200);
+    expect(res.headers['content-type']).toContain('text/html');
+    expect(res.body).toContain('BluBranch Support');
+    expect(res.body).toContain('support@blubranch.com');
+    expect(res.body).toContain('/legal/privacy');
+    expect(res.body).toContain('/legal/terms');
+  });
+
   it('GET /legal lists both documents', async () => {
     const res = await app.inject({ method: 'GET', url: '/legal' });
     expect(res.statusCode).toBe(200);
