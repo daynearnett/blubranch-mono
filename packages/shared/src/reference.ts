@@ -71,7 +71,7 @@ export const TRAVEL_RADIUS_OPTIONS = [10, 25, 50, 100, 250] as const;
 
 // Availability dropdown (mockup 2C)
 export const JOB_AVAILABILITY_OPTIONS = [
-  { value: 'open', label: 'Open to opportunities' },
+  { value: 'open', label: 'Open to work' },
   { value: 'actively_looking', label: 'Actively looking' },
   { value: 'not_looking', label: 'Not looking right now' },
 ] as const;

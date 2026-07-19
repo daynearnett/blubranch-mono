@@ -15,6 +15,7 @@ import { shareRoutes } from './routes/share.js';
 import { legalRoutes } from './routes/legal.js';
 import { uploadRoutes } from './routes/upload.js';
 import { connectionRoutes } from './routes/connections.js';
+import { vouchRoutes } from './routes/vouches.js';
 import { userRoutes } from './routes/users.js';
 import { messageRoutes } from './routes/messages.js';
 import { notificationRoutes } from './routes/notifications.js';
@@ -80,6 +81,7 @@ export async function buildApp(): Promise<FastifyInstance> {
   await app.register(jobRoutes);
   await app.register(applicationRoutes);
   await app.register(connectionRoutes);
+  await app.register(vouchRoutes);
   await app.register(postRoutes);
   await app.register(shareRoutes);
   await app.register(legalRoutes);

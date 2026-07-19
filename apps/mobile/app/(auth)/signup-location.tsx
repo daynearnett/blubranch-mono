@@ -86,7 +86,7 @@ export default function SignupLocation() {
           </Text>
         </View>
 
-        <Text style={styles.fieldLabel}>Job availability</Text>
+        <Text style={styles.fieldLabel}>Work status</Text>
         <View style={styles.chipWrap}>
           {JOB_AVAILABILITY_OPTIONS.map((opt) => (
             <Chip

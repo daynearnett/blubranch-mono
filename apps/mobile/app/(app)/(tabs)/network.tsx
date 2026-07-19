@@ -125,7 +125,7 @@ export default function NetworkTab() {
           onPress={() => setSubTab('connections')}
         >
           <Text style={[styles.subTabLabel, subTab === 'connections' && styles.subTabLabelActive]}>
-            Connections ({connectionsTotal})
+            Branches ({connectionsTotal})
           </Text>
         </Pressable>
       </View>
@@ -183,7 +183,7 @@ function GrowSection({
       {pending.length > 0 ? (
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>
-            Pending invitations ({pending.length})
+            Waiting on you ({pending.length})
           </Text>
           {pending.map((inv) => (
             <View key={inv.connectionId} style={styles.personRow}>
@@ -215,12 +215,12 @@ function GrowSection({
       ) : null}
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>People you may know</Text>
+        <Text style={styles.sectionTitle}>People you've probably crossed paths with</Text>
         {suggestions.length === 0 ? (
           <View style={styles.emptyState}>
             <Users color={colors.textMuted} size={32} strokeWidth={1.5} />
             <Text style={styles.emptyText}>
-              Complete your profile to get personalized suggestions.
+              Add your trade and work history and we'll find people you've crossed paths with.
             </Text>
           </View>
         ) : (
@@ -288,7 +288,7 @@ function ConnectionsSection({
         <View style={styles.emptyState}>
           <Users color={colors.textMuted} size={32} strokeWidth={1.5} />
           <Text style={styles.emptyText}>
-            {searchQuery ? 'No connections match your search.' : 'No connections yet. Start growing your network!'}
+            {searchQuery ? 'No connections match your search.' : 'No branches yet. Start with people you\'ve worked with.'}
           </Text>
         </View>
       ) : (

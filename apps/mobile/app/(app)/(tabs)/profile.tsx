@@ -12,14 +12,24 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Camera, ChevronRight, Pencil, Shield } from 'lucide-react-native';
+import { Camera, ChevronRight, CreditCard, Pencil, Shield } from 'lucide-react-native';
 import { Badge, Button, Card } from '../../../src/components/ui.js';
 import { ProfileHeader } from '../../../src/components/profile-header.js';
 import { VerifiedBadge } from '../../../src/components/verified-badge.js';
 import { SectionDivider } from '../../../src/components/section-divider.js';
 import { ProgressBar } from '../../../src/components/progress-bar.js';
+import { VouchedByList } from '../../../src/components/vouched-by.js';
 import * as ImagePicker from 'expo-image-picker';
-import { ApiError, me, uploadImage, type MeResponse } from '../../../src/lib/api.js';
+import {
+  ApiError,
+  me,
+  uploadImage,
+  users,
+  vouches,
+  type MeResponse,
+  type PendingVouch,
+  type ProfileVouch,
+} from '../../../src/lib/api.js';
 import { useAuth } from '../../../src/lib/auth-context.js';
 import { colors, radius, spacing, typography } from '../../../src/theme.js';
 
@@ -32,10 +42,25 @@ export default function Profile() {
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>('about');
   const [refreshing, setRefreshing] = useState(false);
+  const [pendingVouches, setPendingVouches] = useState<PendingVouch[]>([]);
+  const [myVouches, setMyVouches] = useState<ProfileVouch[]>([]);
 
   const load = useCallback(() => {
-    me.get()
-      .then(setData)
+    vouches
+      .pending()
+      .then(setPendingVouches)
+      .catch(() => {});
+    return me
+      .get()
+      .then((d) => {
+        setData(d);
+        // /users/me doesn't carry vouches — the public payload does, and
+        // self-views never trigger a profile_view notification.
+        users
+          .get(d.id)
+          .then((pub) => setMyVouches(pub.vouches ?? []))
+          .catch(() => {});
+      })
       .catch((err) => setError(err instanceof ApiError ? err.message : 'Could not load profile'));
   }, []);
 
@@ -66,11 +91,24 @@ export default function Profile() {
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
-    me.get()
-      .then(setData)
-      .catch(() => {})
-      .finally(() => setRefreshing(false));
-  }, []);
+    load().finally(() => setRefreshing(false));
+  }, [load]);
+
+  const onConfirmVouch = async (vouch: PendingVouch) => {
+    try {
+      await vouches.confirm(vouch.id);
+      setPendingVouches((list) => list.filter((v) => v.id !== vouch.id));
+      // The confirmed vouch now displays — refresh the "Vouched by" list.
+      if (data) {
+        users
+          .get(data.id)
+          .then((pub) => setMyVouches(pub.vouches ?? []))
+          .catch(() => {});
+      }
+    } catch (err) {
+      Alert.alert('Error', err instanceof ApiError ? err.message : 'Could not confirm');
+    }
+  };
 
   if (error) {
     return (
@@ -109,15 +147,57 @@ export default function Profile() {
         {completeness < 100 ? (
           <View style={styles.completenessCard}>
             <View style={styles.completenessHeader}>
-              <Text style={styles.completenessTitle}>Profile strength</Text>
+              <Text style={styles.completenessTitle}>Get found more</Text>
               <Text style={styles.completenessPercent}>{completeness}%</Text>
             </View>
             <ProgressBar progress={completeness} />
             <Text style={styles.completenessHint}>
-              Complete your profile to appear in more searches
+              The more you fill in, the more contractors find you
             </Text>
           </View>
         ) : null}
+
+        {/* Vouches waiting on my confirmation */}
+        {pendingVouches.map((v) => (
+          <View key={v.id} style={styles.pendingVouchCard}>
+            <Text style={styles.pendingVouchText}>
+              <Text style={typography.bodyBold}>
+                {v.voucher.firstName} {v.voucher.lastName}
+              </Text>{' '}
+              says you worked together{v.companyName ? ` at ${v.companyName}` : ''}. Right?
+            </Text>
+            <View style={styles.pendingVouchActions}>
+              <Pressable style={styles.confirmBtn} onPress={() => onConfirmVouch(v)}>
+                <Text style={styles.confirmBtnLabel}>Confirm</Text>
+              </Pressable>
+              <Pressable
+                onPress={() =>
+                  setPendingVouches((list) => list.filter((p) => p.id !== v.id))
+                }
+                hitSlop={8}
+              >
+                <Text style={styles.notNowLabel}>Not now</Text>
+              </Pressable>
+            </View>
+          </View>
+        ))}
+
+        {/* Trade Card entry point */}
+        <Pressable
+          style={styles.tradeCardRow}
+          onPress={() => router.push('/(app)/trade-card')}
+        >
+          <View style={styles.tradeCardIcon}>
+            <CreditCard color={colors.textInverse} size={18} strokeWidth={2} />
+          </View>
+          <View style={styles.tradeCardText}>
+            <Text style={styles.tradeCardTitle}>My Trade Card</Text>
+            <Text style={styles.tradeCardSubtitle}>
+              Your licenses and vouches, ready to share
+            </Text>
+          </View>
+          <ChevronRight color={colors.textMuted} size={18} strokeWidth={2} />
+        </Pressable>
 
         <View style={styles.content}>
           {tab === 'about' ? (
@@ -127,7 +207,7 @@ export default function Profile() {
               onAddPhoto={onChangePhoto}
             />
           ) : null}
-          {tab === 'portfolio' ? <PortfolioTab data={data} /> : null}
+          {tab === 'portfolio' ? <PortfolioTab data={data} vouches={myVouches} /> : null}
           {tab === 'posts' ? <PostsTab /> : null}
         </View>
 
@@ -173,12 +253,12 @@ function EnrichmentCards({
     cards.push({
       key: 'skills',
       title: 'Add your skills',
-      subtitle: 'Help employers find you by your expertise',
+      subtitle: 'So the right outfits can find you',
       icon: Shield,
       onPress: () =>
         Alert.alert(
           'Add your skills',
-          "We're building the skills picker — coming in an upcoming update.",
+          'Still on the workbench — the skills picker is coming in an update.',
         ),
     });
   }
@@ -196,7 +276,7 @@ function EnrichmentCards({
 
   return (
     <View style={enrichStyles.container}>
-      <Text style={enrichStyles.sectionTitle}>Enhance your profile</Text>
+      <Text style={enrichStyles.sectionTitle}>Round out your profile</Text>
       {cards.map((card) => {
         const Icon = card.icon;
         return (
@@ -331,7 +411,7 @@ function AboutTab({
 
       <Card>
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Experience</Text>
+          <Text style={styles.sectionTitle}>Work history</Text>
         </View>
         {data.workHistory.length === 0 ? (
           <Text style={styles.empty}>No work history yet</Text>
@@ -353,7 +433,7 @@ function AboutTab({
 }
 
 // ── S13: Portfolio tab ──────────────────────────────────────────
-function PortfolioTab({ data }: { data: MeResponse }) {
+function PortfolioTab({ data, vouches }: { data: MeResponse; vouches: ProfileVouch[] }) {
   return (
     <View>
       <Text style={styles.sectionTitle}>Portfolio</Text>
@@ -362,7 +442,7 @@ function PortfolioTab({ data }: { data: MeResponse }) {
           <Camera color={colors.textMuted} size={32} strokeWidth={1.5} />
           <Text style={styles.emptyTitle}>No photos yet</Text>
           <Text style={styles.emptyBody}>
-            Show off your best work to attract employers and build credibility.
+            Show off your best work. Contractors look at photos first.
           </Text>
         </View>
       ) : (
@@ -377,8 +457,12 @@ function PortfolioTab({ data }: { data: MeResponse }) {
       )}
 
       <View style={styles.endorsementsSection}>
-        <Text style={styles.sectionTitle}>Endorsements</Text>
-        <Text style={styles.empty}>No endorsements yet — connect with peers to receive them.</Text>
+        <Text style={styles.sectionTitle}>Vouches</Text>
+        {vouches.length === 0 ? (
+          <Text style={styles.empty}>No vouches yet. They come from people who've been on jobs with you.</Text>
+        ) : (
+          <VouchedByList vouches={vouches} />
+        )}
       </View>
     </View>
   );
@@ -391,7 +475,7 @@ function PostsTab() {
       <Pencil color={colors.textMuted} size={32} strokeWidth={1.5} />
       <Text style={styles.emptyTitle}>No posts yet</Text>
       <Text style={styles.emptyBody}>
-        Share photos of your work and updates to start building your network.
+        Post your work. That's how people around here get known.
       </Text>
     </View>
   );
@@ -417,6 +501,51 @@ const styles = StyleSheet.create({
   completenessTitle: { ...typography.bodyBold, color: colors.navy },
   completenessPercent: { ...typography.bodyBold, color: colors.navy },
   completenessHint: { ...typography.small, color: colors.textMuted, marginTop: spacing.sm },
+  pendingVouchCard: {
+    marginHorizontal: spacing.lg,
+    marginTop: spacing.lg,
+    padding: spacing.lg,
+    backgroundColor: colors.chipBgActive,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.chipBorderActive,
+  },
+  pendingVouchText: { ...typography.body, color: colors.textBody },
+  pendingVouchActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.lg,
+    marginTop: spacing.md,
+  },
+  confirmBtn: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.pill,
+    backgroundColor: colors.navy,
+  },
+  confirmBtnLabel: { ...typography.bodyBold, color: colors.textInverse },
+  notNowLabel: { ...typography.bodyBold, color: colors.textMuted },
+  tradeCardRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    marginHorizontal: spacing.lg,
+    marginTop: spacing.lg,
+    padding: spacing.md,
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
+  },
+  tradeCardIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.steel,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tradeCardText: { flex: 1 },
+  tradeCardTitle: { ...typography.bodyBold, color: colors.navy },
+  tradeCardSubtitle: { ...typography.small, color: colors.textMuted, marginTop: 2 },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',

@@ -120,7 +120,7 @@ export default function SignupTrade() {
       const msg =
         err instanceof ApiError && err.message && err.message !== 'ValidationError'
           ? err.message
-          : 'Something went wrong creating your profile. Please try again.';
+          : "Couldn't save your profile. Give it another shot.";
       Alert.alert('Signup failed', msg);
     } finally {
       setSubmitting(false);

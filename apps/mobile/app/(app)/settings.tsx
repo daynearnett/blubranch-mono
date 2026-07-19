@@ -69,7 +69,7 @@ export default function Settings() {
 
   // Screens not built yet respond clearly instead of being dead taps.
   const comingSoon = (label: string) =>
-    Alert.alert(label, "We're building this — it'll be available in an upcoming update.");
+    Alert.alert(label, 'Still on the workbench — coming in an update.');
 
   const accountSection: SettingsRow[] = [
     { key: 'profile', icon: User, label: 'Profile & visibility', onPress: () => comingSoon('Profile & visibility') },

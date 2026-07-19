@@ -5,7 +5,15 @@ import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, View } from 're
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Badge, Card } from '../../../src/components/ui.js';
 import { ProfileHeader } from '../../../src/components/profile-header.js';
-import { ApiError, users, type PublicProfile } from '../../../src/lib/api.js';
+import { VouchSheet } from '../../../src/components/vouch-sheet.js';
+import { VouchedByList } from '../../../src/components/vouched-by.js';
+import {
+  ApiError,
+  users,
+  vouches,
+  type PublicProfile,
+  type VouchContext,
+} from '../../../src/lib/api.js';
 import { colors, spacing, typography } from '../../../src/theme.js';
 
 type Tab = 'about' | 'portfolio' | 'posts';
@@ -15,6 +23,8 @@ export default function PublicProfileScreen() {
   const [data, setData] = useState<PublicProfile | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>('about');
+  const [vouchCtx, setVouchCtx] = useState<VouchContext | null>(null);
+  const [vouchSheetOpen, setVouchSheetOpen] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -22,6 +32,11 @@ export default function PublicProfileScreen() {
       .get(id)
       .then(setData)
       .catch((err) => setError(err instanceof ApiError ? err.message : 'Not found'));
+    // Existing vouch (either direction) + shared-workplace suggestions.
+    vouches
+      .context(id)
+      .then(setVouchCtx)
+      .catch(() => {});
   }, [id]);
 
   if (error) {
@@ -39,10 +54,19 @@ export default function PublicProfileScreen() {
     );
   }
 
+  const confirmedVouches = data.vouches ?? [];
+
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <ScrollView>
-        <ProfileHeader profile={data} stats={data.stats} active={tab} onTabChange={setTab} />
+        <ProfileHeader
+          profile={data}
+          stats={data.stats}
+          active={tab}
+          onTabChange={setTab}
+          onVouch={data.role === 'worker' ? () => setVouchSheetOpen(true) : undefined}
+          vouchGiven={vouchCtx?.given?.status ?? null}
+        />
         <View style={styles.content}>
           {tab === 'about' ? (
             <View>
@@ -80,6 +104,14 @@ export default function PublicProfileScreen() {
                   </View>
                 ))}
               </Card>
+              {confirmedVouches.length > 0 ? (
+                <Card>
+                  <Text style={typography.h3}>Vouched by</Text>
+                  <View style={{ marginTop: spacing.xs }}>
+                    <VouchedByList vouches={confirmedVouches} />
+                  </View>
+                </Card>
+              ) : null}
             </View>
           ) : null}
 
@@ -110,6 +142,28 @@ export default function PublicProfileScreen() {
           ) : null}
         </View>
       </ScrollView>
+
+      {id ? (
+        <VouchSheet
+          visible={vouchSheetOpen}
+          userId={id}
+          firstName={data.firstName}
+          context={vouchCtx}
+          onClose={() => setVouchSheetOpen(false)}
+          onVouched={(vouch) =>
+            setVouchCtx((ctx) => ({
+              given: {
+                id: vouch.id,
+                voucherId: vouch.voucherId,
+                status: vouch.status,
+                companyName: vouch.companyName,
+              },
+              received: ctx?.received ?? null,
+              suggestions: ctx?.suggestions ?? [],
+            }))
+          }
+        />
+      ) : null}
     </SafeAreaView>
   );
 }

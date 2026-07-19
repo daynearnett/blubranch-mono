@@ -115,7 +115,7 @@ export default function MessagesScreen() {
           <MessageSquarePlus color={colors.textMuted} size={48} strokeWidth={1.2} />
           <Text style={styles.emptyTitle}>No messages yet</Text>
           <Text style={styles.emptyBody}>
-            Start a conversation from someone's profile or your connections list.
+            Start one from someone's profile or your branches list.
           </Text>
         </View>
       ) : (

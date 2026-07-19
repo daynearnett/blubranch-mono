@@ -4,6 +4,7 @@ import { requireAuth } from '../auth/middleware.js';
 import { getPrisma } from '../lib/prisma.js';
 import { parseBody } from '../lib/validate.js';
 import { sendNotification } from '../services/push.js';
+import { normalizeCompanyName } from './vouches.js';
 
 export async function connectionRoutes(app: FastifyInstance): Promise<void> {
   const prisma = getPrisma();
@@ -190,8 +191,8 @@ export async function connectionRoutes(app: FastifyInstance): Promise<void> {
     sendNotification({
       userId: data.receiverId,
       type: 'connection_request',
-      title: 'New connection request',
-      body: `${requester?.firstName ?? 'Someone'} ${requester?.lastName ?? ''} wants to connect`.trim(),
+      title: `${requester?.firstName ?? 'Someone'} ${requester?.lastName ?? ''} wants to link up`.trim(),
+      body: "Accept and they're in your branches",
       data: { connectionId: connection.id, requesterId: userId },
     }).catch(() => {});
 
@@ -228,8 +229,8 @@ export async function connectionRoutes(app: FastifyInstance): Promise<void> {
       sendNotification({
         userId: connection.requesterId,
         type: 'connection_accepted',
-        title: 'Connection accepted',
-        body: `${accepter?.firstName ?? 'Someone'} ${accepter?.lastName ?? ''} accepted your connection request`.trim(),
+        title: "You're connected",
+        body: `${accepter?.firstName ?? 'Someone'} ${accepter?.lastName ?? ''} is in your branches now`.trim(),
         data: { connectionId: connection.id },
       }).catch(() => {});
 
@@ -328,18 +329,35 @@ export async function connectionRoutes(app: FastifyInstance): Promise<void> {
     );
     connectedIds.add(userId);
 
-    // Get user's trade and location for scoring
+    // Get user's trade, location, workplaces, and vouch partners for scoring
     const me = await prisma.user.findUnique({
       where: { id: userId },
       include: {
         workerProfile: true,
         trades: { select: { tradeId: true } },
+        workPlaces: { select: { companyName: true } },
       },
     });
 
     const myTradeIds = me?.trades.map((t) => t.tradeId) ?? [];
     const myCity = me?.workerProfile?.city ?? '';
     const myState = me?.workerProfile?.state ?? '';
+    const myCompanies = new Set(
+      (me?.workPlaces ?? []).map((w) => normalizeCompanyName(w.companyName)),
+    );
+
+    // Confirmed vouches (either direction) are the strongest "we actually
+    // worked together" signal — surface those people first.
+    const myVouches = await prisma.vouch.findMany({
+      where: {
+        status: 'confirmed',
+        OR: [{ voucherId: userId }, { voucheeId: userId }],
+      },
+      select: { voucherId: true, voucheeId: true },
+    });
+    const vouchPartnerIds = new Set(
+      myVouches.flatMap((v) => [v.voucherId, v.voucheeId]).filter((id) => id !== userId),
+    );
 
     // Fetch candidate users (not already connected, limit pool)
     const candidates = await prisma.user.findMany({
@@ -351,16 +369,29 @@ export async function connectionRoutes(app: FastifyInstance): Promise<void> {
       include: {
         workerProfile: { select: { city: true, state: true, headline: true, unionName: true } },
         trades: { include: { trade: true }, take: 1 },
+        workPlaces: { select: { companyName: true } },
       },
     });
 
     // Score and sort
     const scored = candidates.map((c) => {
       let score = 0;
+      let reason: string | null = null;
       const cTradeIds = c.trades.map((t) => t.tradeId);
       if (cTradeIds.some((id) => myTradeIds.includes(id))) score += 2;
       if (c.workerProfile?.state === myState) score += 1;
       if (c.workerProfile?.city === myCity && myCity) score += 2;
+      const sharedCompany = c.workPlaces.find((w) =>
+        myCompanies.has(normalizeCompanyName(w.companyName)),
+      );
+      if (sharedCompany) {
+        score += 3;
+        reason = `You both list ${sharedCompany.companyName}`;
+      }
+      if (vouchPartnerIds.has(c.id)) {
+        score += 4;
+        reason = 'Vouched — you worked together';
+      }
       return {
         id: c.id,
         firstName: c.firstName,
@@ -371,6 +402,7 @@ export async function connectionRoutes(app: FastifyInstance): Promise<void> {
         city: c.workerProfile?.city ?? null,
         state: c.workerProfile?.state ?? null,
         trade: c.trades[0]?.trade?.name ?? null,
+        reason,
         score,
       };
     });

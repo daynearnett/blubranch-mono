@@ -180,7 +180,7 @@ function PostComposer() {
                   <Users color={colors.textMuted} size={12} strokeWidth={2} />
                 )}
                 <Text style={styles.audienceLabel}>
-                  {audience === 'anyone' ? 'Anyone' : 'Connections only'}
+                  {audience === 'anyone' ? 'Anyone' : 'Branches only'}
                 </Text>
                 <ChevronDown color={colors.textMuted} size={12} strokeWidth={2} />
               </Pressable>
@@ -204,7 +204,7 @@ function PostComposer() {
               >
                 <Users color={audience === 'connections' ? colors.orange : colors.textMuted} size={16} strokeWidth={2} />
                 <Text style={[styles.audienceOptionLabel, audience === 'connections' && styles.audienceOptionLabelActive]}>
-                  Connections only
+                  Branches only
                 </Text>
               </Pressable>
             </View>
@@ -212,7 +212,7 @@ function PostComposer() {
 
           <MentionTextInput
             inputStyle={styles.textInput}
-            placeholder="Share your work, ask a question, or tag a connection with @…"
+            placeholder="Post a job-site photo, ask the trades, or tag someone with @…"
             multiline
             value={content}
             onChangeText={setContent}

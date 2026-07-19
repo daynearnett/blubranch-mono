@@ -24,17 +24,21 @@ type PrefKey =
   | 'notifyProfileNudges'
   | 'notifyPostLikes'
   | 'notifyPostComments'
-  | 'notifyMentions';
+  | 'notifyMentions'
+  | 'notifyLicenseExpiry'
+  | 'notifyVouches';
 
 const ROWS: { key: PrefKey; label: string; desc: string }[] = [
   { key: 'notifyMessages', label: 'Messages', desc: 'New direct messages' },
-  { key: 'notifyConnectionRequests', label: 'Connections', desc: 'Requests and acceptances' },
+  { key: 'notifyConnectionRequests', label: 'Branches', desc: 'Requests and acceptances' },
   { key: 'notifyMentions', label: 'Tags', desc: 'When someone tags you in a post or comment' },
   { key: 'notifyPostLikes', label: 'Likes', desc: 'When someone likes your post' },
   { key: 'notifyPostComments', label: 'Comments', desc: 'When someone comments on your post' },
+  { key: 'notifyVouches', label: 'Vouches', desc: 'When someone vouches for you' },
+  { key: 'notifyLicenseExpiry', label: 'License reminders', desc: 'Before a license expires' },
   { key: 'notifyApplicationStatus', label: 'Application updates', desc: 'When an employer moves your application' },
   { key: 'notifyJobMatch', label: 'Job matches', desc: 'New jobs near you in your trade' },
-  { key: 'notifyProfileViews', label: 'Profile views', desc: "When someone views your profile" },
+  { key: 'notifyProfileViews', label: 'Profile views', desc: 'When someone checks you out' },
   { key: 'notifyProfileNudges', label: 'Profile tips', desc: 'Occasional reminders to complete your profile' },
 ];
 

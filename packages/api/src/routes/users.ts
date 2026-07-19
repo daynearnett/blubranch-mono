@@ -17,6 +17,37 @@ import { parseBody } from '../lib/validate.js';
 import { geocodeAddress, setGeographyPoint } from '../services/geocode.js';
 import { notifyProfileView } from '../services/push.js';
 
+// Confirmed vouch → the shape public profiles display ("Vouched by" section).
+function serializeVouch(v: {
+  id: string;
+  companyName: string | null;
+  startYear: string | null;
+  endYear: string | null;
+  confirmedAt: Date | null;
+  voucher: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    profilePhotoUrl: string | null;
+    workerProfile: { headline: string | null } | null;
+  };
+}) {
+  return {
+    id: v.id,
+    companyName: v.companyName,
+    startYear: v.startYear,
+    endYear: v.endYear,
+    confirmedAt: v.confirmedAt,
+    voucher: {
+      id: v.voucher.id,
+      firstName: v.voucher.firstName,
+      lastName: v.voucher.lastName,
+      profilePhotoUrl: v.voucher.profilePhotoUrl,
+      headline: v.voucher.workerProfile?.headline ?? null,
+    },
+  };
+}
+
 export async function userRoutes(app: FastifyInstance): Promise<void> {
   const prisma = getPrisma();
 
@@ -64,6 +95,22 @@ export async function userRoutes(app: FastifyInstance): Promise<void> {
         portfolioPhotos: { orderBy: { sortOrder: 'asc' } },
         workHistory: { orderBy: { startDate: 'desc' } },
         endorsementsReceived: { orderBy: { createdAt: 'desc' }, take: 20 },
+        vouchesReceived: {
+          where: { status: 'confirmed' },
+          orderBy: { confirmedAt: 'desc' },
+          take: 20,
+          include: {
+            voucher: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                profilePhotoUrl: true,
+                workerProfile: { select: { headline: true } },
+              },
+            },
+          },
+        },
         settings: true,
       },
     });
@@ -86,6 +133,7 @@ export async function userRoutes(app: FastifyInstance): Promise<void> {
       }),
       prisma.post.count({ where: { userId: user.id } }),
       prisma.endorsement.count({ where: { endorsedId: user.id } }),
+      prisma.vouch.count({ where: { voucheeId: user.id, status: 'confirmed' } }),
     ]);
 
     return reply.send({
@@ -108,10 +156,12 @@ export async function userRoutes(app: FastifyInstance): Promise<void> {
       portfolioPhotos: user.portfolioPhotos,
       workHistory: user.workHistory,
       endorsements: user.endorsementsReceived,
+      vouches: user.vouchesReceived.map(serializeVouch),
       stats: {
         connections: stats[0],
         posts: stats[1],
         endorsements: stats[2],
+        vouches: stats[3],
         rating: 0, // Computed once reviews ship; placeholder for screen 5A.
       },
     });
@@ -352,6 +402,22 @@ export async function userRoutes(app: FastifyInstance): Promise<void> {
         portfolioPhotos: { orderBy: { sortOrder: 'asc' } },
         workHistory: { orderBy: { startDate: 'desc' } },
         endorsementsReceived: { orderBy: { createdAt: 'desc' }, take: 20 },
+        vouchesReceived: {
+          where: { status: 'confirmed' },
+          orderBy: { confirmedAt: 'desc' },
+          take: 20,
+          include: {
+            voucher: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                profilePhotoUrl: true,
+                workerProfile: { select: { headline: true } },
+              },
+            },
+          },
+        },
         settings: true,
       },
     });
@@ -372,6 +438,7 @@ export async function userRoutes(app: FastifyInstance): Promise<void> {
       }),
       prisma.post.count({ where: { userId: user.id } }),
       prisma.endorsement.count({ where: { endorsedId: user.id } }),
+      prisma.vouch.count({ where: { voucheeId: user.id, status: 'confirmed' } }),
     ]);
 
     return reply.send({
@@ -396,12 +463,52 @@ export async function userRoutes(app: FastifyInstance): Promise<void> {
       portfolioPhotos: user.portfolioPhotos,
       workHistory: user.workHistory,
       endorsements: user.endorsementsReceived,
+      vouches: user.vouchesReceived.map(serializeVouch),
       stats: {
         connections: stats[0],
         posts: stats[1],
         endorsements: stats[2],
+        vouches: stats[3],
         rating: 0,
       },
+    });
+  });
+
+  // ── GET /users/me/trade-card ────────────────────────────────────
+  // The wallet-style verified credential card: identity, primary trade,
+  // licenses (all statuses — it's the owner's own card), certs, union,
+  // confirmed-vouch count. The public share render is GET /share/card/:slug.
+  app.get('/users/me/trade-card', { preHandler: requireAuth }, async (request, reply) => {
+    const user = await prisma.user.findUnique({
+      where: { id: request.user!.id },
+      include: {
+        workerProfile: true,
+        trades: { include: { trade: true } },
+        licenses: { orderBy: { createdAt: 'desc' } },
+        certifications: true,
+      },
+    });
+    if (!user) return reply.code(404).send({ error: 'NotFound' });
+
+    const vouchCount = await prisma.vouch.count({
+      where: { voucheeId: user.id, status: 'confirmed' },
+    });
+
+    return reply.send({
+      id: user.id,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      profilePhotoUrl: user.profilePhotoUrl,
+      slug: user.slug,
+      isVerified: user.isVerified,
+      trade: user.trades[0]?.trade?.name ?? null,
+      experienceLevel: user.workerProfile?.experienceLevel ?? null,
+      city: user.workerProfile?.city ?? null,
+      state: user.workerProfile?.state ?? null,
+      unionName: user.workerProfile?.unionName ?? null,
+      licenses: user.licenses,
+      certifications: user.certifications,
+      vouches: vouchCount,
     });
   });
 

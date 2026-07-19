@@ -126,7 +126,7 @@ export function QuickApplyModal({ visible, job, onClose, onApplied }: Props) {
               </Pressable>
             </View>
 
-            <Text style={styles.label}>Add a message (optional)</Text>
+            <Text style={styles.label}>Anything to add? (optional)</Text>
             <TextInput
               value={message}
               onChangeText={(v) => setMessage(v.slice(0, MAX))}

@@ -10,10 +10,10 @@ import { ApiError, jobs as jobsApi, type JobDetail } from '../lib/api.js';
 
 const STATUS_LABEL: Record<NonNullable<JobDetail['myApplication']>['status'], string> = {
   applied: 'Application sent',
-  reviewed: 'Reviewed by employer',
+  reviewed: "Employer's seen it",
   shortlisted: 'Shortlisted',
   hired: 'Hired',
-  rejected: 'Not selected',
+  rejected: 'They went another way',
 };
 
 const TYPE_LABEL = {
@@ -155,7 +155,7 @@ export function JobDetailBody({ jobId, stickyApply }: Props) {
         </View>
 
         {/* About the role */}
-        <Text style={styles.sectionTitle}>About the role</Text>
+        <Text style={styles.sectionTitle}>The work</Text>
         <Text style={styles.body}>{job.description}</Text>
 
         {/* Requirements (parsed from description for now — Phase 4 may model

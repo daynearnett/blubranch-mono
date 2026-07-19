@@ -122,8 +122,8 @@ export default function VerifyPhoneScreen() {
           <>
             <Text style={styles.title}>Phone number required</Text>
             <Text style={styles.subtitle}>
-              To apply for jobs, we need to verify your phone number. This helps
-              employers reach you and prevents spam applications.
+              We verify every worker's phone so employers know you're real — and
+              so they can actually reach you.
             </Text>
 
             <TextInput

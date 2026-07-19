@@ -31,8 +31,8 @@ export async function processProfileNudge(): Promise<void> {
     await sendNotification({
       userId: c.id,
       type: 'profile_nudge',
-      title: 'Complete your BluBranch profile',
-      body: 'Add your skills, photos, and experience so employers near you can find you.',
+      title: "Your profile's missing a few things",
+      body: 'Add your skills, photos, and licenses so outfits near you can find you.',
       data: { completeness: String(c.workerProfile?.profileCompleteness ?? 0) },
     });
   }

@@ -1,5 +1,5 @@
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
-import { Camera, MapPin, Pencil, Settings } from 'lucide-react-native';
+import { Camera, Check, MapPin, Pencil, Settings } from 'lucide-react-native';
 import type { MeResponse, PublicProfile } from '../lib/api.js';
 import { colors, radius, spacing, typography } from '../theme.js';
 import { Badge } from './ui.js';
@@ -17,15 +17,19 @@ interface Props {
   onSettings?: () => void;
   onEditProfile?: () => void;
   onAvatarPress?: () => void;
+  /** "Worked together?" vouch entry (other-user worker profiles only). Opens the vouch sheet. */
+  onVouch?: () => void;
+  /** Status of a vouch I already gave this user — changes the button label. */
+  vouchGiven?: 'pending' | 'confirmed' | null;
 }
 
-export function ProfileHeader({ profile, stats, active, onTabChange, isMe, onSettings, onEditProfile, onAvatarPress }: Props) {
+export function ProfileHeader({ profile, stats, active, onTabChange, isMe, onSettings, onEditProfile, onAvatarPress, onVouch, vouchGiven }: Props) {
   const wp = profile.workerProfile;
   const fullName = `${profile.firstName} ${profile.lastName}`;
   const initials = `${profile.firstName[0] ?? ''}${profile.lastName[0] ?? ''}`.toUpperCase();
 
   const autoHeadline = buildAutoHeadline(wp);
-  const headline = wp?.headline || autoHeadline || 'Tradesperson';
+  const headline = wp?.headline || autoHeadline || 'In the trades';
   const location = wp?.city && wp?.state ? `${wp.city}, ${wp.state}` : null;
 
   return (
@@ -89,7 +93,7 @@ export function ProfileHeader({ profile, stats, active, onTabChange, isMe, onSet
               value={stats.rating > 0 ? stats.rating.toFixed(1) : '—'}
               label="Rating"
             />
-            <Stat value={stats.endorsements} label="Endorsements" />
+            <Stat value={stats.endorsements} label="Vouches" />
           </View>
         ) : null}
 
@@ -107,6 +111,19 @@ export function ProfileHeader({ profile, stats, active, onTabChange, isMe, onSet
               <Text style={styles.actionOutlineLabel}>Message</Text>
             </Pressable>
           </View>
+        ) : null}
+
+        {!isMe && onVouch ? (
+          <Pressable style={styles.vouchBtn} onPress={onVouch}>
+            {vouchGiven ? <Check color={colors.orange} size={15} strokeWidth={2.5} /> : null}
+            <Text style={styles.vouchBtnLabel}>
+              {vouchGiven === 'confirmed'
+                ? 'Vouched'
+                : vouchGiven === 'pending'
+                  ? 'Vouched · pending'
+                  : 'Worked together?'}
+            </Text>
+          </Pressable>
         ) : null}
       </View>
 
@@ -221,6 +238,19 @@ const styles = StyleSheet.create({
   },
   actionOutline: { borderWidth: 1, borderColor: colors.textInverse },
   actionOutlineLabel: { ...typography.bodyBold, color: colors.textInverse },
+  vouchBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    width: '100%',
+    height: 40,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.3)',
+    marginTop: spacing.sm,
+  },
+  vouchBtnLabel: { ...typography.bodyBold, color: colors.textInverse },
   tabBar: {
     flexDirection: 'row',
     backgroundColor: colors.background,

@@ -30,8 +30,8 @@ const SLIDES: Slide[] = [
   {
     id: '1',
     icon: Users,
-    title: 'Build your professional network',
-    subtitle: 'Connect with verified tradespeople, get endorsements, and grow your reputation.',
+    title: 'Your trade. Your people. Your next job.',
+    subtitle: 'Link up with verified tradespeople, get vouched for by people you\'ve actually worked with, and build a name that travels.',
   },
   {
     id: '2',
@@ -43,7 +43,7 @@ const SLIDES: Slide[] = [
     id: '3',
     icon: Shield,
     title: 'Verified and trusted',
-    subtitle: 'License verification, workplace confirmation, and a community built on trust.',
+    subtitle: 'Verified licenses. Confirmed work history. No padded résumés.',
   },
 ];
 

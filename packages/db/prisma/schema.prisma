@@ -103,6 +103,11 @@ enum LicenseVerificationMethod {
   manual
 }
 
+enum VouchStatus {
+  pending
+  confirmed
+}
+
 enum WorkplaceVerificationMethod {
   email
   manual
@@ -160,6 +165,9 @@ model User {
 
   endorsementsGiven    Endorsement[] @relation("EndorsementEndorser")
   endorsementsReceived Endorsement[] @relation("EndorsementEndorsed")
+
+  vouchesGiven    Vouch[] @relation("VouchVoucher")
+  vouchesReceived Vouch[] @relation("VouchVouchee")
 
   conversationsA Conversation[] @relation("ConversationUserA")
   conversationsB Conversation[] @relation("ConversationUserB")
@@ -237,6 +245,8 @@ model UserSettings {
   notifyPostLikes           Boolean @default(true) @map("notify_post_likes")
   notifyPostComments        Boolean @default(true) @map("notify_post_comments")
   notifyMentions            Boolean @default(true) @map("notify_mentions")
+  notifyLicenseExpiry       Boolean @default(true) @map("notify_license_expiry")
+  notifyVouches             Boolean @default(true) @map("notify_vouches")
 
   @@map("user_settings")
 }
@@ -526,6 +536,29 @@ model Connection {
   @@map("connections")
 }
 
+// "Worked together" vouch — peer credibility gated by confirmed shared job
+// history. A vouch is a claim + confirmation (mutual attestation), not a data
+// join: companyName/years are a denormalized snapshot of the shared context so
+// later WorkPlace edits don't orphan it. Only confirmed vouches are displayed;
+// unconfirmed ones silently never show (no decline path by design).
+model Vouch {
+  id          String      @id @default(uuid()) @db.Uuid
+  voucherId   String      @map("voucher_id") @db.Uuid
+  voucheeId   String      @map("vouchee_id") @db.Uuid
+  voucher     User        @relation("VouchVoucher", fields: [voucherId], references: [id], onDelete: Cascade)
+  vouchee     User        @relation("VouchVouchee", fields: [voucheeId], references: [id], onDelete: Cascade)
+  companyName String?     @map("company_name") @db.VarChar(200)
+  startYear   String?     @map("start_year") @db.VarChar(7)
+  endYear     String?     @map("end_year") @db.VarChar(7)
+  status      VouchStatus @default(pending)
+  confirmedAt DateTime?   @map("confirmed_at")
+  createdAt   DateTime    @default(now()) @map("created_at")
+
+  @@unique([voucherId, voucheeId])
+  @@index([voucheeId, status])
+  @@map("vouches")
+}
+
 model Endorsement {
   id            String   @id @default(uuid()) @db.Uuid
   endorserId    String   @map("endorser_id") @db.Uuid
@@ -554,6 +587,10 @@ model License {
   verificationMethod LicenseVerificationMethod? @map("verification_method")
   verifiedAt         DateTime?                  @map("verified_at")
   verifiedBy         String?                    @map("verified_by") @db.VarChar(100)
+  // Photo of the physical license card (S3 URL) — optional, shown on the Trade Card.
+  documentUrl        String?                    @map("document_url") @db.VarChar(500)
+  // When the last expiry reminder was sent (30-day / 7-day windows dedup on this).
+  remindedAt         DateTime?                  @map("reminded_at")
   createdAt          DateTime                   @default(now()) @map("created_at")
 
   @@index([userId])
@@ -656,6 +693,9 @@ enum NotificationType {
   post_like
   post_comment
   post_mention
+  license_expiry
+  vouch_received
+  vouch_confirmed
 }
 
 model Notification {

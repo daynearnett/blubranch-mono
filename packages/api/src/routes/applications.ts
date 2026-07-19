@@ -211,17 +211,17 @@ export async function applicationRoutes(app: FastifyInstance): Promise<void> {
       });
 
       // Push notification to the worker about their application status change.
-      const statusLabels: Record<string, string> = {
-        reviewed: 'is being reviewed',
-        shortlisted: 'has been shortlisted',
-        hired: 'resulted in a hire! Congratulations',
-        rejected: 'was not selected',
+      const statusBodies: Record<string, string> = {
+        reviewed: 'Your application is being reviewed',
+        shortlisted: 'Your application has been shortlisted',
+        hired: "You're hired. Nice work.",
+        rejected: "This one went another way. The next one's out there.",
       };
       sendNotification({
         userId: application.workerId,
         type: 'application_status',
         title: `Application update: ${application.job.title}`,
-        body: `Your application ${statusLabels[data.status] ?? 'has been updated'}`,
+        body: statusBodies[data.status] ?? 'Your application has been updated',
         data: {
           jobId: application.jobId,
           applicationId: application.id,

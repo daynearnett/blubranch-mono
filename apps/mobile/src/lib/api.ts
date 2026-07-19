@@ -22,6 +22,7 @@ import type {
   SetTradesInput,
   SocialAuthInput,
   UserSettingsInput,
+  VouchInput,
   WorkHistoryInput,
   WorkerProfileInput,
   WorkplaceVerifyInput,
@@ -280,6 +281,8 @@ export interface MeResponse {
     notifyPostLikes: boolean;
     notifyPostComments: boolean;
     notifyMentions: boolean;
+    notifyLicenseExpiry: boolean;
+    notifyVouches: boolean;
   } | null;
   trades: { id: number; name: string; slug: string }[];
   skills: { id: number; name: string; tradeId: number | null }[];
@@ -359,8 +362,103 @@ export interface PublicProfile {
     endorserTitle: string;
     content: string;
   }[];
-  stats: { connections: number; posts: number; endorsements: number; rating: number };
+  vouches: ProfileVouch[];
+  stats: {
+    connections: number;
+    posts: number;
+    endorsements: number;
+    vouches: number;
+    rating: number;
+  };
 }
+
+// ── Trade Card + vouches ────────────────────────────────────────
+
+export interface TradeCard {
+  id: string;
+  firstName: string;
+  lastName: string;
+  profilePhotoUrl: string | null;
+  slug: string | null;
+  isVerified: boolean;
+  trade: string | null;
+  experienceLevel: WorkerProfileFields['experienceLevel'] | null;
+  city: string | null;
+  state: string | null;
+  unionName: string | null;
+  licenses: LicenseRecord[];
+  certifications: {
+    id: string;
+    name: string;
+    certificationNumber: string | null;
+    isVerified: boolean;
+  }[];
+  vouches: number;
+}
+
+export interface VouchRecord {
+  id: string;
+  voucherId: string;
+  voucheeId: string;
+  companyName: string | null;
+  startYear: string | null;
+  endYear: string | null;
+  status: 'pending' | 'confirmed';
+  confirmedAt: string | null;
+  createdAt: string;
+}
+
+export interface VouchContext {
+  /** A vouch I already made for them (either status), if any. */
+  given: { id: string; voucherId: string; status: 'pending' | 'confirmed'; companyName: string | null } | null;
+  /** A vouch they made for me, if any. */
+  received: { id: string; voucherId: string; status: 'pending' | 'confirmed'; companyName: string | null } | null;
+  /** Shared workplaces (normalized-name + date-overlap match) to pre-fill the claim. */
+  suggestions: { companyName: string; startYear: string; endYear: string }[];
+}
+
+/** A confirmed vouch as displayed on a public profile. */
+export interface ProfileVouch {
+  id: string;
+  companyName: string | null;
+  startYear: string | null;
+  endYear: string | null;
+  confirmedAt: string | null;
+  voucher: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    profilePhotoUrl: string | null;
+    headline: string | null;
+  };
+}
+
+/** A vouch waiting on MY confirmation. */
+export interface PendingVouch {
+  id: string;
+  companyName: string | null;
+  startYear: string | null;
+  endYear: string | null;
+  createdAt: string;
+  voucher: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    profilePhotoUrl: string | null;
+    headline: string | null;
+  };
+}
+
+export const vouches = {
+  // The owner's wallet-style credential card (all license statuses).
+  tradeCard: () => request<TradeCard>('/users/me/trade-card'),
+  context: (userId: string) => request<VouchContext>(`/users/${userId}/vouch-context`),
+  create: (userId: string, input: VouchInput = {}) =>
+    request<VouchRecord>(`/users/${userId}/vouch`, { method: 'POST', body: JSON.stringify(input) }),
+  confirm: (id: string) =>
+    request<VouchRecord>(`/vouches/${id}/confirm`, { method: 'PUT' }),
+  pending: () => request<PendingVouch[]>('/vouches/pending'),
+};
 
 // ── Phase 3: jobs / companies / feed / posts ────────────────────
 
@@ -832,6 +930,8 @@ export const notifications = {
     notifyPostLikes?: boolean;
     notifyPostComments?: boolean;
     notifyMentions?: boolean;
+    notifyLicenseExpiry?: boolean;
+    notifyVouches?: boolean;
   }) =>
     request<unknown>('/settings/notifications', { method: 'PUT', body: JSON.stringify(prefs) }),
 };

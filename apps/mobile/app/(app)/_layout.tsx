@@ -19,6 +19,7 @@ export default function AppLayout() {
       <Stack.Screen name="post-job" />
       <Stack.Screen name="applications/[jobId]" />
       <Stack.Screen name="verifications" />
+      <Stack.Screen name="trade-card" />
       <Stack.Screen name="settings" />
       <Stack.Screen name="notification-settings" />
       <Stack.Screen name="notifications" />

@@ -12,6 +12,8 @@ const EMAIL_TYPES = new Set<NotificationType>([
   'post_like',
   'post_comment',
   'post_mention',
+  // A lapsing license is exactly the kind of thing worth an email.
+  'license_expiry',
 ]);
 
 /**
@@ -48,6 +50,9 @@ export async function sendNotification(params: {
       post_like: settings.notifyPostLikes,
       post_comment: settings.notifyPostComments,
       post_mention: settings.notifyMentions,
+      license_expiry: settings.notifyLicenseExpiry,
+      vouch_received: settings.notifyVouches,
+      vouch_confirmed: settings.notifyVouches,
     };
     if (prefMap[params.type] === false) {
       return;
@@ -199,8 +204,8 @@ export async function notifyProfileView(viewerId: string, viewedId: string): Pro
   await sendNotification({
     userId: viewedId,
     type: 'profile_view',
-    title: 'Someone viewed your profile',
-    body: `${viewer.firstName} ${viewer.lastName} viewed your profile`,
+    title: 'Someone checked out your profile',
+    body: `${viewer.firstName} ${viewer.lastName} checked out your profile`,
     data: { viewerId },
   });
 }

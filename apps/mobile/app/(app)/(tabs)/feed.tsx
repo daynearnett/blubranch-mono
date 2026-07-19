@@ -83,8 +83,8 @@ export default function FeedTab() {
           ) : items.length === 0 ? (
             <View style={styles.center}>
               <Text style={styles.empty}>
-                Welcome{user ? `, ${user.firstName}` : ''}. Your feed will fill in as you connect
-                with peers and jobs land in your area.
+                Welcome{user ? `, ${user.firstName}` : ''}. Your feed fills in as you branch out
+                and jobs land in your area.
               </Text>
             </View>
           ) : (
@@ -95,7 +95,7 @@ export default function FeedTab() {
                     {user ? `${user.firstName[0]}${user.lastName[0]}` : '??'}
                   </Text>
                 </View>
-                <Text style={styles.composePlaceholder}>Share your work or a milestone...</Text>
+                <Text style={styles.composePlaceholder}>Show off today's work…</Text>
                 <Edit3 color={colors.orange} size={18} strokeWidth={2} />
               </Pressable>
               {items.map((item, i) => {

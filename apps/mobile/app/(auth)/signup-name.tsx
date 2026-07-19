@@ -25,7 +25,7 @@ export default function SignupName() {
     <SignupShell progress={15} showBack={false}>
       <View>
         <Text style={styles.title}>What's your name?</Text>
-        <Text style={styles.subtitle}>This is how you'll appear on BluBranch.</Text>
+        <Text style={styles.subtitle}>This is the name people will see.</Text>
 
         <Input
           label="First name"
