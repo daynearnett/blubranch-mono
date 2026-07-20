@@ -58,8 +58,8 @@ function PostComposer() {
   const [busy, setBusy] = useState(false);
 
   const pickPhoto = async () => {
-    if (photoUrls.length >= 4) {
-      Alert.alert('Limit reached', 'You can add up to 4 photos per post.');
+    if (photoUrls.length >= 5) {
+      Alert.alert('Limit reached', 'You can add up to 5 photos per post.');
       return;
     }
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();

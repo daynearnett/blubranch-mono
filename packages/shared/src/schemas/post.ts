@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 export const postInputSchema = z.object({
   content: z.string().min(1).max(3000),
-  photoUrls: z.array(z.string().url().max(500)).max(4).optional(),
+  photoUrls: z.array(z.string().url().max(500)).max(5).optional(),
   audience: z.enum(['anyone', 'connections']).default('anyone'),
   locationTag: z.string().max(100).optional().nullable(),
   tradeTag: z.string().max(100).optional().nullable(),

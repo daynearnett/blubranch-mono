@@ -7,6 +7,7 @@ import { Badge } from './ui.js';
 import { VerifiedBadge } from './verified-badge.js';
 import { useAuth } from '../lib/auth-context.js';
 import { colors, radius, spacing, typography } from '../theme.js';
+import { PhotoCarousel } from './photo-carousel.js';
 import { apiBaseUrl, posts as postsApi, reports as reportsApi, type FeedPost } from '../lib/api.js';
 import type { ReportReason } from '@blubranch/shared';
 
@@ -181,9 +182,7 @@ export function PostCard({
         </Pressable>
       ) : null}
 
-      {post.photos.length > 0 ? (
-        <Image source={{ uri: post.photos[0]!.photoUrl }} style={styles.heroPhoto} />
-      ) : null}
+      {post.photos.length > 0 ? <PhotoCarousel photos={post.photos} /> : null}
 
       <View style={styles.engagementRow}>
         <Pressable onPress={onLikePress} style={styles.engagementBtn} disabled={busy}>
@@ -268,13 +267,6 @@ const styles = StyleSheet.create({
   elapsed: { ...typography.caption, color: colors.textSecondary },
   content: { ...typography.body, color: colors.textPrimary, marginBottom: spacing.sm, lineHeight: 22 },
   seeMore: { ...typography.bodyBold, color: colors.navy, marginBottom: spacing.sm },
-  heroPhoto: {
-    width: '100%',
-    aspectRatio: 1, // matches the square crop the composer's editor produces
-    borderRadius: radius.sm,
-    backgroundColor: colors.surface,
-    marginBottom: spacing.sm,
-  },
   engagementRow: {
     flexDirection: 'row',
     paddingTop: spacing.sm,
