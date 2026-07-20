@@ -1,7 +1,7 @@
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
-import { Animated, Image, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Animated, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as SplashScreen from 'expo-splash-screen';
@@ -11,6 +11,7 @@ import { initSentry, withSentry } from '../src/lib/sentry.js';
 import { DetailPanelProvider } from '../src/lib/detail-panel-context.js';
 import { PostJobProvider } from '../src/lib/post-job-context.js';
 import { SignupProvider } from '../src/lib/signup-context.js';
+import { AnimatedLogo, LOGO_ANIMATION_MS } from '../src/components/animated-logo.js';
 import { colors, radius, spacing, typography } from '../src/theme.js';
 
 // Keep the native splash up until the auth bootstrap resolves so the user
@@ -55,40 +56,48 @@ function RootGuard() {
   );
 }
 
-// Branded splash overlay — shows the BluBranch logo + slogan over the native
-// splash for an extra ~1s, then fades into the app. Both use the same navy so
-// the handoff from the native splash is seamless.
+// Branded splash overlay — the mark draws itself in over the (blank white)
+// native splash: lower "b" first, then the upper "b" grows off the same stem,
+// then the twig. Slogan fades in as the mark completes; the whole overlay
+// fades into the app.
+const SPLASH_HOLD_AFTER_LOGO_MS = 700;
+
 function BrandSplash({ onDone }: { onDone: () => void }) {
   const opacity = useRef(new Animated.Value(1)).current;
+  const sloganOpacity = useRef(new Animated.Value(0)).current;
+
   useEffect(() => {
+    Animated.timing(sloganOpacity, {
+      toValue: 1,
+      duration: 450,
+      delay: LOGO_ANIMATION_MS - 350,
+      useNativeDriver: true,
+    }).start();
     const t = setTimeout(() => {
       Animated.timing(opacity, { toValue: 0, duration: 400, useNativeDriver: true }).start(
         ({ finished }) => {
           if (finished) onDone();
         },
       );
-    }, 1800);
+    }, LOGO_ANIMATION_MS + SPLASH_HOLD_AFTER_LOGO_MS);
     return () => clearTimeout(t);
-  }, [opacity, onDone]);
+  }, [opacity, sloganOpacity, onDone]);
 
   return (
     <Animated.View
       pointerEvents="none"
       style={[StyleSheet.absoluteFill, brandStyles.container, { opacity }]}
     >
-      <Image
-        source={require('../assets/icon.png')}
-        style={brandStyles.logo}
-        resizeMode="contain"
-      />
-      <Text style={brandStyles.slogan}>Networking for the Blue Collar</Text>
+      <AnimatedLogo size={150} />
+      <Animated.Text style={[brandStyles.slogan, { opacity: sloganOpacity }]}>
+        Networking for the Blue Collar
+      </Animated.Text>
     </Animated.View>
   );
 }
 
 const brandStyles = StyleSheet.create({
   container: { backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', gap: 20 },
-  logo: { width: 96, height: 96, borderRadius: 20 },
   slogan: { color: '#3D5A80', fontSize: 16, fontWeight: '600', letterSpacing: 0.3 },
 });
 

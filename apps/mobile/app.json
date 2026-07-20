@@ -9,7 +9,7 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/splash.png",
+      "image": "./assets/splash-blank.png",
       "resizeMode": "contain",
       "backgroundColor": "#FFFFFF"
     },
@@ -21,7 +21,7 @@
       "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
-        "NSLocationWhenInUseUsageDescription": "BluBranch uses your location to show jobs near you and set the city on your profile. Your exact location is never shared — only your city and region.",
+        "NSLocationWhenInUseUsageDescription": "BluBranch uses your location to show jobs near you and set the city on your profile. Your exact location is never shared \u2014 only your city and region.",
         "UIBackgroundModes": [
           "remote-notification"
         ]
@@ -55,8 +55,7 @@
         "expo-splash-screen",
         {
           "backgroundColor": "#FFFFFF",
-          "image": "./assets/splash.png",
-          "imageWidth": 220
+          "image": "./assets/splash-blank.png"
         }
       ],
       [
