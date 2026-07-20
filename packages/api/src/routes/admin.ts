@@ -9,6 +9,7 @@ import { signTokenPair } from '../auth/jwt.js';
 import { requireRole } from '../auth/middleware.js';
 import { verifyPassword } from '../auth/password.js';
 import { getPrisma } from '../lib/prisma.js';
+import { recomputeProfileCompleteness } from '../services/profile-completeness.js';
 import { parseBody } from '../lib/validate.js';
 import { authRateLimit } from '../lib/security.js';
 
@@ -261,6 +262,8 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
         verifiedBy: request.user!.id,
       },
     });
+    // A verified license contributes to profile strength; keep the score current.
+    await recomputeProfileCompleteness(existing.userId);
     return reply.send(updated);
   });
 

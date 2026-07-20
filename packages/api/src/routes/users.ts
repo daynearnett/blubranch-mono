@@ -16,6 +16,7 @@ import { serializeUser } from '../lib/serialize.js';
 import { parseBody } from '../lib/validate.js';
 import { geocodeAddress, setGeographyPoint } from '../services/geocode.js';
 import { notifyProfileView } from '../services/push.js';
+import { recomputeProfileCompleteness } from '../services/profile-completeness.js';
 
 // Confirmed vouch → the shape public profiles display ("Vouched by" section).
 function serializeVouch(v: {
@@ -228,7 +229,11 @@ export async function userRoutes(app: FastifyInstance): Promise<void> {
       }
     }
 
-    return reply.send(profile);
+    const completeness = await recomputeProfileCompleteness(profile.userId);
+    return reply.send({
+      ...profile,
+      profileCompleteness: completeness ?? profile.profileCompleteness,
+    });
   });
 
   // ── PUT /users/me/photo ─────────────────────────────────────────
@@ -246,6 +251,7 @@ export async function userRoutes(app: FastifyInstance): Promise<void> {
         data: { profilePhotoUrl: url },
         select: { profilePhotoUrl: true },
       });
+      await recomputeProfileCompleteness(request.user!.id);
       return reply.send({ profilePhotoUrl: user.profilePhotoUrl });
     },
   );
@@ -266,6 +272,7 @@ export async function userRoutes(app: FastifyInstance): Promise<void> {
       where: { userId },
       include: { trade: true },
     });
+    await recomputeProfileCompleteness(userId);
     return reply.send(trades.map((t) => t.trade));
   });
 
@@ -285,6 +292,7 @@ export async function userRoutes(app: FastifyInstance): Promise<void> {
       where: { userId },
       include: { skill: true },
     });
+    await recomputeProfileCompleteness(userId);
     return reply.send(skills.map((s) => s.skill));
   });
 
@@ -319,6 +327,7 @@ export async function userRoutes(app: FastifyInstance): Promise<void> {
         sortOrder: data.sortOrder ?? count,
       },
     });
+    await recomputeProfileCompleteness(userId);
     return reply.code(201).send(photo);
   });
 
@@ -336,6 +345,7 @@ export async function userRoutes(app: FastifyInstance): Promise<void> {
         isCurrent: data.isCurrent,
       },
     });
+    await recomputeProfileCompleteness(request.user!.id);
     return reply.code(201).send(entry);
   });
 
@@ -365,6 +375,9 @@ export async function userRoutes(app: FastifyInstance): Promise<void> {
         status: 'pending',
       },
     });
+    // Pending licenses don't score yet, but recompute keeps the column honest
+    // if weights ever change.
+    await recomputeProfileCompleteness(request.user!.id);
     return reply.code(201).send(license);
   });
 
