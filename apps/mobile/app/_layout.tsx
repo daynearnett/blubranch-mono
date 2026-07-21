@@ -88,7 +88,9 @@ function BrandSplash({ onDone }: { onDone: () => void }) {
       pointerEvents="none"
       style={[StyleSheet.absoluteFill, brandStyles.container, { opacity }]}
     >
-      <AnimatedLogo size={150} />
+      {/* 210 ≈ previous 150 visually: the viewBox now spans the icon's full
+          1024 square (for exact bitmap alignment), and the mark fills ~45% */}
+      <AnimatedLogo size={210} />
       <Animated.Text style={[brandStyles.slogan, { opacity: sloganOpacity }]}>
         Networking for the Blue Collar
       </Animated.Text>
