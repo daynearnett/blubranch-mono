@@ -23,7 +23,7 @@
     "@react-native-firebase/messaging": "^24.0.0",
     "@react-native-google-signin/google-signin": "^16.1.2",
     "@react-navigation/bottom-tabs": "^7.2.0",
-    "@react-navigation/material-top-tabs": "^7.6.10",
+    "@react-navigation/material-top-tabs": "7.4.24",
     "@react-navigation/native": "^7.0.14",
     "@sentry/react-native": "~7.11.0",
     "@stripe/stripe-react-native": "0.63.0",
