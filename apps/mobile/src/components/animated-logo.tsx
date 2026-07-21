@@ -13,7 +13,8 @@ const AnimatedPath = Animated.createAnimatedComponent(Path);
 // Path lengths (px in the 1024 viewBox): circles 2π·91, lines measured.
 const RING_LEN = 572;
 const STEM_LEN = 255;
-const TWIG_LEN = 313;
+const THICK_STROKE = 74; // stem + twig measure 74px in icon.png; ring bands 70
+const TWIG_LEN = 334;
 
 // Stagger (ms): lower ring → stem → upper ring → twig.
 const TIMING = {
@@ -71,7 +72,7 @@ export function AnimatedLogo({ size = 180 }: { size?: number }) {
       <AnimatedPath
         d="M 527 700 L 527 445"
         stroke="url(#markGradient)"
-        strokeWidth={70}
+        strokeWidth={THICK_STROKE}
         strokeLinecap="round"
         fill="none"
         strokeDasharray={`${STEM_LEN} ${STEM_LEN}`}
@@ -88,9 +89,9 @@ export function AnimatedLogo({ size = 180 }: { size?: number }) {
       />
       {/* twig sprouts up-left from the junction */}
       <AnimatedPath
-        d="M 505 447 L 317 197"
+        d="M 548 460 L 320 217"
         stroke="url(#markGradient)"
-        strokeWidth={70}
+        strokeWidth={THICK_STROKE}
         strokeLinecap="round"
         fill="none"
         strokeDasharray={`${TWIG_LEN} ${TWIG_LEN}`}
