@@ -12,7 +12,7 @@ const AnimatedPath = Animated.createAnimatedComponent(Path);
 
 // Path lengths (px in the 1024 viewBox): circles 2π·91, lines measured.
 const RING_LEN = 572;
-const STEM_LEN = 208;
+const STEM_LEN = 255;
 const TWIG_LEN = 313;
 
 // Stagger (ms): lower ring → stem → upper ring → twig.
@@ -66,8 +66,10 @@ export function AnimatedLogo({ size = 180 }: { size?: number }) {
         strokeDasharray={`${RING_LEN} ${RING_LEN}`}
         strokeDashoffset={lowerRing}
       />
+      {/* stem runs flush down the lower ring's left side and blends at its
+          tangent point (527,700) — matches the real mark's lowercase-b join */}
       <AnimatedPath
-        d="M 535 652 L 527 445"
+        d="M 527 700 L 527 445"
         stroke="url(#markGradient)"
         strokeWidth={70}
         strokeLinecap="round"
