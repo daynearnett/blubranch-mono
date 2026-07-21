@@ -71,3 +71,13 @@ eas submit --platform ios --profile preview
 - Apple Developer: [a.daynearnett@gmail.com](mailto:a.daynearnett@gmail.com), Team ID WXY2PMFQB7
 - ASC App ID: 6764493229
 - Former Taist developer was scoped to App Manager for Taist apps only — no visibility into BluBranch
+
+## Issue 5: Builds 31+32 launch crash — `expo install` pulled a react-navigation package incompatible with expo-router's pins (2026-07-20)
+- Symptom: white flash → SIGABRT on `expo.controller.errorRecoveryQueue`. That queue name means expo-updates error recovery aborted on a **fatal JS error during bundle evaluation** — it is NOT a native-module crash, even though it looks like one.
+- Root cause: `expo install @react-navigation/material-top-tabs` installed the **latest** version (7.6.10) because non-Expo-managed packages aren't version-pinned by `expo install`. 7.6.10 imports `createScreenFactory` from `@react-navigation/native` — an export that doesn't exist in the `7.2.2` that expo-router SDK 55 pins. The tabs route calls `createMaterialTopTabNavigator()` at module scope and **expo-router eagerly evaluates every route file at startup**, so one bad import = instant crash for every user, before any UI (even the splash overlay) can mount.
+- Wasted cycle: build 32 bumped `react-native-pager-view` 8.0.0→8.0.4 on circumstantial evidence (only native delta + plausible GitHub issues). Get the `.ips` crash log FIRST — `legacyInfo.threadTriggered.queue` told the real story in one line.
+- Fix: pin `@react-navigation/material-top-tabs@7.4.24` — the newest version whose `@react-navigation/native` peer (`^7.2.2`) is satisfied by expo-router's pin. Verified by grepping its imports against the installed package's actual exports.
+- Lessons:
+  1. When adding any `@react-navigation/*` package, check its `peerDependencies` against the versions expo-router already installed (`node_modules/@react-navigation/native/package.json`) — `pnpm install`'s "unmet peer" warning is a launch crash foretold, not noise.
+  2. TypeScript can't catch missing runtime exports across package boundaries. Before a TestFlight build with new deps, do a runtime smoke: dev-server launch or simulator run. (Web export doesn't work as a smoke — Stripe's native-only imports break it.)
+  3. Crash triage order: get `.ips` from Settings → Privacy & Security → Analytics Data. `Exception Type` + `legacyInfo.threadTriggered.queue` classify it (errorRecoveryQueue ⇒ JS init failure) before touching any dependency.
