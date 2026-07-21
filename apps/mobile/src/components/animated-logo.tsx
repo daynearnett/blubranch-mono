@@ -12,7 +12,7 @@ const AnimatedPath = Animated.createAnimatedComponent(Path);
 
 // Path lengths (px in the 1024 viewBox): circles 2π·91, lines measured.
 const RING_LEN = 572;
-const STEM_LEN = 280;
+const STEM_LEN = 245;
 const THICK_STROKE = 74; // stem + twig measure 74px in icon.png; ring bands 70
 const TWIG_LEN = 334;
 
@@ -117,10 +117,12 @@ function AnimatedLogoStrokes({
         strokeDasharray={`${RING_LEN} ${RING_LEN}`}
         strokeDashoffset={lowerRing}
       />
-      {/* stem: square-ended, buried into both rings so its edges run dead
-          straight through the junctions like the real mark */}
+      {/* stem: square-ended; the top stops AT the visual junction (y=455) so
+          it never pokes above the upper ring while that ring is still
+          undrawn — the ring band overlaps it when it arrives, and the
+          crossfade to icon.png owns the exact final join */}
       <AnimatedPath
-        d="M 527 700 L 527 420"
+        d="M 527 700 L 527 455"
         stroke="url(#markGradient)"
         strokeWidth={THICK_STROKE}
         strokeLinecap="butt"
