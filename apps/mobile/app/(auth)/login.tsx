@@ -1,6 +1,6 @@
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button, Input } from '../../src/components/ui.js';
 import { SocialAuthButtons } from '../../src/components/social-auth-buttons.js';
@@ -13,7 +13,9 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 export default function Login() {
   const router = useRouter();
   const { signIn } = useAuth();
-  const [email, setEmail] = useState('');
+  // Prefilled when signup detects an existing account and routes here.
+  const { email: prefillEmail } = useLocalSearchParams<{ email?: string }>();
+  const [email, setEmail] = useState(typeof prefillEmail === 'string' ? prefillEmail : '');
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [emailError, setEmailError] = useState<string | null>(null);
@@ -95,6 +97,16 @@ export default function Login() {
               }}
               error={formError ?? undefined}
             />
+            <Pressable
+              onPress={() =>
+                router.push({
+                  pathname: '/(auth)/forgot-password',
+                  params: email.trim() ? { email: email.trim() } : undefined,
+                })
+              }
+            >
+              <Text style={styles.forgotLink}>Forgot password?</Text>
+            </Pressable>
           </View>
 
           <View>
@@ -123,4 +135,5 @@ const styles = StyleSheet.create({
   },
   title: { ...typography.h1, color: colors.navy, marginBottom: spacing.xs },
   subtitle: { ...typography.body, color: colors.textMuted, marginBottom: spacing.xl },
+  forgotLink: { ...typography.small, color: colors.navy, alignSelf: 'flex-end' },
 });

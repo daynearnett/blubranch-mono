@@ -56,7 +56,7 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
       return reply.code(403).send({ error: 'Forbidden', message: 'Admin access only' });
     }
 
-    const { accessToken } = signTokenPair(user.id, 'admin');
+    const { accessToken } = signTokenPair(user.id, 'admin', user.tokenVersion);
     return reply.send({
       token: accessToken,
       user: { id: user.id, email: user.email, name: fullName(user) },

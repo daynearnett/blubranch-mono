@@ -1,8 +1,10 @@
 import {
   checkEmailSchema,
+  forgotPasswordSchema,
   loginInputSchema,
   refreshInputSchema,
   registerInputSchema,
+  resetPasswordSchema,
   sendVerificationEmailSchema,
   socialAuthInputSchema,
   verifyEmailCodeSchema,
@@ -18,6 +20,7 @@ import {
   generateVerificationCode as generateEmailCode,
   checkVerificationCode as checkEmailVerificationCode,
   sendVerificationEmail,
+  sendPasswordResetEmail,
 } from '../services/email.js';
 import { getPrisma } from '../lib/prisma.js';
 import { serializeUser } from '../lib/serialize.js';
@@ -67,7 +70,7 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
         },
       });
 
-      const tokens = signTokenPair(user.id, user.role);
+      const tokens = signTokenPair(user.id, user.role, user.tokenVersion);
       return reply.code(201).send({ ...tokens, user: serializeUser(user) });
     } catch (err) {
       if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
@@ -91,7 +94,7 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
     if (!ok) {
       return reply.code(401).send({ error: 'Unauthorized', message: 'Invalid credentials' });
     }
-    const tokens = signTokenPair(user.id, user.role);
+    const tokens = signTokenPair(user.id, user.role, user.tokenVersion);
     return reply.send({ ...tokens, user: serializeUser(user) });
   });
 
@@ -100,17 +103,22 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
     const data = parseBody(refreshInputSchema, request, reply);
     if (!data) return;
 
-    let userId: string;
+    let payload: ReturnType<typeof verifyRefreshToken>;
     try {
-      userId = verifyRefreshToken(data.refreshToken).sub;
+      payload = verifyRefreshToken(data.refreshToken);
     } catch {
       return reply.code(401).send({ error: 'Unauthorized', message: 'Invalid refresh token' });
     }
-    const user = await prisma.user.findUnique({ where: { id: userId } });
+    const user = await prisma.user.findUnique({ where: { id: payload.sub } });
     if (!user) {
       return reply.code(401).send({ error: 'Unauthorized', message: 'User no longer exists' });
     }
-    const tokens = signTokenPair(user.id, user.role);
+    // Tokens issued before a password reset carry a stale version — reject them
+    // so a reset signs the user out everywhere. Pre-versioning tokens count as 0.
+    if ((payload.tv ?? 0) !== user.tokenVersion) {
+      return reply.code(401).send({ error: 'Unauthorized', message: 'Invalid refresh token' });
+    }
+    const tokens = signTokenPair(user.id, user.role, user.tokenVersion);
     return reply.send({ ...tokens, user: serializeUser(user) });
   });
 
@@ -181,6 +189,62 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
     return reply.send({ verified: true });
   });
 
+  // ── POST /auth/forgot-password ──────────────────────────────────
+  // Responds identically whether or not the email has an account, so the
+  // endpoint can't be used to enumerate users. Codes are namespaced with a
+  // `reset:` prefix so a signup-verification code can't double as a reset code.
+  app.post('/auth/forgot-password', async (request, reply) => {
+    const data = parseBody(forgotPasswordSchema, request, reply);
+    if (!data) return;
+    const email = data.email.toLowerCase();
+    const user = await prisma.user.findUnique({ where: { email }, select: { id: true } });
+    const isDev = !process.env.RESEND_API_KEY;
+    if (user) {
+      const code = generateEmailCode(`reset:${email}`);
+      try {
+        await sendPasswordResetEmail(email, code);
+      } catch (err) {
+        request.log.error({ err, email }, 'password reset email send failed');
+        return reply
+          .code(502)
+          .send({ error: 'EmailSendFailed', message: 'Could not send the reset email. Please try again.' });
+      }
+      if (isDev) return reply.send({ sent: true, devCode: code });
+    }
+    return reply.send({ sent: true });
+  });
+
+  // ── POST /auth/reset-password ───────────────────────────────────
+  app.post('/auth/reset-password', async (request, reply) => {
+    const data = parseBody(resetPasswordSchema, request, reply);
+    if (!data) return;
+    const email = data.email.toLowerCase();
+
+    // Single check covers both a wrong code and a non-existent account —
+    // no code was ever generated for the latter, so the responses match.
+    const ok = checkEmailVerificationCode(`reset:${email}`, data.code);
+    if (!ok) {
+      return reply.code(400).send({ error: 'BadRequest', message: 'Invalid or expired code' });
+    }
+    const user = await prisma.user.findUnique({ where: { email }, select: { id: true } });
+    if (!user) {
+      return reply.code(400).send({ error: 'BadRequest', message: 'Invalid or expired code' });
+    }
+
+    const passwordHash = await hashPassword(data.newPassword);
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        passwordHash,
+        // Completing the reset proves inbox ownership.
+        emailVerified: true,
+        // Sign the user out of every device that held the old password's session.
+        tokenVersion: { increment: 1 },
+      },
+    });
+    return reply.send({ reset: true });
+  });
+
   // ── POST /auth/social ───────────────────────────────────────────
   // Verifies the provider's signed id_token (Apple/Google) and signs in or
   // provisions the matching user. Identity (email, provider user id) is taken
@@ -242,7 +306,7 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
           },
         });
       }
-      const tokens = signTokenPair(user.id, user.role);
+      const tokens = signTokenPair(user.id, user.role, user.tokenVersion);
       return reply.send({ ...tokens, user: serializeUser(user) });
     }
 
@@ -279,7 +343,7 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
       },
     });
 
-    const tokens = signTokenPair(user.id, user.role);
+    const tokens = signTokenPair(user.id, user.role, user.tokenVersion);
     return reply.send({ ...tokens, user: serializeUser(user) });
   });
 }

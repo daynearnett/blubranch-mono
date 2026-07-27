@@ -17,6 +17,10 @@ export interface AccessTokenPayload {
 export interface RefreshTokenPayload {
   sub: string;
   type: 'refresh';
+  // Token version at issue time; must match users.token_version on refresh.
+  // Optional so tokens issued before the field existed keep working (they
+  // count as version 0).
+  tv?: number;
 }
 
 function getSecret(): string {
@@ -37,19 +41,21 @@ export function signAccessToken(userId: string, role: Role): string {
   });
 }
 
-export function signRefreshToken(userId: string): string {
-  return jwt.sign({ sub: userId, type: 'refresh' } satisfies RefreshTokenPayload, getSecret(), {
-    expiresIn: REFRESH_TTL,
-  });
+export function signRefreshToken(userId: string, tokenVersion = 0): string {
+  return jwt.sign(
+    { sub: userId, type: 'refresh', tv: tokenVersion } satisfies RefreshTokenPayload,
+    getSecret(),
+    { expiresIn: REFRESH_TTL },
+  );
 }
 
-export function signTokenPair(userId: string, role: Role): {
+export function signTokenPair(userId: string, role: Role, tokenVersion = 0): {
   accessToken: string;
   refreshToken: string;
 } {
   return {
     accessToken: signAccessToken(userId, role),
-    refreshToken: signRefreshToken(userId),
+    refreshToken: signRefreshToken(userId, tokenVersion),
   };
 }
 

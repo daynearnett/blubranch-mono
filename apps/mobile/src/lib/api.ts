@@ -152,6 +152,16 @@ export const auth = {
       method: 'POST',
       body: JSON.stringify({ email, code }),
     }),
+  forgotPassword: (email: string) =>
+    request<{ sent: boolean; devCode?: string }>('/auth/forgot-password', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    }),
+  resetPassword: (email: string, code: string, newPassword: string) =>
+    request<{ reset: boolean }>('/auth/reset-password', {
+      method: 'POST',
+      body: JSON.stringify({ email, code, newPassword }),
+    }),
 };
 
 // ── Profile ─────────────────────────────────────────────────────

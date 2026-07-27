@@ -144,3 +144,31 @@ export async function sendVerificationEmail(email: string, code: string): Promis
   }
   console.log(`[email] verification code sent to ${email} (id ${data?.id ?? 'n/a'})`);
 }
+
+export async function sendPasswordResetEmail(email: string, code: string): Promise<void> {
+  if (!process.env.RESEND_API_KEY) {
+    console.log(`[email] DEV MODE — password reset code for ${email}: ${code}`);
+    return;
+  }
+
+  const { data, error } = await getResend().emails.send({
+    from: FROM_ADDRESS,
+    to: email,
+    subject: 'Reset your BluBranch password',
+    html: `
+      <div style="font-family: -apple-system, sans-serif; max-width: 400px; margin: 0 auto; padding: 32px;">
+        <h2 style="color: #0F2D52;">Reset your password</h2>
+        <p style="color: #2A3F58; font-size: 15px;">Enter this code in the app to set a new password:</p>
+        <div style="background: #F5F7FA; border-radius: 8px; padding: 20px; text-align: center; margin: 24px 0;">
+          <span style="font-size: 32px; font-weight: 700; letter-spacing: 8px; color: #0F2D52;">${code}</span>
+        </div>
+        <p style="color: #5C7A9B; font-size: 13px;">This code expires in 10 minutes. If you didn't request this, you can ignore this email — your password won't change.</p>
+      </div>
+    `,
+  });
+  if (error) {
+    console.error('[email] password reset send failed:', JSON.stringify(error));
+    throw new Error(`Resend error: ${error.message ?? error.name ?? 'send failed'}`);
+  }
+  console.log(`[email] password reset code sent to ${email} (id ${data?.id ?? 'n/a'})`);
+}

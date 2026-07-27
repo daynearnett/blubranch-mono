@@ -76,6 +76,19 @@ export const checkEmailSchema = z.object({
 });
 export type CheckEmailInput = z.infer<typeof checkEmailSchema>;
 
+// ── Password reset ────────────────────────────────────────────
+export const forgotPasswordSchema = z.object({
+  email: z.string().email().max(255),
+});
+export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
+
+export const resetPasswordSchema = z.object({
+  email: z.string().email().max(255),
+  code: z.string().regex(/^\d{6}$/, 'Code must be 6 digits'),
+  newPassword: z.string().min(8, 'Password must be at least 8 characters').max(128),
+});
+export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
+
 // ── Auth response ─────────────────────────────────────────────
 export const authResponseSchema = z.object({
   accessToken: z.string(),
