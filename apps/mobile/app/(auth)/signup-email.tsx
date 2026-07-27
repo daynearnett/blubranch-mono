@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Check } from 'lucide-react-native';
 import { Button, Input } from '../../src/components/ui.js';
 import { SignupShell } from '../../src/components/signup-shell.js';
@@ -27,6 +27,18 @@ export default function SignupEmail() {
       const { available } = await auth.checkEmail(draft.email);
       if (!available) {
         setErrors({ email: 'An account with this email already exists' });
+        Alert.alert(
+          'You already have an account',
+          `${draft.email} is already on BluBranch. Log in to pick up where you left off.`,
+          [
+            { text: 'Use a different email', style: 'cancel' },
+            {
+              text: 'Log in',
+              onPress: () =>
+                router.replace({ pathname: '/(auth)/login', params: { email: draft.email } }),
+            },
+          ],
+        );
         return;
       }
       router.push('/(auth)/signup-verify');
