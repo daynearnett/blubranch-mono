@@ -45,6 +45,13 @@
         "image": "macos-sequoia-15.6-xcode-26.2"
       }
     },
+    "preview-apk": {
+      "extends": "preview",
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      }
+    },
     "production": {
       "distribution": "store",
       "autoIncrement": true,
