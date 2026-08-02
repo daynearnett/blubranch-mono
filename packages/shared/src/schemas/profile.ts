@@ -50,6 +50,7 @@ export type SetSkillsInput = z.infer<typeof setSkillsInputSchema>;
 export const certificationInputSchema = z.object({
   name: z.string().min(1).max(200),
   certificationNumber: z.string().max(100).optional().nullable(),
+  expiresAt: z.coerce.date().optional().nullable(),
 });
 export type CertificationInput = z.infer<typeof certificationInputSchema>;
 

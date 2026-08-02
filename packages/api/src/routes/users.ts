@@ -305,6 +305,7 @@ export async function userRoutes(app: FastifyInstance): Promise<void> {
         userId: request.user!.id,
         name: data.name,
         certificationNumber: data.certificationNumber ?? null,
+        expiresAt: data.expiresAt ?? null,
       },
     });
     return reply.code(201).send(cert);

@@ -25,6 +25,7 @@ export async function processLicenseExpiration(): Promise<void> {
   }
 
   await processLicenseExpiryReminders();
+  await processCertificationExpiryReminders();
 }
 
 /**
@@ -80,5 +81,58 @@ export async function processLicenseExpiryReminders(now = new Date()): Promise<v
 
   if (sent > 0) {
     console.log(`[license-expiration] Sent ${sent} expiry reminder(s)`);
+  }
+}
+
+/**
+ * Same two reminder windows for verified certifications ("tickets" — OSHA,
+ * forklift, welding certs…). Reuses the license_expiry notification type so
+ * the notifyLicenseExpiry preference and email gating apply unchanged.
+ */
+export async function processCertificationExpiryReminders(now = new Date()): Promise<void> {
+  const prisma = getPrisma();
+  let sent = 0;
+
+  for (const windowDays of REMINDER_WINDOWS_DAYS) {
+    const windowEnd = new Date(now.getTime() + windowDays * DAY_MS);
+
+    const due = await prisma.certification.findMany({
+      where: {
+        isVerified: true,
+        expiresAt: { gt: now, lte: windowEnd },
+      },
+      select: {
+        id: true,
+        userId: true,
+        name: true,
+        expiresAt: true,
+        remindedAt: true,
+      },
+      take: MAX_REMINDERS_PER_RUN,
+    });
+
+    for (const cert of due) {
+      if (!cert.expiresAt) continue;
+      const windowOpenedAt = new Date(cert.expiresAt.getTime() - windowDays * DAY_MS);
+      if (cert.remindedAt && cert.remindedAt >= windowOpenedAt) continue;
+
+      const daysLeft = Math.max(1, Math.ceil((cert.expiresAt.getTime() - now.getTime()) / DAY_MS));
+      await sendNotification({
+        userId: cert.userId,
+        type: 'license_expiry',
+        title: `Your ${cert.name} ticket expires in ${daysLeft} day${daysLeft === 1 ? '' : 's'}`,
+        body: 'Renew it, then update your Trade Card so it stays current.',
+        data: { certificationId: cert.id },
+      });
+      await prisma.certification.update({
+        where: { id: cert.id },
+        data: { remindedAt: now },
+      });
+      sent++;
+    }
+  }
+
+  if (sent > 0) {
+    console.log(`[license-expiration] Sent ${sent} ticket expiry reminder(s)`);
   }
 }

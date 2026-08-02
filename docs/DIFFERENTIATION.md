@@ -315,6 +315,48 @@ Real strings harvested from the code (exact quotes, with locations). Voice rules
 
 ---
 
+## Part E — Post-launch differentiation round 2 (added 2026-08-02)
+
+Source: cross-reference of LinkedIn's positively-received 2026 releases against Parts A–D, filtered through blue-collar receptivity. Context that matters: LinkedIn's best-received 2026 moves were the *anti-AI-slop/authenticity* push (which BB is structurally built on — vouches, verified licenses) and consumer-habit mechanics (daily games). Its video push cooled (−36% YoY views), validating our video deferral. Its Apply Assistant is flooding recruiters with AI applications — our SMS-verified apply gate is the antidote and belongs in the employer pitch.
+
+### E1. Crew posts (co-authored posts)
+
+**Differentiation 4 · Cost M · BUILT 2026-08-02**
+
+LinkedIn shipped collaborative posts (≤5 co-authors, invite/accept) in July 2026 to a positive reception. The trades-native version is *stronger* than the B2B one: "topped out the tower today" belongs to the whole crew. Doubles as Crew-lite (A3) — co-authoring is an organic pull-your-buddies-in loop that builds the graph density full Crews would need.
+
+**What exists:** `Post` model + feed serialization; the vouch claim→confirm pattern (C2) is the exact invite/accept shape; notification pipeline; connections list for the picker.
+**Missing (build list):** `PostCoauthor` table (postId, userId, status pending/accepted, unique pair); `coauthorIds` on post create (connections only, ≤4); accept/decline routes; `coauthor_invite` notification type; accepted co-authors in feed/post payloads + on co-authors' profile post lists; composer picker + "with Mike +2" rendering on the card.
+
+### E2. Toolbox Talk — daily code & safety question
+
+**Differentiation 4 · Cost M · BUILT 2026-08-02**
+
+LinkedIn's daily games are its quietest 2026 win (a daily-answers cottage industry proves the habit). Don't ship Wordle-for-hardhats — ship one **code/safety question a day** (OSHA, NEC, rigging, plumbing code): answer, see the explanation, keep a streak. It's the games playbook wearing work boots, it's *defensible* (an incumbent doing trivia looks silly; a trades network doing toolbox talks looks right), and it's our second non-social daily-open reason after license reminders (B1).
+
+**What exists:** trades taxonomy for tagging; notification infra for a streak nudge later; feed screen for the entry card.
+**Missing (build list):** `ToolboxQuestion` (date-keyed, optional trade tag, choices, answer, explanation) + `ToolboxAnswer` (unique user+question) tables; seed bank of questions; `GET /toolbox/today`, `POST /toolbox/answer`, `GET /toolbox/stats` (streak + totals); feed-top card + answer UI. Leaderboards + push nudge = fast-follow, not v1.
+
+### E3. Wage transparency Phase 0 — "What's it paying?" (A4 ride-along)
+
+**Differentiation 5 · Cost S · BUILT 2026-08-02**
+
+Pulled forward from A4 per the round-2 decision — LinkedIn 2026 roundups already show expected-salary sharing circling this space; posted-job aggregates are our data and need no user flywheel. Includes the `payPeriod` prerequisite (hourly/daily/salary on Job) so an $80k salary can't poison an $/hr aggregate. `GET /jobs/pay-insights` (trade + state, n≥5 gate) + a Jobs-tab section. Contribute-to-see remains Phase 1 (A4).
+
+### E4. Practical natural-language job & people search
+
+**Differentiation 3 · Cost L · → DEFER to post-launch quarter**
+
+LinkedIn's AI people search (expanded to all US members, Apr 2026) was its best-received consumer AI feature. The trades version is search that survives how tradespeople actually talk — "welder near Columbus who's done pipeline work" — instead of keyword massaging. **What exists:** `tsvector` full-text search, `SearchLog`, structured trade/skill/geo data that makes grounded parsing tractable; the planned `ANTHROPIC_API_KEY` (About-bio generate) gives the integration a second consumer. **Missing:** LLM query-parsing layer (NL → structured filters), result re-ranking, cost controls/caching, and latency work. **Why deferred:** receptivity is high but it's the costliest item on this list, it's a *better version of table stakes* rather than ownable ground (Diff 3 — LinkedIn/Indeed can and do copy this), and at beta scale literal search over a small corpus is not the binding constraint. Revisit when search volume (via `SearchLog`) shows real zero-result pain.
+
+### E5. Employer-side AI applicant tooling
+
+**Differentiation 2 · Cost M–L · → DEFER; revisit as a paid-tier feature after launch**
+
+LinkedIn's agentic hiring products passed ~$450M ARR in April 2026 — this is where its money is. The BB version: applicant summaries + fit-ranking for small GCs who post one job and get 40 applications ("3 have verified journeyman licenses; 5 are within 20 miles"). **What exists:** match scoring (jobs), structured applicant data (trades, licenses, vouches, distance) that makes summaries grounded rather than generative fluff; Stripe plan tiers to hang it on. **Missing:** the summarization/ranking service, employer dashboard UI, and careful trust framing. **Why deferred:** Diff 2 — every ATS is building this; it monetizes but doesn't differentiate. Worker receptivity is a real risk (being "ranked by AI" reads differently to a tradesperson than to a marketer — mitigate later by grounding rankings only in verifiable facts workers control). Wrong side of the marketplace to invest in before worker density exists. Revisit with Phase 5's pricing work once employer volume justifies it.
+
+---
+
 ## Appendix — dead/orphaned things noticed during exploration
 
 Cleanup candidates, separate from this proposal: `WorkerProfile.tradeYears` (no write path), `UserSettings.openToWork` (never read server-side — `jobAvailability` is the real flag), `WorkPlace.verificationEmail` (captured, but no verification email is ever sent), `profileCompleteness` (never computed — see B4), `Certification` (no expiry, no admin queue — see B3), and the `state_api` license-verification enum value (no integration behind it).

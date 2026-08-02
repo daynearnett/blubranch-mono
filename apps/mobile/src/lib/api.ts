@@ -402,6 +402,7 @@ export interface TradeCard {
     name: string;
     certificationNumber: string | null;
     isVerified: boolean;
+    expiresAt: string | null;
   }[];
   vouches: number;
 }

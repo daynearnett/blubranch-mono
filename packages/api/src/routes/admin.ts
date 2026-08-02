@@ -267,6 +267,46 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
     return reply.send(updated);
   });
 
+  // ── Certifications / tickets (verification queue) ───────────────
+  app.get('/admin/certifications', admin, async (request, reply) => {
+    const q = parseList(request, reply);
+    if (!q) return;
+    const where: Prisma.CertificationWhereInput = {};
+    // Certification verification is a boolean, not a status enum — map the
+    // conventional filter values onto it.
+    if (q.status === 'pending') where.isVerified = false;
+    if (q.status === 'verified') where.isVerified = true;
+    const [items, total] = await Promise.all([
+      prisma.certification.findMany({
+        where,
+        skip: (q.page - 1) * q.limit,
+        take: q.limit,
+        // Unverified first — the queue surfaces work to do (no createdAt on certs).
+        orderBy: [{ isVerified: 'asc' }, { name: 'asc' }],
+        include: { user: { select: { id: true, firstName: true, lastName: true, email: true } } },
+      }),
+      prisma.certification.count({ where }),
+    ]);
+    return reply.send({ items, total, page: q.page, limit: q.limit });
+  });
+
+  // PUT /admin/certifications/:id — approve/reject a certification.
+  app.put<{ Params: { id: string } }>('/admin/certifications/:id', admin, async (request, reply) => {
+    const data = parseBody(verifyActionSchema, request, reply);
+    if (!data) return;
+    const existing = await prisma.certification.findUnique({ where: { id: request.params.id } });
+    if (!existing) return reply.code(404).send({ error: 'NotFound' });
+    const updated = await prisma.certification.update({
+      where: { id: existing.id },
+      data: {
+        isVerified: data.status === 'verified',
+        verifiedAt: data.status === 'verified' ? new Date() : null,
+      },
+    });
+    await recomputeProfileCompleteness(existing.userId);
+    return reply.send(updated);
+  });
+
   // ── Workplaces (verification queue) ─────────────────────────────
   app.get('/admin/work-places', admin, async (request, reply) => {
     const q = parseList(request, reply);

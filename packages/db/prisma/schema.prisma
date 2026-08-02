@@ -311,6 +311,10 @@ model Certification {
   certificationNumber String?   @map("certification_number") @db.VarChar(100)
   isVerified          Boolean   @default(false) @map("is_verified")
   verifiedAt          DateTime? @map("verified_at")
+  // Tickets (OSHA, forklift, welding certs…) expire like licenses; the nightly
+  // reminder job covers both. remindedAt dedupes reminder windows.
+  expiresAt           DateTime? @map("expires_at")
+  remindedAt          DateTime? @map("reminded_at")
 
   @@index([userId])
   @@map("certifications")

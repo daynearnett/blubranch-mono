@@ -206,17 +206,39 @@ export default function TradeCardScreen() {
               {card.certifications.length > 0 ? (
                 <View>
                   <Text style={styles.sectionLabel}>Certifications</Text>
-                  {card.certifications.map((c, i) => (
-                    <View key={c.id} style={[styles.licenseRow, i > 0 && styles.rowBorder]}>
-                      <View style={styles.licenseText}>
-                        <Text style={typography.bodyBold}>{c.name}</Text>
-                        {c.certificationNumber ? (
-                          <Text style={styles.licenseMeta}>#{c.certificationNumber}</Text>
-                        ) : null}
+                  {card.certifications.map((c, i) => {
+                    const expiry = c.expiresAt ? expiryChip(c.expiresAt) : null;
+                    return (
+                      <View key={c.id} style={[styles.licenseRow, i > 0 && styles.rowBorder]}>
+                        <View style={styles.licenseText}>
+                          <Text style={typography.bodyBold}>{c.name}</Text>
+                          {c.certificationNumber ? (
+                            <Text style={styles.licenseMeta}>#{c.certificationNumber}</Text>
+                          ) : null}
+                          {expiry ? (
+                            <View
+                              style={[
+                                styles.expiryChip,
+                                expiry.tone === 'amber' && styles.expiryAmber,
+                                expiry.tone === 'red' && styles.expiryRed,
+                              ]}
+                            >
+                              <Text
+                                style={[
+                                  styles.expiryLabel,
+                                  expiry.tone === 'amber' && styles.expiryLabelAmber,
+                                  expiry.tone === 'red' && styles.expiryLabelRed,
+                                ]}
+                              >
+                                {expiry.label}
+                              </Text>
+                            </View>
+                          ) : null}
+                        </View>
+                        {c.isVerified ? <VerifiedBadge size="mini" /> : null}
                       </View>
-                      {c.isVerified ? <VerifiedBadge size="mini" /> : null}
-                    </View>
-                  ))}
+                    );
+                  })}
                 </View>
               ) : null}
 
