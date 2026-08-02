@@ -17,6 +17,7 @@ import { TRADE_LIST } from '@blubranch/shared';
 import { TopSearchBar } from '../../../src/components/top-search-bar.js';
 import { Chip } from '../../../src/components/ui.js';
 import { JobCard } from '../../../src/components/job-card.js';
+import { PayInsightsCard } from '../../../src/components/pay-insights-card.js';
 import { JobDetailPane } from '../../../src/components/job-detail-pane.js';
 import {
   QuickApplyModal,
@@ -167,6 +168,8 @@ export default function JobsTab() {
                 />
               ))}
             </ScrollView>
+
+            <PayInsightsCard />
 
             {/* Results header + sort */}
             <View style={styles.resultsHeader}>

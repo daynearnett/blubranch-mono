@@ -51,6 +51,12 @@ enum JobType {
   temp_to_hire
 }
 
+enum PayPeriod {
+  hourly
+  daily
+  salary
+}
+
 enum WorkSetting {
   commercial
   residential
@@ -388,6 +394,9 @@ model Job {
   experienceLevel        String      @map("experience_level") @db.VarChar(50)
   payMin                 Decimal     @map("pay_min") @db.Decimal(8, 2)
   payMax                 Decimal     @map("pay_max") @db.Decimal(8, 2)
+  // Wage transparency (E3) prerequisite: without this, an $80k salary and an
+  // $80/hr rate are indistinguishable and poison any pay aggregate.
+  payPeriod              PayPeriod   @default(hourly) @map("pay_period")
   jobType                JobType     @map("job_type")
   jobTypes               JobType[]   @default([]) @map("job_types")
   workSetting            WorkSetting @map("work_setting")

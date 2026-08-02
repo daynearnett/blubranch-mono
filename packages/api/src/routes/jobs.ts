@@ -85,6 +85,7 @@ export async function jobRoutes(app: FastifyInstance): Promise<void> {
           experienceLevel: data.experienceLevel,
           payMin: data.payMin,
           payMax: data.payMax,
+          payPeriod: data.payPeriod ?? 'hourly',
           jobType: data.jobType,
           jobTypes: data.jobTypes?.length ? data.jobTypes : [data.jobType],
           workSetting: data.workSetting ?? 'commercial',
@@ -403,6 +404,73 @@ export async function jobRoutes(app: FastifyInstance): Promise<void> {
 
   // ── GET /users/me/jobs ──────────────────────────────────────────
   // Employer's posted jobs.
+  // ── GET /jobs/pay-insights — "What's it paying?" (wage Phase 0, E3) ──
+  // Aggregates POSTED hourly pay ranges by trade + state. Never shows a cell
+  // under n=5 postings. Defaults to the caller's primary trade + saved state.
+  app.get<{ Querystring: { tradeId?: string; state?: string } }>(
+    '/jobs/pay-insights',
+    { preHandler: requireAuth },
+    async (request, reply) => {
+      const userId = request.user!.id;
+      let tradeId = Number(request.query.tradeId) || 0;
+      let state = (request.query.state ?? '').trim();
+
+      if (!tradeId) {
+        const firstTrade = await prisma.userTrade.findFirst({ where: { userId } });
+        tradeId = firstTrade?.tradeId ?? 0;
+      }
+      if (!state) {
+        const profile = await prisma.workerProfile.findUnique({
+          where: { userId },
+          select: { state: true },
+        });
+        state = profile?.state ?? '';
+      }
+      if (!tradeId || !state) {
+        return reply.send({ tradeId: tradeId || null, state: state || null, n: 0, insufficient: true });
+      }
+
+      const rows = await prisma.$queryRaw<
+        Array<{
+          n: bigint;
+          avg_min: number | null;
+          avg_max: number | null;
+          median_min: number | null;
+          median_max: number | null;
+        }>
+      >(Prisma.sql`
+        SELECT COUNT(*)::bigint AS n,
+               AVG(pay_min)::float AS avg_min,
+               AVG(pay_max)::float AS avg_max,
+               PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY pay_min)::float AS median_min,
+               PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY pay_max)::float AS median_max
+        FROM jobs
+        WHERE pay_period = 'hourly'::"PayPeriod"
+          AND status <> 'draft'::"JobStatus"
+          AND state = ${state}
+          AND (trade_id = ${tradeId} OR ${tradeId} = ANY(trade_ids))
+      `);
+      const agg = rows[0];
+      const n = Number(agg?.n ?? 0);
+      const trade = await prisma.trade.findUnique({ where: { id: tradeId } });
+      if (n < 5) {
+        return reply.send({ tradeId, tradeName: trade?.name ?? null, state, n, insufficient: true });
+      }
+      return reply.send({
+        tradeId,
+        tradeName: trade?.name ?? null,
+        state,
+        n,
+        hourly: {
+          avgMin: agg!.avg_min,
+          avgMax: agg!.avg_max,
+          medianMin: agg!.median_min,
+          medianMax: agg!.median_max,
+        },
+      });
+    },
+  );
+
   app.get('/users/me/jobs', { preHandler: requireAuth }, async (request) => {
     const jobs = await prisma.job.findMany({
       where: { employerId: request.user!.id },

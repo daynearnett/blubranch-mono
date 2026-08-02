@@ -666,7 +666,20 @@ function buildQueryString(params: Record<string, string | number | boolean | und
   return '?' + entries.map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`).join('&');
 }
 
+export interface PayInsights {
+  tradeId: number | null;
+  tradeName: string | null;
+  state: string | null;
+  n: number;
+  insufficient?: boolean;
+  hourly?: { avgMin: number; avgMax: number; medianMin: number; medianMax: number };
+}
+
 export const jobs = {
+  payInsights: (params?: { tradeId?: number; state?: string }) =>
+    request<PayInsights>(
+      `/jobs/pay-insights${buildQueryString({ tradeId: params?.tradeId, state: params?.state })}`,
+    ),
   search: (params: SearchJobsParams = {}) =>
     request<SearchJobsResult>(
       `/jobs${buildQueryString(params as Record<string, string | number | boolean | undefined>)}`,

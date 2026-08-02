@@ -87,6 +87,8 @@ export const jobInputSchema = z.object({
   experienceLevel: z.string().min(1).max(50),
   payMin: z.number().nonnegative().max(999999),
   payMax: z.number().nonnegative().max(999999),
+  // Optional — the server defaults to hourly (the post-job UI presents pay as $/hr).
+  payPeriod: z.enum(['hourly', 'daily', 'salary']).optional(),
   jobType: JobType,
   jobTypes: z.array(JobType).max(4).optional(),
   // Retired from the post-job UI — optional; server defaults it.
