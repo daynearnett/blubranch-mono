@@ -17,6 +17,7 @@ import { useAuth } from '../../../src/lib/auth-context.js';
 import { TopSearchBar } from '../../../src/components/top-search-bar.js';
 import { JobCard } from '../../../src/components/job-card.js';
 import { PostCard } from '../../../src/components/post-card.js';
+import { ToolboxCard } from '../../../src/components/toolbox-card.js';
 import { QuickApplyModal, type QuickApplyTarget } from '../../../src/components/quick-apply-modal.js';
 import { ResponsiveContainer } from '../../../src/components/responsive.js';
 import { colors, spacing, typography } from '../../../src/theme.js';
@@ -89,6 +90,7 @@ export default function FeedTab() {
             </View>
           ) : (
             <View style={styles.feed}>
+              <ToolboxCard />
               <Pressable style={styles.composeStub} onPress={() => router.push('/(app)/(tabs)/post')}>
                 <View style={styles.composeAvatar}>
                   <Text style={styles.composeAvatarText}>

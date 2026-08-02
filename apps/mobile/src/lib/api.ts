@@ -757,6 +757,29 @@ export const feed = {
     request<FeedResponse>(`/feed?page=${page}&limit=${limit}`),
 };
 
+// ── Toolbox Talk ────────────────────────────────────────────────
+
+export interface ToolboxToday {
+  question: { id: string; question: string; choices: string[] };
+  answered: {
+    choiceIndex: number;
+    correct: boolean;
+    correctIndex: number;
+    explanation: string;
+  } | null;
+  streak: number;
+}
+
+export const toolbox = {
+  today: () => request<ToolboxToday>('/toolbox/today'),
+  answer: (choiceIndex: number) =>
+    request<{ correct: boolean; correctIndex: number; explanation: string; streak: number }>(
+      '/toolbox/answer',
+      { method: 'POST', body: JSON.stringify({ choiceIndex }) },
+    ),
+  stats: () => request<{ answered: number; correct: number; streak: number }>('/toolbox/stats'),
+};
+
 export const posts = {
   create: (input: PostInput) =>
     request<FeedPost>('/posts', { method: 'POST', body: JSON.stringify(input) }),

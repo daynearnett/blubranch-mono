@@ -163,6 +163,7 @@ model User {
   postLikes    PostLike[]
   postComments PostComment[]
   postCoauthorships PostCoauthor[]
+  toolboxAnswers    ToolboxAnswer[]
 
   connectionsRequested Connection[] @relation("ConnectionRequester")
   connectionsReceived  Connection[] @relation("ConnectionReceiver")
@@ -491,6 +492,38 @@ model Post {
 
   @@index([userId, createdAt])
   @@map("posts")
+}
+
+// Toolbox Talk (E2) — one code/safety question a day. Questions are assigned
+// to a day lazily on first request (activeOn unique per day); the bank
+// recycles oldest-first once exhausted.
+model ToolboxQuestion {
+  id           String    @id @default(uuid()) @db.Uuid
+  activeOn     DateTime? @unique @map("active_on") @db.Date
+  question     String    @db.Text
+  choices      Json // string[]
+  correctIndex Int       @map("correct_index")
+  explanation  String    @db.Text
+  createdAt    DateTime  @default(now()) @map("created_at")
+
+  answers ToolboxAnswer[]
+
+  @@map("toolbox_questions")
+}
+
+model ToolboxAnswer {
+  id          String          @id @default(uuid()) @db.Uuid
+  questionId  String          @map("question_id") @db.Uuid
+  question    ToolboxQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  userId      String          @map("user_id") @db.Uuid
+  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  choiceIndex Int             @map("choice_index")
+  correct     Boolean
+  answeredAt  DateTime        @default(now()) @map("answered_at")
+
+  @@unique([questionId, userId])
+  @@index([userId, answeredAt])
+  @@map("toolbox_answers")
 }
 
 // Crew posts (E1) — invited co-authors on a post. Pending invites become

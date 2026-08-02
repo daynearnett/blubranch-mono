@@ -12,5 +12,6 @@ export * from './schemas/notification.js';
 export * from './schemas/payment.js';
 export * from './schemas/moderation.js';
 export * from './schemas/vouch.js';
+export * from './schemas/toolbox.js';
 export * from './reference.js';
 export * from './legal/documents.js';
