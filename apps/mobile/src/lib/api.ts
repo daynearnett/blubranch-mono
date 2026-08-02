@@ -627,6 +627,10 @@ export interface FeedPost {
     content: string;
     user: { firstName: string; lastName: string; profilePhotoUrl: string | null };
   }[];
+  // Crew posts — accepted co-authors shown as "with …" on the card.
+  coauthors?: { id: string; firstName: string; lastName: string; profilePhotoUrl: string | null }[];
+  // Present on GET /posts/:id — the viewer's own invite state, if any.
+  viewerCoauthorStatus?: 'pending' | 'accepted' | 'declined' | null;
 }
 
 export interface FeedJobItem {
@@ -776,6 +780,11 @@ export const posts = {
     >(`/posts/${id}/comments`),
   comment: (id: string, input: PostCommentInput) =>
     request<unknown>(`/posts/${id}/comments`, { method: 'POST', body: JSON.stringify(input) }),
+  respondCoauthor: (id: string, action: 'accept' | 'decline') =>
+    request<{ status: string }>(`/posts/${id}/coauthor`, {
+      method: 'PUT',
+      body: JSON.stringify({ action }),
+    }),
 };
 
 // ── Connections ─────────────────────────────────────────────────

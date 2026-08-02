@@ -73,6 +73,13 @@ function PostPreview({ post }: { post: FeedPost }) {
           <View style={styles.nameRow}>
             <Text style={styles.previewName}>
               {post.user.firstName} {post.user.lastName}
+              {post.coauthors && post.coauthors.length > 0 ? (
+                <Text style={styles.previewHeadline}>
+                  {'  with '}
+                  {post.coauthors[0]!.firstName} {post.coauthors[0]!.lastName}
+                  {post.coauthors.length > 1 ? ` +${post.coauthors.length - 1}` : ''}
+                </Text>
+              ) : null}
             </Text>
             {post.user.unionName ? <Badge label={post.user.unionName} tone="primary" /> : null}
           </View>
@@ -165,7 +172,44 @@ export default function PostComments() {
             data={comments}
             keyExtractor={(c) => c.id}
             contentContainerStyle={styles.list}
-            ListHeaderComponent={post ? <PostPreview post={post} /> : null}
+            ListHeaderComponent={
+              post ? (
+                <>
+                  {post.viewerCoauthorStatus === 'pending' ? (
+                    <View style={styles.coauthorBanner}>
+                      <Text style={styles.coauthorBannerText}>
+                        {post.user.firstName} put you on this post. Were you on this job?
+                      </Text>
+                      <View style={styles.coauthorBannerBtns}>
+                        <Pressable
+                          style={styles.coauthorAccept}
+                          onPress={async () => {
+                            try {
+                              await postsApi.respondCoauthor(post.id, 'accept');
+                              await load();
+                            } catch { /* banner stays; user can retry */ }
+                          }}
+                        >
+                          <Text style={styles.coauthorAcceptLabel}>I was there</Text>
+                        </Pressable>
+                        <Pressable
+                          style={styles.coauthorDecline}
+                          onPress={async () => {
+                            try {
+                              await postsApi.respondCoauthor(post.id, 'decline');
+                              await load();
+                            } catch { /* banner stays; user can retry */ }
+                          }}
+                        >
+                          <Text style={styles.coauthorDeclineLabel}>Not me</Text>
+                        </Pressable>
+                      </View>
+                    </View>
+                  ) : null}
+                  <PostPreview post={post} />
+                </>
+              ) : null
+            }
             ListEmptyComponent={
               <Text style={styles.empty}>No comments yet. Be the first.</Text>
             }
@@ -269,6 +313,30 @@ const styles = StyleSheet.create({
     borderTopColor: colors.border,
   },
   previewStat: { ...typography.small, color: colors.textMuted },
+  coauthorBanner: {
+    backgroundColor: colors.chipBgActive,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+    gap: spacing.sm,
+  },
+  coauthorBannerText: { ...typography.body, color: colors.navy },
+  coauthorBannerBtns: { flexDirection: 'row', gap: spacing.sm },
+  coauthorAccept: {
+    backgroundColor: colors.navy,
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.xs,
+  },
+  coauthorAcceptLabel: { ...typography.small, color: colors.textInverse, fontWeight: '600' },
+  coauthorDecline: {
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.xs,
+    borderWidth: 1,
+    borderColor: colors.inputBorder,
+  },
+  coauthorDeclineLabel: { ...typography.small, color: colors.textMuted, fontWeight: '600' },
   // Comments
   empty: { ...typography.body, color: colors.textMuted, textAlign: 'center', marginTop: spacing.xl },
   commentRow: { flexDirection: 'row', gap: spacing.sm, paddingHorizontal: spacing.lg, paddingTop: spacing.md },

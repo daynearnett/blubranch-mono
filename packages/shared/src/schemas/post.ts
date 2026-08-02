@@ -8,8 +8,15 @@ export const postInputSchema = z.object({
   tradeTag: z.string().max(100).optional().nullable(),
   // Tagged connections — notified when the post/comment is created.
   mentionedUserIds: z.array(z.string().uuid()).max(10).optional(),
+  // Crew posts — invited co-authors (accepted connections only, confirm to appear).
+  coauthorIds: z.array(z.string().uuid()).max(4).optional(),
 });
 export type PostInput = z.infer<typeof postInputSchema>;
+
+export const coauthorActionSchema = z.object({
+  action: z.enum(['accept', 'decline']),
+});
+export type CoauthorActionInput = z.infer<typeof coauthorActionSchema>;
 
 export const postCommentInputSchema = z.object({
   content: z.string().min(1).max(2000),

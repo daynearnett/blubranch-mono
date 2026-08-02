@@ -162,6 +162,7 @@ model User {
   posts        Post[]
   postLikes    PostLike[]
   postComments PostComment[]
+  postCoauthorships PostCoauthor[]
 
   connectionsRequested Connection[] @relation("ConnectionRequester")
   connectionsReceived  Connection[] @relation("ConnectionReceiver")
@@ -483,12 +484,36 @@ model Post {
   archived    Boolean      @default(false)
   createdAt   DateTime     @default(now()) @map("created_at")
 
-  photos   PostPhoto[]
-  likes    PostLike[]
-  comments PostComment[]
+  photos    PostPhoto[]
+  likes     PostLike[]
+  comments  PostComment[]
+  coauthors PostCoauthor[]
 
   @@index([userId, createdAt])
   @@map("posts")
+}
+
+// Crew posts (E1) — invited co-authors on a post. Pending invites become
+// visible credits only after the invitee accepts (vouch-style confirm).
+enum CoauthorStatus {
+  pending
+  accepted
+  declined
+}
+
+model PostCoauthor {
+  id          String         @id @default(uuid()) @db.Uuid
+  postId      String         @map("post_id") @db.Uuid
+  post        Post           @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId      String         @map("user_id") @db.Uuid
+  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status      CoauthorStatus @default(pending)
+  createdAt   DateTime       @default(now()) @map("created_at")
+  respondedAt DateTime?      @map("responded_at")
+
+  @@unique([postId, userId])
+  @@index([userId, status])
+  @@map("post_coauthors")
 }
 
 model PostPhoto {
@@ -703,6 +728,7 @@ enum NotificationType {
   license_expiry
   vouch_received
   vouch_confirmed
+  coauthor_invite
 }
 
 model Notification {

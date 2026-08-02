@@ -152,6 +152,13 @@ export function PostCard({
             <View style={styles.nameRow}>
               <Text style={styles.name}>
                 {post.user.firstName} {post.user.lastName}
+                {post.coauthors && post.coauthors.length > 0 ? (
+                  <Text style={styles.withCrew}>
+                    {'  with '}
+                    {post.coauthors[0]!.firstName} {post.coauthors[0]!.lastName}
+                    {post.coauthors.length > 1 ? ` +${post.coauthors.length - 1}` : ''}
+                  </Text>
+                ) : null}
               </Text>
               {post.user.unionName ? <Badge label={post.user.unionName} tone="primary" /> : null}
             </View>
@@ -264,6 +271,7 @@ const styles = StyleSheet.create({
   nameRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
   name: { ...typography.bodyBold, color: colors.textPrimary },
   headline: { ...typography.caption, color: colors.textSecondary, marginTop: 2 },
+  withCrew: { ...typography.caption, color: colors.textSecondary },
   elapsed: { ...typography.caption, color: colors.textSecondary },
   content: { ...typography.body, color: colors.textPrimary, marginBottom: spacing.sm, lineHeight: 22 },
   seeMore: { ...typography.bodyBold, color: colors.navy, marginBottom: spacing.sm },

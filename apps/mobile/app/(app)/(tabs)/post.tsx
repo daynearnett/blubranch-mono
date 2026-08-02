@@ -17,10 +17,10 @@ import {
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { AtSign, Briefcase, Camera, ChevronDown, ChevronRight, Globe, MapPin, Users, Wrench, X } from 'lucide-react-native';
+import { AtSign, Briefcase, Camera, Check, ChevronDown, ChevronRight, Globe, HardHat, MapPin, Users, Wrench, X } from 'lucide-react-native';
 import { Badge, Button, Chip } from '../../../src/components/ui.js';
 import { MentionTextInput, type Mention } from '../../../src/components/mention-text-input.js';
-import { ApiError, me, posts, uploadImage } from '../../../src/lib/api.js';
+import { ApiError, connections, me, posts, uploadImage, type ConnectionItem } from '../../../src/lib/api.js';
 import { useAuth } from '../../../src/lib/auth-context.js';
 import { colors, radius, spacing, typography } from '../../../src/theme.js';
 
@@ -55,6 +55,10 @@ function PostComposer() {
   const [photoUrls, setPhotoUrls] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
   const [tagged, setTagged] = useState<Mention[]>([]);
+  // Crew posts — co-authors invited on publish (accepted connections, max 4).
+  const [crew, setCrew] = useState<{ id: string; firstName: string; lastName: string }[]>([]);
+  const [crewOptions, setCrewOptions] = useState<ConnectionItem[] | null>(null);
+  const [showCrewPicker, setShowCrewPicker] = useState(false);
   const [busy, setBusy] = useState(false);
 
   const pickPhoto = async () => {
@@ -112,6 +116,7 @@ function PostComposer() {
         tradeTag,
         photoUrls: photoUrls.length ? photoUrls : undefined,
         mentionedUserIds: tagged.length ? tagged.map((t) => t.id) : undefined,
+        coauthorIds: crew.length ? crew.map((c) => c.id) : undefined,
       });
       // Reset the whole draft so the next time the + tab opens it's blank
       // (this screen stays mounted as a tab, so state would otherwise persist).
@@ -120,6 +125,8 @@ function PostComposer() {
       setLocationTag(null);
       setTradeTag(null);
       setTagged([]);
+      setCrew([]);
+      setShowCrewPicker(false);
       setAudience('anyone');
       router.navigate('/(app)/(tabs)/feed');
     } catch (err) {
@@ -256,6 +263,69 @@ function PostComposer() {
             ))}
           </View>
 
+          {crew.length > 0 ? (
+            <View style={styles.tagRow}>
+              {crew.map((c) => (
+                <Pressable
+                  key={c.id}
+                  style={styles.tag}
+                  onPress={() => setCrew((prev) => prev.filter((p) => p.id !== c.id))}
+                >
+                  <HardHat color={colors.orange} size={12} strokeWidth={2} />
+                  <Text style={styles.tagLabel}>
+                    {c.firstName} {c.lastName}
+                  </Text>
+                  <X color={colors.textMuted} size={10} strokeWidth={2} />
+                </Pressable>
+              ))}
+            </View>
+          ) : null}
+
+          {showCrewPicker ? (
+            <View style={styles.audiencePicker}>
+              <Text style={styles.crewPickerTitle}>Who was on this job with you? (up to 4)</Text>
+              {crewOptions === null ? (
+                <ActivityIndicator color={colors.orange} />
+              ) : crewOptions.length === 0 ? (
+                <Text style={styles.crewEmpty}>No branches yet — connect with your crew first.</Text>
+              ) : (
+                crewOptions.map((item) => {
+                  const selected = crew.some((c) => c.id === item.user.id);
+                  return (
+                    <Pressable
+                      key={item.user.id}
+                      style={[styles.audienceOption, selected && styles.audienceOptionActive]}
+                      onPress={() => {
+                        setCrew((prev) => {
+                          if (selected) return prev.filter((c) => c.id !== item.user.id);
+                          if (prev.length >= 4) return prev;
+                          return [
+                            ...prev,
+                            {
+                              id: item.user.id,
+                              firstName: item.user.firstName,
+                              lastName: item.user.lastName,
+                            },
+                          ];
+                        });
+                      }}
+                    >
+                      <Text
+                        style={[
+                          styles.audienceOptionLabel,
+                          selected && styles.audienceOptionLabelActive,
+                        ]}
+                      >
+                        {item.user.firstName} {item.user.lastName}
+                      </Text>
+                      {selected ? <Check color={colors.orange} size={16} strokeWidth={2.5} /> : null}
+                    </Pressable>
+                  );
+                })
+              )}
+            </View>
+          ) : null}
+
           {photoUrls.length > 0 || uploading ? (
             <View style={styles.photoRow}>
               {photoUrls.map((url, i) => (
@@ -281,6 +351,21 @@ function PostComposer() {
         <View style={styles.toolbar}>
           <Pressable style={styles.toolbarBtn} onPress={pickPhoto} disabled={uploading}>
             <Camera color={uploading ? colors.textMuted : colors.navy} size={22} strokeWidth={1.8} />
+          </Pressable>
+          <Pressable
+            style={styles.toolbarBtn}
+            onPress={() => {
+              setShowCrewPicker((v) => !v);
+              if (crewOptions === null) {
+                connections
+                  .list()
+                  .then((res) => setCrewOptions(res.items))
+                  .catch(() => setCrewOptions([]));
+              }
+            }}
+            accessibilityLabel="Post with your crew"
+          >
+            <HardHat color={crew.length ? colors.orange : colors.navy} size={22} strokeWidth={1.8} />
           </Pressable>
           <Pressable
             style={styles.toolbarBtn}
@@ -391,6 +476,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.chipBgActive,
   },
   tagLabel: { ...typography.small, color: colors.navy, fontWeight: '600' },
+  crewPickerTitle: { ...typography.small, color: colors.textMuted, marginBottom: spacing.xs },
+  crewEmpty: { ...typography.small, color: colors.textMuted },
   photoRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.md },
   photoThumb: { width: 88, height: 88, borderRadius: radius.md, overflow: 'hidden' },
   photoImg: { width: '100%', height: '100%' },

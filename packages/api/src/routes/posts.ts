@@ -1,4 +1,9 @@
-import { feedQuerySchema, postCommentInputSchema, postInputSchema } from '@blubranch/shared';
+import {
+  coauthorActionSchema,
+  feedQuerySchema,
+  postCommentInputSchema,
+  postInputSchema,
+} from '@blubranch/shared';
 import { Prisma } from '@blubranch/db';
 import type { FastifyInstance } from 'fastify';
 import { requireAuth } from '../auth/middleware.js';
@@ -6,7 +11,12 @@ import { isPostGisEnabled } from '../lib/postgis.js';
 import { canViewPost } from '../lib/post-visibility.js';
 import { getPrisma } from '../lib/prisma.js';
 import { parseBody } from '../lib/validate.js';
-import { notifyMentions, notifyPostComment, notifyPostLike } from '../services/push.js';
+import {
+  notifyMentions,
+  notifyPostComment,
+  notifyPostLike,
+  sendNotification,
+} from '../services/push.js';
 import { moderateText } from '../services/content-moderation.js';
 
 // Shared 422 for auto-moderated content.
@@ -42,8 +52,68 @@ export async function postRoutes(app: FastifyInstance): Promise<void> {
       include: { photos: true },
     });
     notifyMentions(request.user!.id, data.mentionedUserIds, post.id, 'post').catch(() => {});
+
+    // Crew post — invite co-authors. Only accepted connections qualify; others
+    // in the list are silently dropped (client offers connections only).
+    if (data.coauthorIds?.length) {
+      const userId = request.user!.id;
+      const candidateIds = [...new Set(data.coauthorIds)].filter((id) => id !== userId);
+      const connections = await prisma.connection.findMany({
+        where: {
+          status: 'accepted',
+          OR: [
+            { requesterId: userId, receiverId: { in: candidateIds } },
+            { receiverId: userId, requesterId: { in: candidateIds } },
+          ],
+        },
+        select: { requesterId: true, receiverId: true },
+      });
+      const connectedIds = new Set(
+        connections.map((c) => (c.requesterId === userId ? c.receiverId : c.requesterId)),
+      );
+      const author = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { firstName: true, lastName: true },
+      });
+      for (const coauthorId of candidateIds) {
+        if (!connectedIds.has(coauthorId)) continue;
+        await prisma.postCoauthor.create({ data: { postId: post.id, userId: coauthorId } });
+        sendNotification({
+          userId: coauthorId,
+          type: 'coauthor_invite',
+          title: `${author?.firstName ?? 'Someone'} ${author?.lastName ?? ''} put you on a post`.trim(),
+          body: 'Accept and it shows up with your name on it too',
+          data: { postId: post.id },
+        }).catch(() => {});
+      }
+    }
     return reply.code(201).send(post);
   });
+
+  // ── PUT /posts/:id/coauthor — accept/decline a co-author invite ─
+  app.put<{ Params: { id: string } }>(
+    '/posts/:id/coauthor',
+    { preHandler: requireAuth },
+    async (request, reply) => {
+      const data = parseBody(coauthorActionSchema, request, reply);
+      if (!data) return;
+      const row = await prisma.postCoauthor.findUnique({
+        where: { postId_userId: { postId: request.params.id, userId: request.user!.id } },
+      });
+      if (!row) return reply.code(404).send({ error: 'NotFound' });
+      if (row.status !== 'pending') {
+        return reply.code(409).send({ error: 'Conflict', message: 'Already responded' });
+      }
+      const updated = await prisma.postCoauthor.update({
+        where: { id: row.id },
+        data: {
+          status: data.action === 'accept' ? 'accepted' : 'declined',
+          respondedAt: new Date(),
+        },
+      });
+      return reply.send(updated);
+    },
+  );
 
   // ── POST /posts/:id/like ────────────────────────────────────────
   app.post<{ Params: { id: string } }>(
@@ -143,6 +213,13 @@ export async function postRoutes(app: FastifyInstance): Promise<void> {
           },
           photos: { orderBy: { sortOrder: 'asc' } },
           likes: { where: { userId }, select: { userId: true } },
+          coauthors: {
+            include: {
+              user: {
+                select: { id: true, firstName: true, lastName: true, profilePhotoUrl: true },
+              },
+            },
+          },
           _count: { select: { likes: true, comments: true } },
         },
       });
@@ -169,6 +246,11 @@ export async function postRoutes(app: FastifyInstance): Promise<void> {
           headline: p.user.workerProfile?.headline ?? null,
           unionName: p.user.workerProfile?.unionName ?? null,
         },
+        coauthors: p.coauthors
+          .filter((c) => c.status === 'accepted')
+          .map((c) => c.user),
+        // Lets the client show the accept/decline banner on the viewer's invite.
+        viewerCoauthorStatus: p.coauthors.find((c) => c.userId === userId)?.status ?? null,
       });
     },
   );
@@ -278,6 +360,12 @@ export async function postRoutes(app: FastifyInstance): Promise<void> {
         },
         photos: { orderBy: { sortOrder: 'asc' } },
         likes: { where: { userId }, select: { userId: true } },
+        coauthors: {
+          where: { status: 'accepted' },
+          include: {
+            user: { select: { id: true, firstName: true, lastName: true, profilePhotoUrl: true } },
+          },
+        },
         comments: {
           orderBy: { createdAt: 'desc' },
           take: 2,
@@ -389,6 +477,7 @@ export async function postRoutes(app: FastifyInstance): Promise<void> {
               headline: p.user.workerProfile?.headline ?? null,
               unionName: p.user.workerProfile?.unionName ?? null,
             },
+            coauthors: p.coauthors.map((c) => c.user),
             // Latest 2 comments, shown oldest-first under the post (LinkedIn-style).
             topComments: [...p.comments].reverse().map((c) => ({
               id: c.id,

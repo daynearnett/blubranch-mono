@@ -50,6 +50,8 @@ export async function sendNotification(params: {
       post_like: settings.notifyPostLikes,
       post_comment: settings.notifyPostComments,
       post_mention: settings.notifyMentions,
+      // Co-author invites are tag-like events; share the mentions preference.
+      coauthor_invite: settings.notifyMentions,
       license_expiry: settings.notifyLicenseExpiry,
       vouch_received: settings.notifyVouches,
       vouch_confirmed: settings.notifyVouches,
