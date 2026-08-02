@@ -100,6 +100,31 @@ describe('Toolbox Talk — daily question', () => {
     expect(today.json().answered.correct).toBe(true);
   });
 
+  it('rejects a choice index outside the question’s choices', async () => {
+    const fresh = await prisma.user.create({
+      data: {
+        firstName: 'Range',
+        lastName: 'Checker',
+        email: `toolbox-range-${stamp}@test.local`,
+        role: 'worker',
+        authProvider: 'email',
+        passwordHash: 'not-a-real-hash',
+      },
+    });
+    try {
+      const res = await app.inject({
+        method: 'POST',
+        url: '/toolbox/answer',
+        headers: { authorization: `Bearer ${signAccessToken(fresh.id, 'worker')}` },
+        payload: { choiceIndex: 9 },
+      });
+      expect(res.statusCode).toBe(400);
+      expect(res.json().message).toMatch(/invalid choice/i);
+    } finally {
+      await prisma.user.delete({ where: { id: fresh.id } }).catch(() => {});
+    }
+  });
+
   it('streak counts consecutive days (yesterday + today = 2)', async () => {
     // Backdate an answer to yesterday on a different question.
     const other = await prisma.toolboxQuestion.findFirst({ where: { activeOn: null } });

@@ -128,6 +128,55 @@ describe('Crew posts — co-author invite/accept', () => {
     expect(item.data.coauthors[0].firstName).toBe('Bob');
   });
 
+  it('declined invites never surface as co-authors', async () => {
+    // Second post, declined by the buddy.
+    const post = await app.inject({
+      method: 'POST',
+      url: '/posts',
+      headers: { authorization: `Bearer ${author.token}` },
+      payload: { content: 'Another day another pour.', coauthorIds: [buddy.id] },
+    });
+    const secondId = post.json().id;
+    const decline = await app.inject({
+      method: 'PUT',
+      url: `/posts/${secondId}/coauthor`,
+      headers: { authorization: `Bearer ${buddy.token}` },
+      payload: { action: 'decline' },
+    });
+    expect(decline.statusCode).toBe(200);
+    expect(decline.json().status).toBe('declined');
+
+    const detail = await app.inject({
+      method: 'GET',
+      url: `/posts/${secondId}`,
+      headers: { authorization: `Bearer ${author.token}` },
+    });
+    expect(detail.json().coauthors).toHaveLength(0);
+  });
+
+  it('self-invites are dropped and >4 co-authors is rejected by validation', async () => {
+    const selfInvite = await app.inject({
+      method: 'POST',
+      url: '/posts',
+      headers: { authorization: `Bearer ${author.token}` },
+      payload: { content: 'Solo job.', coauthorIds: [author.id] },
+    });
+    expect(selfInvite.statusCode).toBe(201);
+    const rows = await prisma.postCoauthor.count({ where: { postId: selfInvite.json().id } });
+    expect(rows).toBe(0);
+
+    const tooMany = await app.inject({
+      method: 'POST',
+      url: '/posts',
+      headers: { authorization: `Bearer ${author.token}` },
+      payload: {
+        content: 'Whole company on one post.',
+        coauthorIds: Array.from({ length: 5 }, () => crypto.randomUUID()),
+      },
+    });
+    expect(tooMany.statusCode).toBe(400);
+  });
+
   it('responding twice conflicts', async () => {
     const res = await app.inject({
       method: 'PUT',

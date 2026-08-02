@@ -133,6 +133,24 @@ describe('Ticket wallet — certification expiry + admin queue', () => {
     expect(notifs).toHaveLength(1);
   });
 
+  it('the 7-day window sends a second reminder for the same cert', async () => {
+    // Move the cert's expiry inside the 7-day window and backdate the first
+    // reminder to before that window opened (as in real life, ~3 weeks pass
+    // between the 30-day and 7-day reminders) so a second one is due.
+    await prisma.certification.update({
+      where: { id: certId },
+      data: {
+        expiresAt: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000),
+        remindedAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000),
+      },
+    });
+    await processCertificationExpiryReminders(new Date());
+    const notifs = await prisma.notification.count({
+      where: { userId: worker.id, type: 'license_expiry' },
+    });
+    expect(notifs).toBe(2);
+  });
+
   it('unverified certs never get reminders', async () => {
     await prisma.certification.create({
       data: {
@@ -145,6 +163,6 @@ describe('Ticket wallet — certification expiry + admin queue', () => {
     const notifs = await prisma.notification.count({
       where: { userId: worker.id, type: 'license_expiry' },
     });
-    expect(notifs).toBe(1); // still only the OSHA 30 reminder
+    expect(notifs).toBe(2); // still only the OSHA 30 reminders (30d + 7d)
   });
 });

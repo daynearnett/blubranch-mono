@@ -156,6 +156,46 @@ describe('Pay insights — posted-pay aggregates', () => {
     await prisma.job.update({ where: { id: jobIds[0]! }, data: { status: 'open' } });
   });
 
+  it('POST /jobs persists payPeriod (and defaults to hourly when omitted)', async () => {
+    const employerToken = signAccessToken(employerId, 'employer');
+    const base = {
+      companyId,
+      title: 'Route-created job',
+      tradeId,
+      experienceLevel: 'any',
+      payMin: 33,
+      payMax: 44,
+      jobType: 'full_time',
+      city: 'Testville',
+      state,
+      zipCode: '00000',
+      description: 'route test',
+      planTier: 'basic',
+    };
+
+    const defaulted = await app.inject({
+      method: 'POST',
+      url: '/jobs',
+      headers: { authorization: `Bearer ${employerToken}` },
+      payload: base,
+    });
+    expect(defaulted.statusCode).toBe(201);
+    jobIds.push(defaulted.json().id);
+    const row1 = await prisma.job.findUnique({ where: { id: defaulted.json().id } });
+    expect(row1!.payPeriod).toBe('hourly');
+
+    const salaried = await app.inject({
+      method: 'POST',
+      url: '/jobs',
+      headers: { authorization: `Bearer ${employerToken}` },
+      payload: { ...base, title: 'Salaried route job', payPeriod: 'salary' },
+    });
+    expect(salaried.statusCode).toBe(201);
+    jobIds.push(salaried.json().id);
+    const row2 = await prisma.job.findUnique({ where: { id: salaried.json().id } });
+    expect(row2!.payPeriod).toBe('salary');
+  });
+
   it('explicit tradeId + state params override the defaults', async () => {
     const res = await app.inject({
       method: 'GET',
