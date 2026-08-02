@@ -29,8 +29,9 @@ BluBranch is the professional network built for the blue collar — skilled trad
 
 FOR WORKERS — always free
 • Build a profile that showcases your trade, skills, licenses, and work history
+• Carry your Trade Card — a shareable, wallet-style card of your verified licenses and certs, with renewal reminders before anything expires
 • Find local jobs matched to your trade, experience, and location — apply in one tap
-• Connect with other tradespeople, get endorsements, and grow your reputation
+• Grow your branches: connect with other tradespeople and get vouched for by people you've actually worked with
 • Get verified: license verification and workplace confirmation build trust
 • Share your work and milestones on a feed built for the trades
 
@@ -88,7 +89,9 @@ Demo account (worker):
 
 Sign in with the email/password above (Apple/Google sign-in require your own
 accounts). The demo worker can browse the feed, search and view jobs, apply to a
-job, edit their profile, and message. User-generated content is auto-moderated and
+job, edit their profile, message, view their Trade Card (verified-credentials
+card), and see vouches from confirmed coworkers. A "Forgot password?" flow is
+available from the login screen. User-generated content is auto-moderated and
 users can report/block. Employer job-posting uses Stripe in test mode for this
 review build; the free worker experience covers the core flows.
 ```

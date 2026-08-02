@@ -51,6 +51,15 @@ In App Store Connect → the BluBranch app (`6764493229`) → the new version:
 
 ## 2. Screenshots (per form factor)
 
+> **STATUS 2026-08-02:** the Jul 17 captures (`~/blubranch-shots`) were LOST in the
+> home-directory migration, and Xcode is no longer installed on the Mac — simulator
+> recapture is blocked until Xcode is reinstalled (App Store → Xcode, ~15 GB; then
+> `xcodebuild -runFirstLaunch` + iOS platform). Recapture is worth doing anyway:
+> the old shots predate the differentiation sprint (Trade Card, vouches,
+> trade-voice copy). Plan: reinstall Xcode → `eas build --profile simulator` →
+> install on iPhone 6.9" + iPad 13" sims → capture against seeded staging
+> (demo@blubranch.com).
+
 The app is responsive (`supportsTablet: true`), so **iPad screenshots are
 required** in addition to iPhone. Apple now only needs the **largest** size per
 family (it down-scales for smaller devices):
@@ -97,6 +106,13 @@ Based on what BluBranch actually collects:
       won't block on the encryption question.
 
 ## 6. Build + submit
+
+> **STATUS 2026-08-02:** build `0.1.5 (30)` (uploaded Jul 17) is STALE — it predates
+> the differentiation sprint (Trade Card, vouches, copy pass), the build-33 crash
+> fix's pinned deps, photo carousel, swipeable tabs, animated splash,
+> forgot-password, and the existing-email signup fix. Do NOT attach 30. After
+> Balint signs off on build 34's content, cut a fresh production build (same
+> content, prod API) with the command below and attach that instead.
 
 - [ ] Build the **production** binary (App Store distribution):
       ```
