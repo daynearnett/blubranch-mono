@@ -191,8 +191,8 @@ export async function connectionRoutes(app: FastifyInstance): Promise<void> {
     sendNotification({
       userId: data.receiverId,
       type: 'connection_request',
-      title: `${requester?.firstName ?? 'Someone'} ${requester?.lastName ?? ''} wants to link up`.trim(),
-      body: "Accept and they're in your branches",
+      title: `${requester?.firstName ?? 'Someone'} ${requester?.lastName ?? ''} extended their branch`.trim(),
+      body: 'Accept and add to your branch',
       data: { connectionId: connection.id, requesterId: userId },
     }).catch(() => {});
 
