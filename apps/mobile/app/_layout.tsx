@@ -4,6 +4,9 @@ import type { ReactNode } from 'react';
 import { Animated, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+// Required root for react-native-gesture-handler's Gesture API (pinch-to-zoom
+// on feed photos). Renders as a plain View; must wrap the whole app.
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import * as SplashScreen from 'expo-splash-screen';
 import { StripeProvider } from '@stripe/stripe-react-native';
 import { AuthProvider, useAuth } from '../src/lib/auth-context.js';
@@ -120,6 +123,7 @@ function PaymentProvider({ children }: { children: ReactNode }) {
 function RootLayout() {
   const [brandDone, setBrandDone] = useState(false);
   return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
     <SafeAreaProvider>
       <PaymentProvider>
         <AuthProvider>
@@ -135,6 +139,7 @@ function RootLayout() {
       </PaymentProvider>
       {brandDone ? null : <BrandSplash onDone={() => setBrandDone(true)} />}
     </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }
 

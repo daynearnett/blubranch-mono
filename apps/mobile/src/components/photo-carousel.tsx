@@ -1,10 +1,13 @@
 // Instagram-style paged photo carousel for feed posts. Horizontal paging
 // FlatList: the native scroll view claims horizontal gestures before the
 // tab pager does, so swiping photos never switches tabs. Single-photo posts
-// render a plain image (no dots/counter).
+// render one zoomable image (no dots/counter). Every photo is pinch-to-zoom
+// (ZoomableImage); the zoom clips to the photo frame via the wrappers'
+// overflow:hidden, so it can't disturb paging or the feed list.
 import { useState } from 'react';
-import { FlatList, Image, StyleSheet, Text, View } from 'react-native';
+import { FlatList, StyleSheet, Text, View } from 'react-native';
 import { colors, radius, spacing, typography } from '../theme.js';
+import { ZoomableImage } from './zoomable-image.js';
 
 interface CarouselPhoto {
   photoUrl: string;
@@ -16,7 +19,11 @@ export function PhotoCarousel({ photos }: { photos: CarouselPhoto[] }) {
 
   if (photos.length === 0) return null;
   if (photos.length === 1) {
-    return <Image source={{ uri: photos[0]!.photoUrl }} style={styles.single} />;
+    return (
+      <View style={styles.singleWrap} onLayout={(e) => setWidth(e.nativeEvent.layout.width)}>
+        {width > 0 ? <ZoomableImage uri={photos[0]!.photoUrl} width={width} /> : null}
+      </View>
+    );
   }
 
   return (
@@ -30,9 +37,7 @@ export function PhotoCarousel({ photos }: { photos: CarouselPhoto[] }) {
             pagingEnabled
             showsHorizontalScrollIndicator={false}
             nestedScrollEnabled
-            renderItem={({ item }) => (
-              <Image source={{ uri: item.photoUrl }} style={{ width, aspectRatio: 1 }} />
-            )}
+            renderItem={({ item }) => <ZoomableImage uri={item.photoUrl} width={width} />}
             onMomentumScrollEnd={(e) => {
               setPage(Math.round(e.nativeEvent.contentOffset.x / width));
             }}
@@ -54,12 +59,13 @@ export function PhotoCarousel({ photos }: { photos: CarouselPhoto[] }) {
 }
 
 const styles = StyleSheet.create({
-  single: {
+  singleWrap: {
     width: '100%',
     aspectRatio: 1, // matches the square crop the composer's editor produces
     borderRadius: radius.sm,
     backgroundColor: colors.surface,
     marginBottom: spacing.sm,
+    overflow: 'hidden', // clips the pinch zoom to the photo frame
   },
   wrap: {
     width: '100%',
