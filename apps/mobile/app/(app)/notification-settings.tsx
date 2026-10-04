@@ -30,7 +30,7 @@ type PrefKey =
 
 const ROWS: { key: PrefKey; label: string; desc: string }[] = [
   { key: 'notifyMessages', label: 'Messages', desc: 'New direct messages' },
-  { key: 'notifyConnectionRequests', label: 'Branches', desc: 'Requests and acceptances' },
+  { key: 'notifyConnectionRequests', label: 'Branch', desc: 'Requests and acceptances' },
   { key: 'notifyMentions', label: 'Tags', desc: 'When someone tags you in a post or comment' },
   { key: 'notifyPostLikes', label: 'Likes', desc: 'When someone likes your post' },
   { key: 'notifyPostComments', label: 'Comments', desc: 'When someone comments on your post' },

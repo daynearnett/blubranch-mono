@@ -187,7 +187,7 @@ function PostComposer() {
                   <Users color={colors.textMuted} size={12} strokeWidth={2} />
                 )}
                 <Text style={styles.audienceLabel}>
-                  {audience === 'anyone' ? 'Anyone' : 'Branches only'}
+                  {audience === 'anyone' ? 'Anyone' : 'My branch only'}
                 </Text>
                 <ChevronDown color={colors.textMuted} size={12} strokeWidth={2} />
               </Pressable>
@@ -211,7 +211,7 @@ function PostComposer() {
               >
                 <Users color={audience === 'connections' ? colors.orange : colors.textMuted} size={16} strokeWidth={2} />
                 <Text style={[styles.audienceOptionLabel, audience === 'connections' && styles.audienceOptionLabelActive]}>
-                  Branches only
+                  My branch only
                 </Text>
               </Pressable>
             </View>
@@ -287,7 +287,7 @@ function PostComposer() {
               {crewOptions === null ? (
                 <ActivityIndicator color={colors.orange} />
               ) : crewOptions.length === 0 ? (
-                <Text style={styles.crewEmpty}>No branches yet — connect with your crew first.</Text>
+                <Text style={styles.crewEmpty}>Your branch is empty — connect with your crew first.</Text>
               ) : (
                 crewOptions.map((item) => {
                   const selected = crew.some((c) => c.id === item.user.id);

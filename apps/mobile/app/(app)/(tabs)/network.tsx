@@ -125,7 +125,7 @@ export default function NetworkTab() {
           onPress={() => setSubTab('connections')}
         >
           <Text style={[styles.subTabLabel, subTab === 'connections' && styles.subTabLabelActive]}>
-            Branches ({connectionsTotal})
+            Branch ({connectionsTotal})
           </Text>
         </Pressable>
       </View>
@@ -288,7 +288,7 @@ function ConnectionsSection({
         <View style={styles.emptyState}>
           <Users color={colors.textMuted} size={32} strokeWidth={1.5} />
           <Text style={styles.emptyText}>
-            {searchQuery ? 'No connections match your search.' : 'No branches yet. Start with people you\'ve worked with.'}
+            {searchQuery ? 'No connections match your search.' : 'Your branch is empty. Start with people you\'ve worked with.'}
           </Text>
         </View>
       ) : (

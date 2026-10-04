@@ -87,7 +87,7 @@ export function ProfileHeader({ profile, stats, active, onTabChange, isMe, onSet
 
         {stats ? (
           <View style={styles.statsRow}>
-            <Stat value={stats.connections} label="Branches" />
+            <Stat value={stats.connections} label="Branch" />
             <Stat value={stats.posts} label="Posts" />
             <Stat
               value={stats.rating > 0 ? stats.rating.toFixed(1) : '—'}

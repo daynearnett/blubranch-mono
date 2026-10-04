@@ -230,7 +230,7 @@ export async function connectionRoutes(app: FastifyInstance): Promise<void> {
         userId: connection.requesterId,
         type: 'connection_accepted',
         title: "You're connected",
-        body: `${accepter?.firstName ?? 'Someone'} ${accepter?.lastName ?? ''} is in your branches now`.trim(),
+        body: `${accepter?.firstName ?? 'Someone'} ${accepter?.lastName ?? ''} is part of your branch now`.trim(),
         data: { connectionId: connection.id },
       }).catch(() => {});
 
