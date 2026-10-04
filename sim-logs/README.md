@@ -23,3 +23,13 @@ All six runs fired on schedule and tested staging, but every push 403'd — the 
 was never installed on the `daynearnett` account (fixed 2026-10-04; cloud sessions can push now).
 The logs here were recovered from the run transcripts after the fix. Each file's front-matter links
 its run page, where the run's verbatim log also lives.
+
+## v3 run — returning-user week, Oct 5–10, 2026
+
+Same six accounts, untouched since the Aug run (profiles/companies/content intact; e2/e3
+subscriptions nominally lapsed 2026-09-15 per the brief). Push access confirmed working — these
+logs are live, not recovered.
+
+| Day | Theme | Log |
+|-----|-------|-----|
+| Oct 4 | Day 0 warmup (fired a day ahead of the themed week by UTC clock) | [2026-10-04.md](2026-10-04.md) |
