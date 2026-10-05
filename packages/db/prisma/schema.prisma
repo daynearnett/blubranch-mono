@@ -170,6 +170,7 @@ model User {
   postComments PostComment[]
   postCoauthorships PostCoauthor[]
   toolboxAnswers    ToolboxAnswer[]
+  appSessions       AppSession[]
 
   connectionsRequested Connection[] @relation("ConnectionRequester")
   connectionsReceived  Connection[] @relation("ConnectionReceiver")
@@ -258,6 +259,7 @@ model UserSettings {
   notifyMentions            Boolean @default(true) @map("notify_mentions")
   notifyLicenseExpiry       Boolean @default(true) @map("notify_license_expiry")
   notifyVouches             Boolean @default(true) @map("notify_vouches")
+  notifyDailyTasks          Boolean @default(true) @map("notify_daily_tasks")
 
   @@map("user_settings")
 }
@@ -771,6 +773,7 @@ enum NotificationType {
   vouch_received
   vouch_confirmed
   coauthor_invite
+  daily_task
 }
 
 model Notification {
@@ -929,4 +932,25 @@ model Issue {
 
   @@index([status, createdAt])
   @@map("issues")
+}
+
+// One foreground stretch in the mobile app: opened when the app becomes
+// active, closed when it backgrounds. Powers the admin "App usage" view we
+// use to sanity-check field-test participation. This is time inside
+// BluBranch only — neither iOS nor Android lets an app read device-level
+// screen time, so there is deliberately no attempt to measure that.
+model AppSession {
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String   @map("user_id") @db.Uuid
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  startedAt  DateTime @map("started_at")
+  endedAt    DateTime @map("ended_at")
+  // Recomputed server-side from the timestamps; never trusted from the client.
+  durationMs Int      @map("duration_ms")
+  platform   String?  @db.VarChar(20)
+  appVersion String?  @map("app_version") @db.VarChar(50)
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@index([userId, startedAt])
+  @@map("app_sessions")
 }

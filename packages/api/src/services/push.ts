@@ -55,6 +55,7 @@ export async function sendNotification(params: {
       license_expiry: settings.notifyLicenseExpiry,
       vouch_received: settings.notifyVouches,
       vouch_confirmed: settings.notifyVouches,
+      daily_task: settings.notifyDailyTasks,
     };
     if (prefMap[params.type] === false) {
       return;

@@ -6,6 +6,7 @@ import { processExpireJobs } from './expire-cron.js';
 import { processLicenseExpiration } from './license-expiration.js';
 import { processJobMatchScan } from './job-match.js';
 import { processProfileNudge } from './profile-nudge.js';
+import { processDailyTaskNudge } from './daily-task-nudge.js';
 
 /**
  * Register workers and schedule repeatable jobs. Idempotent — safe to call on
@@ -26,6 +27,9 @@ export async function startWorkers(): Promise<void> {
         break;
       case 'profile-nudge':
         await processProfileNudge();
+        break;
+      case 'daily-task-nudge':
+        await processDailyTaskNudge();
         break;
       default:
         console.warn(`[jobs-maintenance] Unknown job: ${job.name}`);
@@ -57,6 +61,15 @@ export async function startWorkers(): Promise<void> {
       opts: {
         repeat: { pattern: '*/30 * * * *' }, // every 30 minutes
         removeOnComplete: { count: 48 },
+        removeOnFail: { count: 10 },
+      },
+    },
+    {
+      queue: QUEUE_NAMES.JOBS,
+      name: 'daily-task-nudge',
+      opts: {
+        repeat: { pattern: '0 17 * * *' }, // daily 17:00 UTC (~1 PM ET) — lunchtime engagement
+        removeOnComplete: { count: 7 },
         removeOnFail: { count: 10 },
       },
     },

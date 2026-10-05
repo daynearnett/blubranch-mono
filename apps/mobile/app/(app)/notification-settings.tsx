@@ -26,6 +26,7 @@ type PrefKey =
   | 'notifyPostComments'
   | 'notifyMentions'
   | 'notifyLicenseExpiry'
+  | 'notifyDailyTasks'
   | 'notifyVouches';
 
 const ROWS: { key: PrefKey; label: string; desc: string }[] = [
@@ -36,6 +37,7 @@ const ROWS: { key: PrefKey; label: string; desc: string }[] = [
   { key: 'notifyPostComments', label: 'Comments', desc: 'When someone comments on your post' },
   { key: 'notifyVouches', label: 'Vouches', desc: 'When someone vouches for you' },
   { key: 'notifyLicenseExpiry', label: 'License reminders', desc: 'Before a license expires' },
+  { key: 'notifyDailyTasks', label: 'Daily task', desc: 'One small thing to do on BluBranch each day' },
   { key: 'notifyApplicationStatus', label: 'Application updates', desc: 'When an employer moves your application' },
   { key: 'notifyJobMatch', label: 'Job matches', desc: 'New jobs near you in your trade' },
   { key: 'notifyProfileViews', label: 'Profile views', desc: 'When someone checks you out' },

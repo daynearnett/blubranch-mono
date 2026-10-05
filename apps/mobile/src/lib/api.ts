@@ -1,4 +1,5 @@
 import type {
+  AppSessionInput,
   ApplicationStatus,
   ApplicationStatusUpdate,
   AuthResponse,
@@ -293,6 +294,7 @@ export interface MeResponse {
     notifyMentions: boolean;
     notifyLicenseExpiry: boolean;
     notifyVouches: boolean;
+    notifyDailyTasks: boolean;
   } | null;
   trades: { id: number; name: string; slug: string }[];
   skills: { id: number; name: string; tradeId: number | null }[];
@@ -988,6 +990,7 @@ export const notifications = {
     notifyMentions?: boolean;
     notifyLicenseExpiry?: boolean;
     notifyVouches?: boolean;
+    notifyDailyTasks?: boolean;
   }) =>
     request<unknown>('/settings/notifications', { method: 'PUT', body: JSON.stringify(prefs) }),
 };
@@ -1031,4 +1034,14 @@ export const search = {
   recent: () => request<RecentSearch[]>('/search/recent'),
   deleteRecent: (id: string) =>
     request<void>(`/search/recent/${id}`, { method: 'DELETE' }),
+};
+
+// Usage telemetry — see src/lib/usage-tracker.ts. Fire-and-forget: a failed
+// post is queued by the caller, never surfaced to the user.
+export const appSessions = {
+  record: (input: AppSessionInput) =>
+    request<{ recorded: boolean }>('/app-sessions', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }),
 };
