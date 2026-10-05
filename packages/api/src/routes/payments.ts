@@ -441,6 +441,10 @@ export async function stripeWebhookRoutes(app: FastifyInstance): Promise<void> {
 
   // Stripe signature verification needs the exact raw bytes, so within this
   // encapsulated plugin we parse application/json as a Buffer instead of JSON.
+  // Remove the lenient JSON parser inherited from the root app first — this
+  // scope needs the raw buffer, and re-adding a type that already exists in the
+  // context would throw FST_ERR_CTP_ALREADY_PRESENT.
+  app.removeContentTypeParser('application/json');
   app.addContentTypeParser('application/json', { parseAs: 'buffer' }, (_req, body, done) => {
     done(null, body);
   });
