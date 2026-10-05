@@ -10,6 +10,7 @@ import { requireRole } from '../auth/middleware.js';
 import { verifyPassword } from '../auth/password.js';
 import { getPrisma } from '../lib/prisma.js';
 import { recomputeProfileCompleteness } from '../services/profile-completeness.js';
+import { taskForDay } from '../jobs/daily-task-nudge.js';
 import { parseBody } from '../lib/validate.js';
 import { authRateLimit } from '../lib/security.js';
 
@@ -135,6 +136,178 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
       prisma.user.count({ where }),
     ]);
     return reply.send({ items, total, page: q.page, limit: q.limit });
+  });
+
+  // ── App usage ───────────────────────────────────────────────────
+  // Per-user rollup of mobile foreground time, newest-heaviest first. Built
+  // for the paid field test: "did this person actually open the app?" It is
+  // in-app time only — see routes/telemetry.ts on why device screen time is
+  // not available to us.
+  app.get('/admin/app-usage', admin, async (request, reply) => {
+    const q = parseList(request, reply);
+    if (!q) return;
+
+    // Resolve the search against users first so q matches a person, not a row.
+    let userIds: string[] | undefined;
+    if (q.q) {
+      const matches = await prisma.user.findMany({
+        where: {
+          OR: [
+            { firstName: { contains: q.q, mode: 'insensitive' } },
+            { lastName: { contains: q.q, mode: 'insensitive' } },
+            { email: { contains: q.q, mode: 'insensitive' } },
+          ],
+        },
+        select: { id: true },
+      });
+      userIds = matches.map((u) => u.id);
+      if (userIds.length === 0) {
+        return reply.send({ items: [], total: 0, page: q.page, limit: q.limit });
+      }
+    }
+
+    const where: Prisma.AppSessionWhereInput = userIds ? { userId: { in: userIds } } : {};
+    const [groups, distinct] = await Promise.all([
+      prisma.appSession.groupBy({
+        by: ['userId'],
+        where,
+        _sum: { durationMs: true },
+        _count: true,
+        _max: { startedAt: true },
+        orderBy: { _sum: { durationMs: 'desc' } },
+        skip: (q.page - 1) * q.limit,
+        take: q.limit,
+      }),
+      prisma.appSession.groupBy({ by: ['userId'], where }),
+    ]);
+
+    const ids = groups.map((g) => g.userId);
+    const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const [users, recent] = await Promise.all([
+      prisma.user.findMany({
+        where: { id: { in: ids } },
+        select: { id: true, firstName: true, lastName: true, email: true, role: true },
+      }),
+      prisma.appSession.groupBy({
+        by: ['userId'],
+        where: { userId: { in: ids }, startedAt: { gte: since } },
+        _sum: { durationMs: true },
+        _count: true,
+      }),
+    ]);
+    const byId = new Map(users.map((u) => [u.id, u]));
+    const last7 = new Map(recent.map((r) => [r.userId, r]));
+
+    const items = groups.map((g) => {
+      const u = byId.get(g.userId);
+      const r = last7.get(g.userId);
+      const totalMs = g._sum.durationMs ?? 0;
+      return {
+        userId: g.userId,
+        name: u ? fullName(u) : 'Deleted user',
+        email: u?.email ?? '—',
+        role: u?.role ?? null,
+        sessions: g._count,
+        totalMs,
+        avgMs: g._count > 0 ? Math.round(totalMs / g._count) : 0,
+        last7dMs: r?._sum.durationMs ?? 0,
+        last7dSessions: r?._count ?? 0,
+        lastSeenAt: g._max.startedAt,
+      };
+    });
+    return reply.send({ items, total: distinct.length, page: q.page, limit: q.limit });
+  });
+
+
+  // ── Daily task completion (focus-group field test) ──────────────
+  // For a UTC day (?date=YYYY-MM-DD, default today): which workers were
+  // nudged with that day's task and which actually did it, derived from the
+  // action tables (Post/PostLike/PostComment/Connection/Vouch/ToolboxAnswer).
+  // 'jobs' day has no per-user event — AppSession (opened the app) is the
+  // proxy and the response says so.
+  app.get('/admin/daily-task-completion', admin, async (request, reply) => {
+    const qd = z
+      .object({ date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional() })
+      .safeParse(request.query);
+    if (!qd.success) return reply.code(400).send({ error: 'ValidationError' });
+    const dayStart = qd.data.date ? new Date(`${qd.data.date}T00:00:00Z`) : new Date(new Date().setUTCHours(0, 0, 0, 0));
+    const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
+    const window = { gte: dayStart, lt: dayEnd };
+    const task = taskForDay(dayStart);
+
+    const workers = await prisma.user.findMany({
+      where: { role: 'worker' },
+      select: { id: true, firstName: true, lastName: true, email: true },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    const nudgedRows = await prisma.notification.groupBy({
+      by: ['userId'],
+      where: { type: 'daily_task', createdAt: window },
+    });
+    const nudged = new Set(nudgedRows.map((r) => r.userId));
+
+    // Per-user action counts for the day's task.
+    let counts: { userId: string; n: number }[];
+    switch (task.key) {
+      case 'post': {
+        const g = await prisma.post.groupBy({ by: ['userId'], where: { createdAt: window }, _count: true });
+        counts = g.map((r) => ({ userId: r.userId, n: r._count }));
+        break;
+      }
+      case 'like': {
+        const g = await prisma.postLike.groupBy({ by: ['userId'], where: { createdAt: window }, _count: true });
+        counts = g.map((r) => ({ userId: r.userId, n: r._count }));
+        break;
+      }
+      case 'comment': {
+        const g = await prisma.postComment.groupBy({ by: ['userId'], where: { createdAt: window }, _count: true });
+        counts = g.map((r) => ({ userId: r.userId, n: r._count }));
+        break;
+      }
+      case 'connect': {
+        const g = await prisma.connection.groupBy({ by: ['requesterId'], where: { createdAt: window }, _count: true });
+        counts = g.map((r) => ({ userId: r.requesterId, n: r._count }));
+        break;
+      }
+      case 'vouch': {
+        const g = await prisma.vouch.groupBy({ by: ['voucherId'], where: { createdAt: window }, _count: true });
+        counts = g.map((r) => ({ userId: r.voucherId, n: r._count }));
+        break;
+      }
+      case 'toolbox': {
+        const g = await prisma.toolboxAnswer.groupBy({ by: ['userId'], where: { answeredAt: window }, _count: true });
+        counts = g.map((r) => ({ userId: r.userId, n: r._count }));
+        break;
+      }
+      default: {
+        // 'jobs' — no per-user job-board event exists; opened-the-app proxy.
+        const g = await prisma.appSession.groupBy({ by: ['userId'], where: { startedAt: window }, _count: true });
+        counts = g.map((r) => ({ userId: r.userId, n: r._count }));
+      }
+    }
+    const countMap = new Map(counts.map((c) => [c.userId, c.n]));
+
+    const items = workers.map((w) => ({
+      id: w.id,
+      name: fullName(w),
+      email: w.email,
+      nudged: nudged.has(w.id),
+      actions: countMap.get(w.id) ?? 0,
+      done: (countMap.get(w.id) ?? 0) > 0,
+    }));
+
+    return reply.send({
+      date: dayStart.toISOString().slice(0, 10),
+      task: { key: task.key, title: task.title },
+      proxy: task.key === 'jobs' ? 'opened_app' : null,
+      items,
+      totals: {
+        workers: items.length,
+        nudged: items.filter((i) => i.nudged).length,
+        done: items.filter((i) => i.done).length,
+      },
+    });
   });
 
   // ── Employers ───────────────────────────────────────────────────

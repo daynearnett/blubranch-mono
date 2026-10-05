@@ -103,3 +103,90 @@ describe('processDailyTaskNudge', () => {
     expect(count).toBe(0);
   });
 });
+
+describe('GET /admin/daily-task-completion', () => {
+  let app: FastifyInstance;
+  const prisma = getPrisma();
+  const stamp = Date.now();
+  let workerId: string;
+  let adminToken: string;
+
+  // A UTC day whose rotation slot is 'post', so the test knows which action
+  // counts as "done".
+  const DAY_MS_L = 24 * 60 * 60 * 1000;
+  const postDay = (() => {
+    const base = new Date('2026-10-01T00:00:00Z');
+    for (let d = 0; d < DAILY_TASKS.length; d++) {
+      const day = new Date(base.getTime() + d * DAY_MS_L);
+      if (taskForDay(day).key === 'post') return day;
+    }
+    throw new Error('no post day found');
+  })();
+
+  beforeAll(async () => {
+    process.env.NODE_ENV = 'test';
+    app = await buildApp();
+    const { signAccessToken } = await import('./auth/jwt.js');
+    const w = await prisma.user.create({
+      data: {
+        firstName: 'Compl',
+        lastName: 'Worker',
+        email: `compl-worker-${stamp}@test.local`,
+        role: 'worker',
+        authProvider: 'email',
+        passwordHash: 'not-a-real-hash',
+        posts: {
+          create: {
+            content: 'did my daily task',
+            createdAt: new Date(postDay.getTime() + 15 * 60 * 60 * 1000),
+          },
+        },
+      },
+    });
+    workerId = w.id;
+    const a = await prisma.user.create({
+      data: {
+        firstName: 'Compl',
+        lastName: 'Admin',
+        email: `compl-admin-${stamp}@test.local`,
+        role: 'admin',
+        authProvider: 'email',
+        passwordHash: 'not-a-real-hash',
+      },
+    });
+    adminToken = signAccessToken(a.id, 'admin');
+  });
+
+  afterAll(async () => {
+    await prisma.user.deleteMany({
+      where: { email: { in: [`compl-worker-${stamp}@test.local`, `compl-admin-${stamp}@test.local`] } },
+    });
+    await app.close();
+  });
+
+  it('reports done=true for the worker who did the day task', async () => {
+    const res = await app.inject({
+      method: 'GET',
+      url: `/admin/daily-task-completion?date=${postDay.toISOString().slice(0, 10)}`,
+      headers: { authorization: `Bearer ${adminToken}` },
+    });
+    expect(res.statusCode).toBe(200);
+    const body = res.json();
+    expect(body.task.key).toBe('post');
+    const row = body.items.find((i: { id: string }) => i.id === workerId);
+    expect(row).toBeTruthy();
+    expect(row.done).toBe(true);
+    expect(row.actions).toBeGreaterThan(0);
+    expect(body.totals.done).toBeGreaterThanOrEqual(1);
+  });
+
+  it('rejects non-admin callers', async () => {
+    const { signAccessToken } = await import('./auth/jwt.js');
+    const res = await app.inject({
+      method: 'GET',
+      url: '/admin/daily-task-completion',
+      headers: { authorization: `Bearer ${signAccessToken(workerId, 'worker')}` },
+    });
+    expect(res.statusCode).toBe(403);
+  });
+});
