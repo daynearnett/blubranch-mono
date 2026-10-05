@@ -1,6 +1,7 @@
 // Social feed post card (Mockup screen 4 — first item).
 import { useState } from 'react';
 import { Alert, Image, Pressable, Share, StyleSheet, Text, View } from 'react-native';
+import type { AlertButton } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Heart, MessageCircle, MoreHorizontal, Share2 } from 'lucide-react-native';
 import { Badge } from './ui.js';
@@ -26,14 +27,12 @@ export function PostCard({
   const [hidden, setHidden] = useState(false);
   const isOwner = user?.id === post.user.id;
 
+  // One consistent ••• menu for every post: Share always; then Archive/Delete
+  // on your own posts, or Report on someone else's (which opens the
+  // reason picker). Previously non-owner taps jumped straight to the report
+  // dialog, which made the two behaviors look random.
   const onMore = () => {
-    Alert.alert('Post options', undefined, [
-      {
-        text: 'Share',
-        onPress: () => {
-          void onShare();
-        },
-      },
+    const ownerActions: AlertButton[] = [
       {
         text: 'Archive',
         onPress: async () => {
@@ -68,7 +67,16 @@ export function PostCard({
           ]);
         },
       },
-      { text: 'Cancel', style: 'cancel' },
+    ];
+    Alert.alert('Post options', undefined, [
+      {
+        text: 'Share',
+        onPress: () => {
+          void onShare();
+        },
+      },
+      ...(isOwner ? ownerActions : [{ text: 'Report', onPress: () => onReport() }]),
+      { text: 'Cancel', style: 'cancel' as const },
     ]);
   };
 
@@ -177,10 +185,10 @@ export function PostCard({
           </View>
         </Pressable>
         <Pressable
-          onPress={isOwner ? onMore : onReport}
+          onPress={onMore}
           hitSlop={8}
           style={styles.moreBtn}
-          accessibilityLabel={isOwner ? 'Post options' : 'Report post'}
+          accessibilityLabel="Post options"
         >
           <MoreHorizontal color={colors.textMuted} size={20} strokeWidth={2} />
         </Pressable>
