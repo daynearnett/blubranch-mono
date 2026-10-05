@@ -13,7 +13,11 @@ import { sendNotification } from '../services/push.js';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const MIN_OVERLAP_DAYS = 30;
-const PENDING_SHELF_LIFE_DAYS = 30;
+// A pending vouch that is never confirmed ages out of the pending list after
+// this many days. The nightly vouch-expiry job (jobs/vouch-expiry.ts) uses the
+// same window to actually delete the stale row + its orphaned notification, so
+// the list filter and the cleanup stay in lockstep.
+export const PENDING_SHELF_LIFE_DAYS = 30;
 
 /** Normalize a free-text company name for matching ("Turner  Const." ≈ "turner const"). */
 export function normalizeCompanyName(name: string): string {

@@ -8,6 +8,7 @@ import { processJobMatchScan } from './job-match.js';
 import { processProfileNudge } from './profile-nudge.js';
 import { processDailyTaskNudge } from './daily-task-nudge.js';
 import { refreshHeadlines } from '../services/headlines.js';
+import { processVouchExpiry } from './vouch-expiry.js';
 
 /**
  * Register workers and schedule repeatable jobs. Idempotent — safe to call on
@@ -35,6 +36,9 @@ export async function startWorkers(): Promise<void> {
       case 'daily-headline':
         await refreshHeadlines();
         break;
+      case 'vouch-expiry':
+        await processVouchExpiry();
+        break;
       default:
         console.warn(`[jobs-maintenance] Unknown job: ${job.name}`);
     }
@@ -55,6 +59,15 @@ export async function startWorkers(): Promise<void> {
       name: 'license-expiration',
       opts: {
         repeat: { pattern: '0 3 * * *' }, // daily at 3 AM UTC
+        removeOnComplete: { count: 7 },
+        removeOnFail: { count: 10 },
+      },
+    },
+    {
+      queue: QUEUE_NAMES.JOBS,
+      name: 'vouch-expiry',
+      opts: {
+        repeat: { pattern: '30 3 * * *' }, // daily at 3:30 AM UTC
         removeOnComplete: { count: 7 },
         removeOnFail: { count: 10 },
       },
