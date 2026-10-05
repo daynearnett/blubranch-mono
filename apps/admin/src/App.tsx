@@ -19,6 +19,8 @@ const TradesPage = lazy(() => import("./pages/trades"));
 const SkillsPage = lazy(() => import("./pages/skills"));
 const ReportsPage = lazy(() => import("./pages/reports"));
 const IssuesPage = lazy(() => import("./pages/issues"));
+const AppUsagePage = lazy(() => import("./pages/app-usage"));
+const DailyTasksPage = lazy(() => import("./pages/daily-tasks"));
 
 function PageLoader() {
   return (
@@ -61,6 +63,22 @@ export default function App() {
                   element={
                     <Suspense fallback={<PageLoader />}>
                       <DashboardPage />
+                    </Suspense>
+                  }
+                />
+                <Route
+                  path="app-usage"
+                  element={
+                    <Suspense fallback={<PageLoader />}>
+                      <AppUsagePage />
+                    </Suspense>
+                  }
+                />
+                <Route
+                  path="daily-tasks"
+                  element={
+                    <Suspense fallback={<PageLoader />}>
+                      <DailyTasksPage />
                     </Suspense>
                   }
                 />

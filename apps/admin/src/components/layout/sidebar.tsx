@@ -2,6 +2,8 @@ import { useState } from "react";
 import { NavLink } from "react-router-dom";
 import { useAuth } from "@/lib/auth";
 import {
+  Activity,
+  CalendarCheck,
   LayoutDashboard,
   HardHat,
   Building2,
@@ -63,6 +65,8 @@ const navSections: NavSection[] = [
     items: [
       { to: "/reports", icon: Flag, label: "Reports" },
       { to: "/issues", icon: Bug, label: "Bug reports" },
+      { to: "/app-usage", icon: Activity, label: "App usage" },
+      { to: "/daily-tasks", icon: CalendarCheck, label: "Daily tasks" },
     ],
   },
   {
