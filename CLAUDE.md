@@ -28,7 +28,7 @@ BluBranch is a two-sided professional networking and job marketplace platform bu
 - [docs/SENTRY-SETUP.md](./docs/SENTRY-SETUP.md) — **do-it-now Sentry activation runbook**: create the two projects, activate the API instantly via a Railway `SENTRY_DSN` var (no rebuild), wire mobile `EXPO_PUBLIC_SENTRY_DSN` on the next build, optional source-map upload, external uptime. Companion to MONITORING.md.
 - [docs/KEY-ROTATION.md](./docs/KEY-ROTATION.md) — **pre-beta key-rotation runbook** for the two secrets exposed in chat history: `RESEND_API_KEY` (new key → set on both Railway services → verify send → delete old) and `TWILIO_AUTH_TOKEN` (secondary token → set → verify SMS → promote, zero-downtime). Staging-first, no code change; exact Railway vars + verify curls.
 
-## Current deployment state (last updated 2026-07-20)
+## Current deployment state (last updated 2026-10-05)
 
 ### Daily task nudges — focus-group engagement (2026-10-05, DEPLOYED to staging; `9ea08be`)
 One rotating basic social task per day (post photo / comment / connect / like / vouch / Toolbox Talk / jobs board), pushed to every worker at **17:00 UTC (~1 PM ET)**; same task for everyone each day (rotation keyed to UTC day) so focus-group activity clusters. New `daily_task` NotificationType + `notifyDailyTasks` pref (default on; "Daily task" row in notification settings, shipped OTA), migration `20261005000000_daily_task_nudge`, BullMQ repeatable `daily-task-nudge`, one-per-user-per-day dedup, push + in-app only (no email by design). Prompts live in `packages/api/src/jobs/daily-task-nudge.ts` (`DAILY_TASKS`). 4 tests. Verified live on staging (prefs field round-trips). ASC submission build is ON HOLD pending the focus-group field test.
