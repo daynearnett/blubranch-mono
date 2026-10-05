@@ -81,3 +81,13 @@ eas submit --platform ios --profile preview
   1. When adding any `@react-navigation/*` package, check its `peerDependencies` against the versions expo-router already installed (`node_modules/@react-navigation/native/package.json`) — `pnpm install`'s "unmet peer" warning is a launch crash foretold, not noise.
   2. TypeScript can't catch missing runtime exports across package boundaries. Before a TestFlight build with new deps, do a runtime smoke: dev-server launch or simulator run. (Web export doesn't work as a smoke — Stripe's native-only imports break it.)
   3. Crash triage order: get `.ips` from Settings → Privacy & Security → Analytics Data. `Exception Type` + `legacyInfo.threadTriggered.queue` classify it (errorRecoveryQueue ⇒ JS init failure) before touching any dependency.
+
+## Issue 9: OTA update silently pointed the app at localhost — EAS env vs eas.json env (2026-10-04)
+- Symptom: after an `eas update`, the app showed generic network failures ("Could not load feed", instant-fail pull-to-refresh) while staying signed in; the API itself was healthy on both domains.
+- Root cause: `EXPO_PUBLIC_*` vars are **inlined at JS-bundle time**. EAS **Build** reads `eas.json`'s `build.<profile>.env` — but `eas update --environment preview` reads the **EAS server-side environment store** (expo.dev → project → Environment variables), which was EMPTY. The update bundled `EXPO_PUBLIC_API_URL=undefined`, so `defaultBaseUrl()` fell back to `http://localhost:4000` on every device that applied it.
+- Why it's sneaky: the update applies cleanly (no crash, no expo-updates rollback — the bundle is valid JS), binaries keep working until they apply the update, and server-side probes all pass.
+- Fix: created the four `EXPO_PUBLIC_*` vars in the EAS **preview** environment (`eas env:create --environment preview …`, mirroring eas.json's preview env) and republished the update.
+- Lessons:
+  1. The EAS server environment must mirror `eas.json`'s `build.<profile>.env` for every `EXPO_PUBLIC_*` var — keep them in sync whenever eas.json env changes (do the production environment too, before any prod OTA).
+  2. After any OTA, verify a **server-dependent** screen (feed loads), not just local UI like the splash.
+  3. `eas env:list --environment preview` is the 5-second preflight before publishing an update.
