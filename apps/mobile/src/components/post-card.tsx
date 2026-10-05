@@ -29,6 +29,12 @@ export function PostCard({
   const onMore = () => {
     Alert.alert('Post options', undefined, [
       {
+        text: 'Share',
+        onPress: () => {
+          void onShare();
+        },
+      },
+      {
         text: 'Archive',
         onPress: async () => {
           setHidden(true);
