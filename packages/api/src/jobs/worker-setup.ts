@@ -72,7 +72,7 @@ export async function startWorkers(): Promise<void> {
       queue: QUEUE_NAMES.JOBS,
       name: 'daily-headline',
       opts: {
-        repeat: { pattern: '30 9 * * *' }, // daily 09:30 UTC — fresh story before the US morning
+        repeat: { pattern: '30 */4 * * *' }, // every 4 hours — keep the top story current through the day
         removeOnComplete: { count: 7 },
         removeOnFail: { count: 10 },
       },

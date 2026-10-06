@@ -22,7 +22,7 @@ export const HEADLINE_FEEDS: { source: string; url: string }[] = [
 
 const FETCH_TIMEOUT_MS = 8000;
 // Re-check the feeds when the newest stored headline is older than this.
-const STALE_AFTER_MS = 6 * 60 * 60 * 1000;
+const STALE_AFTER_MS = 4 * 60 * 60 * 1000;
 
 function decodeEntities(s: string): string {
   return s

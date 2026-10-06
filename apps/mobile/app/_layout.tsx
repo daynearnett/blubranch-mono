@@ -1,4 +1,5 @@
 import { Stack, useRouter, useSegments } from 'expo-router';
+import { ThemeProvider, DarkTheme, DefaultTheme } from '@react-navigation/native';
 import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { Animated, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
@@ -27,6 +28,24 @@ SplashScreen.preventAutoHideAsync().catch(() => undefined);
 
 // Initialize error monitoring before the tree mounts (no-op without a DSN).
 initSentry();
+
+// react-navigation paints navigator surfaces (material-top-tabs scenes, stack
+// containers, the area under the status bar) with ITS theme — without this it
+// defaults to near-white, which showed as a pale band behind the clock in
+// dark mode (and a subtle off-white strip in light). Mirror our tokens.
+const baseNavTheme = isDarkMode ? DarkTheme : DefaultTheme;
+const navTheme = {
+  ...baseNavTheme,
+  colors: {
+    ...baseNavTheme.colors,
+    background: colors.background,
+    card: colors.background,
+    text: colors.textPrimary,
+    border: colors.border,
+    primary: colors.navy,
+    notification: colors.danger,
+  },
+};
 
 function RootGuard() {
   const { status } = useAuth();
@@ -137,7 +156,8 @@ function PaymentProvider({ children }: { children: ReactNode }) {
 function RootLayout() {
   const [brandDone, setBrandDone] = useState(false);
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
+    <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.background }}>
+    <ThemeProvider value={navTheme}>
     <SafeAreaProvider>
       <PaymentProvider>
         <AuthProvider>
@@ -153,6 +173,7 @@ function RootLayout() {
       </PaymentProvider>
       {brandDone ? null : <BrandSplash onDone={() => setBrandDone(true)} />}
     </SafeAreaProvider>
+    </ThemeProvider>
     </GestureHandlerRootView>
   );
 }
