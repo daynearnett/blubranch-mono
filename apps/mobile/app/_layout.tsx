@@ -14,6 +14,7 @@ import { initSentry, withSentry } from '../src/lib/sentry.js';
 import { DetailPanelProvider } from '../src/lib/detail-panel-context.js';
 import { PostJobProvider } from '../src/lib/post-job-context.js';
 import { SignupProvider } from '../src/lib/signup-context.js';
+import { useUsageTracking } from '../src/lib/usage-tracker.js';
 import { AnimatedLogo, LOGO_ANIMATION_MS } from '../src/components/animated-logo.js';
 import { colors, radius, spacing, typography } from '../src/theme.js';
 
@@ -31,6 +32,9 @@ function RootGuard() {
   const { status } = useAuth();
   const segments = useSegments();
   const router = useRouter();
+
+  // Records foreground time for signed-in users (admin panel → App usage).
+  useUsageTracking();
 
   // Hide the splash as soon as we know which side of the auth boundary the
   // user belongs on. By that point RootGuard's <Stack> has already mounted
