@@ -57,6 +57,32 @@ export async function buildApp(): Promise<FastifyInstance> {
     logger: { level: process.env.LOG_LEVEL ?? 'info' },
   });
 
+  // Tolerate an empty body on application/json requests. Fastify's default JSON
+  // parser throws FST_ERR_CTP_EMPTY_JSON_BODY (400) when a request carries a
+  // Content-Type: application/json header but no body — which breaks no-payload
+  // mutations like PUT /connections/:id/accept, POST /payments/jobs/:id/intent,
+  // and POST /posts/:id/like when a client (e.g. the mobile app) sets the header
+  // without sending {}. Treat an empty body as {}; still 400 on malformed JSON.
+  // The Stripe webhook plugin registers its own buffer parser in its own scope,
+  // so it is unaffected.
+  app.addContentTypeParser(
+    'application/json',
+    { parseAs: 'string' },
+    (_req, body, done) => {
+      const raw = body as string;
+      if (raw === '' || raw == null) {
+        done(null, {});
+        return;
+      }
+      try {
+        done(null, JSON.parse(raw));
+      } catch (err) {
+        (err as { statusCode?: number }).statusCode = 400;
+        done(err as Error, undefined);
+      }
+    },
+  );
+
   await app.register(cors, {
     credentials: true,
     origin: (origin, cb) => {
