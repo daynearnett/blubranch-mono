@@ -1,7 +1,16 @@
 // BluBranch design tokens — Workwear Denim + CAT Yellow palette.
 // System font stack on every platform. No webfont.
+//
+// DARK MODE: the palette is chosen ONCE at app launch from the system
+// appearance (Appearance.getColorScheme()). Every StyleSheet.create in the
+// app captures tokens at module eval, so a mid-session OS theme change
+// applies on the next launch — the standard tradeoff of static theming.
+// A live in-app toggle needs the full dynamic-theme refactor (post-field-test).
+import { Appearance } from 'react-native';
 
-export const colors = {
+export const isDarkMode = Appearance.getColorScheme() === 'dark';
+
+const lightColors = {
   // Brand
   navy: '#3D5A80',      // Workwear Denim — primary brand surface
   navyDark: '#2C4361',  // Darker denim — pressed/strokes
@@ -42,7 +51,69 @@ export const colors = {
   chipBg: '#F5F7FA',
   chipBgActive: '#FFF6CC',     // Light yellow tint for active chip bg
   chipBorderActive: '#FFCD11', // CAT Yellow for active chip border
+
+  // Tinted feedback surfaces (paired bg/text so both themes stay legible)
+  successTintBg: '#DCFCE7',
+  successTintText: '#15803D',
+  dangerTintBg: '#FEE2E2',
+  dangerTintText: '#B91C1C',
+
+  // Advertised-job cards in the feed — pale denim so they read as "ad slot",
+  // not just another post.
+  jobCardBg: '#EEF4FA',
+  jobCardBorder: 'rgba(70,130,180,0.45)',
 } as const;
+
+// Night-shift palette: denim-navy ground, brand accents kept. Same keys as
+// lightColors — TypeScript enforces parity below. Known v1 tradeoff: `navy`
+// is mostly TEXT (headers/labels) so its dark variant is lifted for
+// legibility; the few navy-filled buttons drop to ~3:1 with white labels.
+const darkColors: { [K in keyof typeof lightColors]: string } = {
+  navy: '#6B91BD',
+  navyDark: '#89A9CC',
+  navyMid: '#7E9CC4',
+  steel: '#6FA8DC',
+  orange: '#FFCD11',
+  orangeWarm: '#E0B23A',
+  green: '#66BB6A',
+  amber: '#FAC775',
+  amberText: '#412402',
+  red: '#E57373',
+
+  surface: '#16243A',
+  cardBg: '#1A2B44',
+  divider: '#223850',
+  text: '#E8EEF5',
+  textBody: '#D5E0EC',
+  textMuted: '#93A9C0',
+  textLight: '#6E89A6',
+  border: 'rgba(176,196,222,0.22)',
+  borderSoft: 'rgba(176,196,222,0.10)',
+
+  primary: '#FFCD11',
+  primaryDark: '#A9C6E8',
+  ctaDark: '#3D5A80',
+  background: '#0F1B29',
+  textPrimary: '#E8EEF5',
+  textSecondary: '#93A9C0',
+  textInverse: '#FFFFFF',
+  success: '#66BB6A',
+  danger: '#E57373',
+  inputBorder: 'rgba(176,196,222,0.22)',
+  chipBg: '#1E3048',
+  chipBgActive: '#3A3214',
+  chipBorderActive: '#FFCD11',
+
+  successTintBg: '#143D23',
+  successTintText: '#7BD99A',
+  dangerTintBg: '#45201F',
+  dangerTintText: '#F1948A',
+
+  jobCardBg: '#1C3049',
+  jobCardBorder: 'rgba(111,168,220,0.45)',
+};
+
+export const colors = isDarkMode ? darkColors : lightColors;
 
 export const spacing = {
   xxs: 4,

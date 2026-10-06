@@ -118,9 +118,11 @@ function formatPay(n: number): string {
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: colors.background,
+    // Pale-denim panel so advertised jobs read as a distinct slot in the
+    // mixed feed instead of blending in with regular posts.
+    backgroundColor: colors.jobCardBg,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.jobCardBorder,
     borderRadius: radius.md,
     marginBottom: spacing.md,
     overflow: 'hidden',

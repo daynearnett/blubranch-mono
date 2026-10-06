@@ -306,15 +306,15 @@ const badgeStyles = {
     label: { color: colors.textPrimary },
   }),
   success: StyleSheet.create({
-    bg: { backgroundColor: '#DCFCE7' },
-    label: { color: '#15803D' },
+    bg: { backgroundColor: colors.successTintBg },
+    label: { color: colors.successTintText },
   }),
   primary: StyleSheet.create({
     bg: { backgroundColor: colors.chipBgActive },
     label: { color: colors.primaryDark },
   }),
   danger: StyleSheet.create({
-    bg: { backgroundColor: '#FEE2E2' },
-    label: { color: '#B91C1C' },
+    bg: { backgroundColor: colors.dangerTintBg },
+    label: { color: colors.dangerTintText },
   }),
 };

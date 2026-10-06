@@ -16,7 +16,7 @@ import { PostJobProvider } from '../src/lib/post-job-context.js';
 import { SignupProvider } from '../src/lib/signup-context.js';
 import { useUsageTracking } from '../src/lib/usage-tracker.js';
 import { AnimatedLogo, LOGO_ANIMATION_MS } from '../src/components/animated-logo.js';
-import { colors, radius, spacing, typography } from '../src/theme.js';
+import { colors, isDarkMode, radius, spacing, typography } from '../src/theme.js';
 
 // Keep the native splash up until the auth bootstrap resolves so the user
 // never sees a flash of empty white between launch and the first screen.
@@ -56,7 +56,14 @@ function RootGuard() {
   }, [status, segments, router]);
 
   return (
-    <Stack screenOptions={{ headerShown: false }}>
+    <Stack
+      screenOptions={{
+        headerShown: false,
+        // Paint the navigator container too, so screen transitions never
+        // flash white in dark mode.
+        contentStyle: { backgroundColor: colors.background },
+      }}
+    >
       <Stack.Screen name="(auth)" />
       <Stack.Screen name="(app)" />
     </Stack>
@@ -106,6 +113,9 @@ function BrandSplash({ onDone }: { onDone: () => void }) {
 }
 
 const brandStyles = StyleSheet.create({
+  // Deliberately NOT themed: the native splash is white and the crossfade
+  // lands on icon.png's opaque white square, so the overlay must stay white
+  // in both themes for a seamless handoff.
   container: { backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', gap: 20 },
   slogan: { color: '#3D5A80', fontSize: 16, fontWeight: '600', letterSpacing: 0.3 },
 });
@@ -134,7 +144,7 @@ function RootLayout() {
           <SignupProvider>
             <PostJobProvider>
               <DetailPanelProvider>
-                <StatusBar style="dark" />
+                <StatusBar style={isDarkMode ? "light" : "dark"} />
                 <RootGuard />
               </DetailPanelProvider>
             </PostJobProvider>

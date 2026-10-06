@@ -27,7 +27,7 @@ export function TodaysHeadlineCard() {
     <Pressable style={styles.card} onPress={open} accessibilityRole="link">
       <View style={styles.header}>
         <Newspaper color={colors.navy} size={18} strokeWidth={2} />
-        <Text style={styles.headerLabel}>Today's Headlines</Text>
+        <Text style={styles.headerLabel}>Today's Headline</Text>
       </View>
       {headline.imageUrl ? (
         <Image source={{ uri: headline.imageUrl }} style={styles.image} resizeMode="cover" />
