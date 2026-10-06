@@ -94,6 +94,11 @@ export function JobCard({ job, onPress, onApplyPress, onBookmarkPress, isBookmar
         </Text>
 
         <View style={styles.tagRow}>
+          {/* The full-width FEATURED stripe only shows in non-compact cards; in
+              compact cards (e.g. the feed's "Jobs near you" block) surface a
+              small badge instead so a boosted listing that outranks higher-pay
+              ones is never mistaken for a broken sort. */}
+          {compact && job.isFeatured ? <Badge label="Featured" tone="primary" /> : null}
           <Badge label={TYPE_LABEL[job.jobType]} tone="neutral" />
           <Badge label={SETTING_LABEL[job.workSetting]} tone="neutral" />
           {job.isUrgent ? <Badge label="Urgent hire" tone="danger" /> : null}
