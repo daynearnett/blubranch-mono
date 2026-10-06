@@ -785,6 +785,20 @@ export interface ToolboxToday {
   streak: number;
 }
 
+export interface Headline {
+  id: string;
+  title: string;
+  url: string;
+  source: string;
+  summary: string | null;
+  imageUrl: string | null;
+  publishedAt: string;
+}
+
+export const headlines = {
+  today: () => request<{ headline: Headline | null }>('/headlines/today'),
+};
+
 export const toolbox = {
   today: () => request<ToolboxToday>('/toolbox/today'),
   answer: (choiceIndex: number) =>

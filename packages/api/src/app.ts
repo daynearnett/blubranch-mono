@@ -17,11 +17,13 @@ import { legalRoutes } from './routes/legal.js';
 import { uploadRoutes } from './routes/upload.js';
 import { connectionRoutes } from './routes/connections.js';
 import { vouchRoutes } from './routes/vouches.js';
+import { headlineRoutes } from './routes/headlines.js';
 import { userRoutes } from './routes/users.js';
 import { messageRoutes } from './routes/messages.js';
 import { notificationRoutes } from './routes/notifications.js';
 import { paymentRoutes, stripeWebhookRoutes } from './routes/payments.js';
 import { adminRoutes } from './routes/admin.js';
+import { telemetryRoutes } from './routes/telemetry.js';
 import { moderationRoutes } from './routes/moderation.js';
 
 // Origins that may call this API. Native iOS / Android apps don't send the
@@ -83,6 +85,7 @@ export async function buildApp(): Promise<FastifyInstance> {
   await app.register(applicationRoutes);
   await app.register(connectionRoutes);
   await app.register(vouchRoutes);
+  await app.register(headlineRoutes);
   await app.register(postRoutes);
   await app.register(toolboxRoutes);
   await app.register(shareRoutes);
@@ -94,6 +97,7 @@ export async function buildApp(): Promise<FastifyInstance> {
   // the raw request body (signature verification) without affecting JSON routes.
   await app.register(stripeWebhookRoutes);
   await app.register(adminRoutes);
+  await app.register(telemetryRoutes);
   await app.register(moderationRoutes);
   await app.register(uploadRoutes);
 

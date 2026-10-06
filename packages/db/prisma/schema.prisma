@@ -698,6 +698,24 @@ model WorkPlace {
   @@map("work_places")
 }
 
+// ───────────────────────────── Today's Headlines ─────────────────────────────
+
+// Top trade-press story of the day, fetched from RSS (services/headlines.ts).
+// One row per article (unique url); the feed card shows the newest.
+model Headline {
+  id          String   @id @default(uuid()) @db.Uuid
+  title       String   @db.VarChar(500)
+  url         String   @unique @db.VarChar(1000)
+  source      String   @db.VarChar(100)
+  summary     String?  @db.Text
+  imageUrl    String?  @map("image_url") @db.VarChar(1000)
+  publishedAt DateTime @map("published_at")
+  fetchedAt   DateTime @default(now()) @map("fetched_at")
+
+  @@index([publishedAt])
+  @@map("headlines")
+}
+
 // ───────────────────────────── Bookmarked jobs ─────────────────────────────
 
 model BookmarkedJob {

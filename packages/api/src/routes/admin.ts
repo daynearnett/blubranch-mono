@@ -275,9 +275,9 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
         counts = g.map((r) => ({ userId: r.voucherId, n: r._count }));
         break;
       }
-      case 'toolbox': {
-        const g = await prisma.toolboxAnswer.groupBy({ by: ['userId'], where: { answeredAt: window }, _count: true });
-        counts = g.map((r) => ({ userId: r.userId, n: r._count }));
+      case 'message': {
+        const g = await prisma.message.groupBy({ by: ['senderId'], where: { createdAt: window }, _count: true });
+        counts = g.map((r) => ({ userId: r.senderId, n: r._count }));
         break;
       }
       default: {

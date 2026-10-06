@@ -47,9 +47,9 @@ export const DAILY_TASKS: DailyTask[] = [
     body: 'Worked with someone solid? Vouch for them on their profile.',
   },
   {
-    key: 'toolbox',
-    title: 'Take today’s Toolbox Talk',
-    body: 'One question a day keeps you sharp — take your shot.',
+    key: 'message',
+    title: 'Check in with your branch',
+    body: 'Send a message to someone you’ve worked with.',
   },
   {
     key: 'jobs',
