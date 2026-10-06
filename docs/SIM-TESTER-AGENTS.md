@@ -85,3 +85,25 @@ around applying (browse, search, save/bookmark, job detail, pay-insights).
 Earlier orphaned accounts from a failed setup run (emails `+sim-w1`…`+sim-e3`,
 registered 2026-08-03 with lost passwords) can be ignored or admin-deleted
 later. The live sim uses `+sim2-*` emails.
+
+## Git isolation (REQUIRED — added 2026-10-05 after two worktree collisions)
+
+Sim/background sessions must NOT operate in the main checkout at
+`~/Dev/blubranch-mono` — on 2026-10-04/05 a sim session switched that
+directory's checked-out branch mid-day while an interactive session was
+working in it. Result: the interactive session committed onto the sim's
+branch without knowing (a docs commit stranded on `fix/empty-json-body-400`),
+later saw "reverted" files from the sim's stale branch, and in recovering
+nearly clobbered the sim branch's ref with a `reset --hard`.
+
+Rules:
+1. **Every sim/background session creates its own worktree first** and does
+   ALL work there:
+   `git worktree add ../blubranch-sim-<runid> -b <branch> origin/main`
+   Remove it at the end of the run (`git worktree remove ../blubranch-sim-<runid>`).
+2. **Never run `git checkout`/`switch`/`reset` in the main checkout** from a
+   sim session — the main checkout belongs to the interactive session and
+   stays on `main`.
+3. Interactive sessions: guard commits with a
+   `[ "$(git branch --show-current)" = main ]` check in the same shell line —
+   a checkout can land between two separate commands.
