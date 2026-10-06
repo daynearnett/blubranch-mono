@@ -18,6 +18,12 @@ import { planTtlDays } from '../lib/plans.js';
 
 const MILES_TO_METERS = 1609.344;
 
+// Minimum number of posted hourly listings before "What's it paying?" shows
+// figures. Postings are already public, so this is a statistical-meaningfulness
+// floor, not a privacy one; keep it low enough that early/thin launch markets
+// still see a signal instead of a permanent empty state.
+const MIN_PAY_SAMPLE = 3;
+
 export async function jobRoutes(app: FastifyInstance): Promise<void> {
   const prisma = getPrisma();
 
@@ -406,7 +412,7 @@ export async function jobRoutes(app: FastifyInstance): Promise<void> {
   // Employer's posted jobs.
   // ── GET /jobs/pay-insights — "What's it paying?" (wage Phase 0, E3) ──
   // Aggregates POSTED hourly pay ranges by trade + state. Never shows a cell
-  // under n=5 postings. Defaults to the caller's primary trade + saved state.
+  // under MIN_PAY_SAMPLE postings. Defaults to the caller's primary trade + saved state.
   app.get<{ Querystring: { tradeId?: string; state?: string } }>(
     '/jobs/pay-insights',
     { preHandler: requireAuth },
@@ -453,7 +459,7 @@ export async function jobRoutes(app: FastifyInstance): Promise<void> {
       const agg = rows[0];
       const n = Number(agg?.n ?? 0);
       const trade = await prisma.trade.findUnique({ where: { id: tradeId } });
-      if (n < 5) {
+      if (n < MIN_PAY_SAMPLE) {
         return reply.send({ tradeId, tradeName: trade?.name ?? null, state, n, insufficient: true });
       }
       return reply.send({

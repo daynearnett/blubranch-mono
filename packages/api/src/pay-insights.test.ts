@@ -143,17 +143,44 @@ describe('Pay insights — posted-pay aggregates', () => {
     expect(body.hourly.avgMin).toBeCloseTo(35, 5);
   });
 
-  it('gates below n=5 (insufficient, no figures leaked)', async () => {
-    // Demote one hourly posting to draft → only 4 countable.
-    await prisma.job.update({ where: { id: jobIds[0]! }, data: { status: 'draft' } });
+  it('gates below n=3 (insufficient, no figures leaked)', async () => {
+    // Demote 3 of the 5 hourly postings to draft → only 2 countable (< floor).
+    await prisma.job.updateMany({
+      where: { id: { in: [jobIds[0]!, jobIds[1]!, jobIds[2]!] } },
+      data: { status: 'draft' },
+    });
     const res = await app.inject({
       method: 'GET',
       url: '/jobs/pay-insights',
       headers: { authorization: `Bearer ${worker.token}` },
     });
+    expect(res.json().n).toBe(2);
     expect(res.json().insufficient).toBe(true);
     expect(res.json().hourly).toBeUndefined();
-    await prisma.job.update({ where: { id: jobIds[0]! }, data: { status: 'open' } });
+    await prisma.job.updateMany({
+      where: { id: { in: [jobIds[0]!, jobIds[1]!, jobIds[2]!] } },
+      data: { status: 'open' },
+    });
+  });
+
+  it('shows figures at exactly n=3 (the lowered floor)', async () => {
+    // Demote 2 of the 5 hourly postings to draft → exactly 3 countable.
+    await prisma.job.updateMany({
+      where: { id: { in: [jobIds[0]!, jobIds[1]!] } },
+      data: { status: 'draft' },
+    });
+    const res = await app.inject({
+      method: 'GET',
+      url: '/jobs/pay-insights',
+      headers: { authorization: `Bearer ${worker.token}` },
+    });
+    expect(res.json().n).toBe(3);
+    expect(res.json().insufficient).toBeUndefined();
+    expect(res.json().hourly).toBeDefined();
+    await prisma.job.updateMany({
+      where: { id: { in: [jobIds[0]!, jobIds[1]!] } },
+      data: { status: 'open' },
+    });
   });
 
   it('POST /jobs persists payPeriod (and defaults to hourly when omitted)', async () => {
