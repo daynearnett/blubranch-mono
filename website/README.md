@@ -14,7 +14,6 @@ Styled after the mobile app's light theme (`apps/mobile/src/theme.ts`): Workwear
 ## Waitlist
 
 Both forms (hero + closing) validate the email client-side. Set `WAITLIST_ENDPOINT` in the inline script to go live; it POSTs `{ email, role: 'worker' | 'employer', source: 'website' }` as JSON. Until then, submitting shows "Waitlist signups open in a few days."
-Employer pricing matches `packages/shared/src/schemas/payment.ts` (Basic $19/post, Blu $79/mo, Blu Max $139/mo).
 
 ## Preview locally
 
