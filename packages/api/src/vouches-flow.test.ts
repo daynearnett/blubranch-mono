@@ -163,9 +163,14 @@ describe('Vouch flow', () => {
   });
 
   it('vouchee got a vouch_received notification', async () => {
-    const notif = await prisma.notification.findFirst({
-      where: { userId: bob.id, type: 'vouch_received' },
-    });
+    // Notification dispatch is fire-and-forget — poll briefly for the row.
+    let notif = null;
+    for (let i = 0; i < 20 && !notif; i++) {
+      notif = await prisma.notification.findFirst({
+        where: { userId: bob.id, type: 'vouch_received' },
+      });
+      if (!notif) await new Promise((r) => setTimeout(r, 100));
+    }
     expect(notif).not.toBeNull();
     expect(notif!.title).toContain('Alice');
   });
