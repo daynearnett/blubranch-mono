@@ -5,7 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>BluBranch</title>
 <meta name="description" content="BluBranch is the professional network built for the Blue Collar. Verified licenses, vouches from people you've worked with, and local trade jobs. Always free for workers.">
-<meta name="theme-color" content="#3D5A80">
+<meta name="theme-color" content="#FFFFFF">
+<meta name="color-scheme" content="light">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="BluBranch">
 <meta property="og:title" content="BluBranch: the professional network built for the Blue Collar">
@@ -16,57 +17,44 @@
 <link rel="icon" type="image/svg+xml" href="assets/logo-mark.svg">
 <link rel="icon" type="image/png" href="assets/favicon.png">
 <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <style>
-/* Layout: single centered column (max 1120px); hero splits headline / example Trade Card,
-   then alternating feature bands, a pricing row, and a denim closing band. */
+/* Mirrors the mobile app's light theme (apps/mobile/src/theme.ts): white + #F5F7FA surfaces,
+   Workwear Denim primary buttons, CAT Yellow only as an accent, 8px card radius, system font.
+   Layout: centered 1080px column; hero splits copy / app-style Trade Card; alternating white
+   and surface bands below. Light only, like the app's default appearance. */
 :root {
-  --denim: #3D5A80;        /* Workwear Denim, primary brand surface */
-  --denim-deep: #2C4361;
-  --steel: #4682B4;        /* logo-gradient blue */
-  --steel-pale: #B0C4DE;   /* logo-gradient top */
-  --hivis: #FFCD11;        /* CAT Yellow, CTA fill only */
-  --hivis-ink: #1F2A1A;
-  --bg: #F5F7FA;
-  --paper: #FFFFFF;
-  --ink: #1F3A55;
-  --ink-soft: #2A3F58;
-  --muted: #5C7A9B;
-  --line: rgba(45,67,97,0.16);
-  --band: #3D5A80;
-  --band-ink: #FFFFFF;
-  --band-muted: #C9D7E8;
-  --amber-bg: #FFF1D6;
-  --amber-ink: #7A4A00;
+  color-scheme: light;
+  /* brand (theme.ts lightColors) */
+  --navy: #3D5A80;
+  --navy-dark: #2C4361;
+  --steel: #4682B4;
+  --yellow: #FFCD11;
+  --yellow-tint: #FFF6CC;
+  --green: #1B5E20;
+  --amber: #FAC775;
+  --amber-text: #412402;
+  --red: #C0392B;
+  /* neutrals */
+  --bg: #FFFFFF;
+  --surface: #F5F7FA;
+  --divider: #F1EFE8;
+  --text: #1F3A55;
+  --text-body: #2A3F58;
+  --text-muted: #5C7A9B;
+  --border: rgba(45,67,97,0.18);
+  --border-soft: rgba(45,67,97,0.08);
+  --job-bg: #EEF4FA;
+  --job-border: rgba(70,130,180,0.45);
   --ok-bg: #DCFCE7;
-  --ok-ink: #15603A;
-  --font-display: "Archivo", "Arial Narrow", "Helvetica Neue", Arial, sans-serif;
-  --font-body: "Archivo", "Helvetica Neue", Arial, sans-serif;
-  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
-  --radius: 14px;
-  --gutter: clamp(16px, 4vw, 40px);
-}
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --denim: #6B91BD; --denim-deep: #89A9CC; --steel: #6FA8DC; --steel-pale: #B0C4DE;
-    --hivis: #FFCD11; --hivis-ink: #1F2A1A;
-    --bg: #0F1B29; --paper: #1A2B44; --ink: #E8EEF5; --ink-soft: #D5E0EC; --muted: #93A9C0;
-    --line: rgba(176,196,222,0.20);
-    --band: #1C3049; --band-ink: #FFFFFF; --band-muted: #A9C0DA;
-    --amber-bg: #3A3214; --amber-ink: #FAC775; --ok-bg: #143D23; --ok-ink: #7BD99A;
-    color-scheme: dark;
-  }
-}
-:root[data-theme="dark"] {
-  --denim: #6B91BD; --denim-deep: #89A9CC; --steel: #6FA8DC; --steel-pale: #B0C4DE;
-  --hivis: #FFCD11; --hivis-ink: #1F2A1A;
-  --bg: #0F1B29; --paper: #1A2B44; --ink: #E8EEF5; --ink-soft: #D5E0EC; --muted: #93A9C0;
-  --line: rgba(176,196,222,0.20);
-  --band: #1C3049; --band-ink: #FFFFFF; --band-muted: #A9C0DA;
-  --amber-bg: #3A3214; --amber-ink: #FAC775; --ok-bg: #143D23; --ok-ink: #7BD99A;
-  color-scheme: dark;
+  --ok-text: #15803D;
+  --danger-bg: #FEE2E2;
+  --danger-text: #B91C1C;
+  /* type: the app uses the platform system font everywhere */
+  --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-display: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  /* radius (theme.ts radius) */
+  --r-xs: 4px; --r-sm: 6px; --r-md: 8px; --r-lg: 10px; --r-xl: 12px; --r-pill: 18px;
+  --gutter: clamp(16px, 4vw, 32px);
 }
 
 * { box-sizing: border-box; }
@@ -75,232 +63,230 @@ html { scroll-behavior: smooth; }
 body {
   margin: 0;
   background: var(--bg);
-  color: var(--ink-soft);
-  font-family: var(--font-body);
-  font-size: 17px;
-  line-height: 1.6;
+  color: var(--text-body);
+  font-family: var(--font);
+  font-size: 16px;
+  line-height: 1.55;
   -webkit-font-smoothing: antialiased;
 }
 img, svg { max-width: 100%; }
-a { color: var(--steel); }
-a:focus-visible, .btn:focus-visible { outline: 3px solid var(--steel); outline-offset: 3px; }
+a { color: var(--navy); }
+:focus-visible { outline: 3px solid var(--steel); outline-offset: 2px; }
 
-.wrap { max-width: 1120px; margin: 0 auto; padding-inline: var(--gutter); }
+.wrap { max-width: 1080px; margin: 0 auto; padding-inline: var(--gutter); }
 
-h1, h2, h3 {
-  font-family: var(--font-display);
-  color: var(--ink);
-  text-wrap: balance;
-  margin: 0;
-}
-h2 {
-  font-size: clamp(30px, 4.2vw, 44px);
-  font-stretch: 112%;
-  font-weight: 800;
-  line-height: 1.08;
-  letter-spacing: -0.01em;
-}
-h3 { font-size: 20px; font-weight: 700; line-height: 1.25; }
+h1, h2, h3 { font-family: var(--font-display); color: var(--navy); margin: 0; text-wrap: balance; }
+h1 { font-size: clamp(36px, 5.6vw, 58px); font-weight: 800; line-height: 1.05; letter-spacing: -0.025em; }
+h2 { font-size: clamp(28px, 3.6vw, 38px); font-weight: 700; line-height: 1.12; letter-spacing: -0.02em; }
+h3 { font-size: 17px; font-weight: 700; line-height: 1.3; }
 p { margin: 0; }
-.lede { font-size: 19px; color: var(--muted); max-width: 58ch; }
-.eyebrow {
-  font-family: var(--font-mono);
-  font-size: 13px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--steel);
-}
+.lede { font-size: 18px; color: var(--text-muted); max-width: 56ch; }
+/* theme.ts typography.micro */
+.micro { font-size: 12px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-muted); }
 
-/* Buttons */
+/* Buttons: ui.tsx primary = navy fill, 50px tall, radius md */
 .btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-  min-height: 48px; padding: 0 22px;
-  border-radius: 10px;
-  font: 700 16px/1 var(--font-body);
-  text-decoration: none;
-  border: 2px solid transparent;
-  transition: transform .15s ease, background-color .15s ease;
+  height: 50px; padding: 0 22px; border-radius: var(--r-md);
+  font: 600 15px/1 var(--font); text-decoration: none; border: 1px solid transparent;
+  transition: background-color .15s ease;
 }
-.btn:hover { transform: translateY(-1px); }
-@media (prefers-reduced-motion: reduce) { .btn:hover { transform: none; } }
-.btn-hivis { background: var(--hivis); color: var(--hivis-ink); }
-.btn-ghost { border-color: var(--line); color: var(--ink); background: transparent; }
-.btn-ghost:hover { border-color: var(--steel); }
+.btn-primary { background: var(--navy); color: #fff; }
+.btn-primary:hover { background: var(--navy-dark); }
+.btn-outline { border-color: var(--border); color: var(--text); background: var(--bg); }
+.btn-outline:hover { background: var(--surface); }
+.btn-sm { height: 40px; padding: 0 16px; font-size: 14px; }
 
 /* Header */
 .site-header {
   position: sticky; top: env(safe-area-inset-top, 0px); z-index: 10;
-  background: color-mix(in srgb, var(--bg) 88%, transparent);
-  backdrop-filter: saturate(1.4) blur(10px);
-  -webkit-backdrop-filter: saturate(1.4) blur(10px);
-  border-bottom: 1px solid var(--line);
+  background: rgba(255,255,255,0.94);
+  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--border-soft);
 }
-.nav { display: flex; align-items: center; gap: 24px; min-height: 68px; }
-.brand { display: flex; align-items: center; gap: 10px; text-decoration: none; margin-right: auto; }
-.brand img { width: 30px; height: 40px; }
-.brand span { font: 800 22px/1 var(--font-display); font-stretch: 110%; color: var(--ink); letter-spacing: -0.01em; }
+.nav { display: flex; align-items: center; gap: 24px; min-height: 64px; }
+.brand { display: flex; align-items: center; gap: 8px; text-decoration: none; margin-right: auto; }
+.brand img { width: 34px; height: 34px; border-radius: 8px; }
+.brand span { font: 700 21px/1 var(--font-display); letter-spacing: -0.02em; color: var(--navy); }
 .nav-links { display: flex; gap: 22px; }
-.nav-links a { color: var(--ink-soft); text-decoration: none; font-weight: 600; font-size: 15px; }
-.nav-links a:hover { color: var(--steel); }
-.nav .btn { min-height: 40px; padding: 0 16px; font-size: 15px; }
+.nav-links a { color: var(--text-body); text-decoration: none; font-weight: 500; font-size: 15px; }
+.nav-links a:hover { color: var(--navy); }
 @media (max-width: 760px) { .nav-links { display: none; } }
 
 /* Hero */
-.hero { padding-block: clamp(48px, 8vw, 96px) clamp(56px, 8vw, 104px); }
-.hero-grid { display: grid; grid-template-columns: 1.15fr 0.85fr; gap: clamp(32px, 5vw, 64px); align-items: center; }
-.hero-copy { display: flex; flex-direction: column; gap: 24px; min-width: 0; }
-.hero h1 {
-  font-size: clamp(40px, 6vw, 70px);
-  font-stretch: 118%;
-  font-weight: 900;
-  line-height: 0.98;
-  letter-spacing: -0.02em;
+.hero { padding-block: clamp(44px, 7vw, 88px); }
+.hero-grid { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: clamp(32px, 5vw, 64px); align-items: center; }
+.hero-copy { display: flex; flex-direction: column; gap: 22px; min-width: 0; }
+.hero h1 .accent { position: relative; white-space: nowrap; }
+.hero h1 .accent::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: 0.04em; height: 0.16em;
+  background: var(--yellow); border-radius: 2px; z-index: -1;
 }
-.hero h1 .tape {
-  background: linear-gradient(transparent 62%, var(--hivis) 62%, var(--hivis) 92%, transparent 92%);
-  padding-inline: 0.04em;
-  -webkit-box-decoration-break: clone; box-decoration-break: clone;
-}
+.hero h1 { position: relative; z-index: 0; }
 .hero-ctas { display: flex; flex-wrap: wrap; gap: 12px; }
-.hero-note { font-family: var(--font-mono); font-size: 13px; color: var(--muted); }
+.free-line { font-size: 14px; color: var(--text-muted); }
+.free-line b { color: var(--navy); }
 @media (max-width: 880px) { .hero-grid { grid-template-columns: 1fr; } }
 
-/* Trade Card mock */
-.card-stage { display: flex; flex-direction: column; gap: 10px; align-items: center; min-width: 0; }
-.trade-card {
-  width: 100%; max-width: 400px;
-  background: linear-gradient(160deg, #3D5A80 0%, #2C4361 100%);
-  color: #fff;
-  border-radius: 20px;
-  padding: 24px;
-  display: flex; flex-direction: column; gap: 18px;
-  box-shadow: 0 24px 48px -20px rgba(31,58,85,0.55), 0 2px 0 rgba(255,255,255,0.06) inset;
-  transform: rotate(-2deg);
+/* Trade Card: mirrors app/(app)/trade-card.tsx */
+.stage { display: flex; flex-direction: column; align-items: center; gap: 10px; min-width: 0; }
+.stage-bg { width: 100%; max-width: 420px; background: var(--surface); border-radius: 16px; padding: 18px; }
+.tc {
+  background: var(--bg); border: 1px solid var(--border); border-radius: var(--r-xl);
+  overflow: hidden; box-shadow: 0 12px 32px -18px rgba(31,58,85,0.35);
 }
-.tc-top { display: flex; align-items: center; justify-content: space-between; }
-.tc-top img { width: 22px; height: 30px; filter: brightness(1.6) saturate(0.7); }
-.tc-label { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: #C9D7E8; }
-.tc-name { font: 800 26px/1.1 var(--font-display); font-stretch: 110%; color: #fff; }
-.tc-trade { color: #C9D7E8; font-size: 15px; margin-top: 4px; }
-.tc-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; border-block: 1px solid rgba(255,255,255,0.16); padding-block: 12px; }
-.tc-stats div { display: flex; flex-direction: column; }
-.tc-stats b { font: 800 22px/1.1 var(--font-display); font-variant-numeric: tabular-nums; color: #fff; }
-.tc-stats span { font-size: 12px; color: #C9D7E8; }
-.tc-licenses { display: flex; flex-direction: column; gap: 8px; }
-.lic {
-  display: flex; justify-content: space-between; align-items: center; gap: 10px;
-  background: rgba(255,255,255,0.08); border-radius: 10px; padding: 9px 12px; font-size: 14px;
+.tc-band { background: var(--steel); padding: 16px 16px 22px; }
+.tc-eyebrow { font-size: 10px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(255,255,255,0.85); margin-bottom: 12px; }
+.tc-row { display: flex; align-items: center; gap: 12px; }
+.avatar {
+  flex: none; display: grid; place-items: center; border-radius: 50%;
+  background: var(--surface); color: var(--navy); font-weight: 700;
 }
-.lic-name { min-width: 0; }
-.lic-name small { display: block; font-family: var(--font-mono); font-size: 11px; color: #C9D7E8; }
-.chip { flex: none; font: 600 12px/1 var(--font-mono); padding: 6px 8px; border-radius: 999px; font-variant-numeric: tabular-nums; }
-.chip-ok { background: #DCFCE7; color: #15603A; }
-.chip-warn { background: #FFF1D6; color: #7A4A00; }
-.example-tag { font-family: var(--font-mono); font-size: 12px; color: var(--muted); }
+.tc .avatar { width: 56px; height: 56px; font-size: 18px; border: 2px solid rgba(255,255,255,0.5); }
+.tc-name { display: flex; align-items: center; gap: 6px; font: 700 17px/1.2 var(--font-display); color: #fff; }
+.tc-loc { font-size: 12px; color: rgba(255,255,255,0.85); margin-top: 2px; }
+.verified {
+  flex: none; width: 18px; height: 18px; border-radius: 50%; background: var(--green);
+  display: inline-grid; place-items: center;
+}
+.verified svg { width: 10px; height: 10px; }
+.tc-body { padding: 16px; }
+.tc-trade { font-weight: 600; font-size: 14px; color: var(--navy); }
+.tc-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.tag {
+  font-size: 12px; padding: 4px 9px; border-radius: var(--r-xs);
+  background: var(--surface); color: var(--text-body); border: 1px solid var(--border-soft);
+}
+.tag-yellow { background: var(--yellow-tint); border-color: var(--yellow); color: var(--navy); font-weight: 600; }
+.tc-label { margin-top: 16px; margin-bottom: 2px; font-size: 11px; }
+.lic { display: flex; align-items: center; gap: 12px; padding-block: 12px; }
+.lic + .lic { border-top: 1px solid var(--divider); }
+.lic-text { flex: 1; min-width: 0; }
+.lic-name { font-weight: 600; font-size: 14px; color: var(--text); }
+.lic-sub { font-size: 12px; color: var(--text-muted); }
+.chip { flex: none; font-size: 11px; font-weight: 600; padding: 4px 8px; border-radius: var(--r-pill); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.chip-ok { background: var(--ok-bg); color: var(--ok-text); }
+.chip-amber { background: var(--amber); color: var(--amber-text); }
+.chip-red { background: var(--danger-bg); color: var(--danger-text); }
+.tc-stats { display: grid; grid-template-columns: repeat(3, 1fr); border-top: 1px solid var(--divider); margin-top: 4px; padding-top: 12px; text-align: center; }
+.tc-stats b { display: block; font-size: 16px; color: var(--navy); font-variant-numeric: tabular-nums; }
+.tc-stats span { font-size: 12px; color: var(--text-muted); }
+.example { font-size: 12px; color: var(--text-muted); }
 
-/* Sections */
-section { scroll-margin-top: 80px; }
-.band { padding-block: clamp(64px, 9vw, 112px); }
-.band + .band { border-top: 1px solid var(--line); }
-.section-head { display: flex; flex-direction: column; gap: 14px; margin-bottom: clamp(32px, 5vw, 56px); max-width: 720px; }
+/* Bands */
+section { scroll-margin-top: 76px; }
+.band { padding-block: clamp(56px, 8vw, 96px); }
+.band-surface { background: var(--surface); }
+.section-head { display: flex; flex-direction: column; gap: 12px; margin-bottom: clamp(28px, 4vw, 44px); max-width: 680px; }
 
-.pillars { display: grid; grid-template-columns: repeat(3, 1fr); gap: clamp(24px, 3vw, 40px); }
-.pillar { display: flex; flex-direction: column; gap: 10px; padding-top: 20px; border-top: 3px solid var(--denim); min-width: 0; }
-.pillar p { color: var(--muted); }
+/* Worker pillars: white cards like feed post cards */
+.pillars { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+.pillar {
+  background: var(--bg); border: 1px solid var(--border-soft); border-radius: var(--r-md);
+  padding: 20px; display: flex; flex-direction: column; gap: 8px; min-width: 0;
+}
+.pillar-icon {
+  width: 44px; height: 44px; border-radius: 50%; background: var(--navy);
+  display: grid; place-items: center; margin-bottom: 4px;
+}
+.pillar-icon svg { width: 22px; height: 22px; }
+.pillar p { color: var(--text-muted); font-size: 15px; }
 @media (max-width: 820px) { .pillars { grid-template-columns: 1fr; } }
 
-.split { display: grid; grid-template-columns: 1fr 1fr; gap: clamp(32px, 6vw, 80px); align-items: center; }
+.split { display: grid; grid-template-columns: 1fr 1fr; gap: clamp(32px, 6vw, 72px); align-items: center; }
 .split > * { min-width: 0; }
 .split .section-head { margin-bottom: 0; }
-@media (max-width: 880px) { .split { grid-template-columns: 1fr; } }
-.checks { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
-.checks li { display: grid; grid-template-columns: 22px 1fr; gap: 10px; }
+@media (max-width: 880px) { .split { grid-template-columns: 1fr; } .split .flip { order: 2; } }
+
+.checks { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.checks li { display: grid; grid-template-columns: 20px 1fr; gap: 10px; font-size: 15px; }
 .checks li::before {
-  content: ""; width: 18px; height: 18px; margin-top: 4px; border-radius: 5px;
-  background: var(--hivis);
-  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 18 18'%3E%3Cpath d='M4 9.5l3.2 3L14 5.5' fill='none' stroke='black' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/contain no-repeat;
-          mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 18 18'%3E%3Cpath d='M4 9.5l3.2 3L14 5.5' fill='none' stroke='black' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/contain no-repeat;
-  background-color: var(--steel);
+  content: ""; width: 18px; height: 18px; margin-top: 2px; border-radius: 50%;
+  background: var(--green) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 18 18'%3E%3Cpath d='M5 9.3l2.6 2.5L13 6.4' fill='none' stroke='white' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/100% no-repeat;
 }
 
-/* Reminder timeline */
-.timeline { background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius); padding: clamp(20px, 3vw, 32px); display: flex; flex-direction: column; gap: 4px; }
-.tl-row { display: grid; grid-template-columns: 92px 1fr; gap: 16px; padding-block: 14px; border-bottom: 1px dashed var(--line); }
-.tl-row:last-child { border-bottom: 0; }
-.tl-when { font: 500 13px/1.5 var(--font-mono); color: var(--steel); font-variant-numeric: tabular-nums; padding-top: 2px; }
-.tl-what b { color: var(--ink); display: block; }
-.tl-what span { color: var(--muted); font-size: 15px; }
+/* Reminder list: settings-row style */
+.list { background: var(--bg); border: 1px solid var(--border-soft); border-radius: var(--r-md); overflow: hidden; }
+.list-row { display: flex; align-items: center; gap: 14px; padding: 14px 16px; }
+.list-row + .list-row { border-top: 1px solid var(--divider); }
+.list-when { flex: none; width: 74px; font-weight: 700; font-size: 14px; color: var(--navy); font-variant-numeric: tabular-nums; }
+.list-text { flex: 1; min-width: 0; }
+.list-text b { display: block; font-size: 15px; color: var(--text); font-weight: 600; }
+.list-text span { font-size: 13px; color: var(--text-muted); }
 
-/* Vouch mock */
-.vouch {
-  background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius);
-  padding: clamp(20px, 3vw, 28px); display: flex; flex-direction: column; gap: 16px;
-}
-.vouch-people { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-.avatar {
-  width: 44px; height: 44px; border-radius: 50%; flex: none;
-  display: grid; place-items: center;
-  font: 800 16px/1 var(--font-display); color: #fff;
-}
-.avatar.a { background: var(--denim); }
-.avatar.b { background: var(--steel); }
-.vouch-link { flex: 1; min-width: 40px; height: 2px; background: repeating-linear-gradient(90deg, var(--steel-pale) 0 8px, transparent 8px 14px); }
-.vouch-quote { font: 700 20px/1.35 var(--font-display); color: var(--ink); }
-.vouch-meta { display: flex; flex-wrap: wrap; gap: 8px; }
-.tag { font: 500 13px/1 var(--font-mono); padding: 8px 10px; border-radius: 8px; background: var(--bg); color: var(--ink-soft); border: 1px solid var(--line); }
-.tag.ok { background: var(--ok-bg); color: var(--ok-ink); border-color: transparent; }
+/* Vouch card */
+.vouch { background: var(--bg); border: 1px solid var(--border-soft); border-radius: var(--r-md); padding: 18px; display: flex; flex-direction: column; gap: 14px; }
+.vouch-head { display: flex; align-items: center; gap: 12px; }
+.vouch .avatar { width: 44px; height: 44px; font-size: 15px; background: var(--navy); color: #fff; }
+.vouch-who { flex: 1; min-width: 0; }
+.vouch-who b { display: block; color: var(--text); font-size: 15px; }
+.vouch-who span { font-size: 13px; color: var(--text-muted); }
+.vouch-quote { font-size: 15px; color: var(--text-body); padding: 12px 14px; background: var(--surface); border-radius: var(--r-md); }
+.vouch-meta { display: flex; flex-wrap: wrap; gap: 6px; }
+.vouch-status { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; color: var(--ok-text); }
 
-/* Trades */
-.trades { display: flex; flex-wrap: wrap; gap: 10px; }
+/* Trades: filter-pill style chips */
+.trades { display: flex; flex-wrap: wrap; gap: 8px; padding: 0; margin: 0; list-style: none; }
 .trades li {
-  list-style: none; padding: 10px 16px; border-radius: 999px;
-  border: 1.5px solid var(--line); background: var(--paper);
-  font-weight: 600; color: var(--ink); font-size: 15px;
+  padding: 8px 14px; border-radius: var(--r-pill); background: var(--surface);
+  border: 1px solid var(--border); font-size: 14px; color: var(--text);
 }
-.trades { padding: 0; margin: 0; }
+.trades li.on { background: var(--yellow-tint); border-color: var(--yellow); color: var(--navy); font-weight: 600; }
 
-/* Pricing */
-.plans { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; align-items: stretch; }
-@media (max-width: 900px) { .plans { grid-template-columns: 1fr; max-width: 480px; } }
-.plan {
-  background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius);
-  padding: 28px; display: flex; flex-direction: column; gap: 18px; position: relative; min-width: 0;
-}
-.plan.featured { border: 2px solid var(--denim); }
-.plan-badge {
-  position: absolute; top: -13px; left: 24px;
-  background: var(--hivis); color: var(--hivis-ink);
-  font: 700 12px/1 var(--font-mono); letter-spacing: 0.06em; text-transform: uppercase;
-  padding: 7px 10px; border-radius: 6px;
-}
-.price { display: flex; align-items: baseline; gap: 6px; }
-.price b { font: 900 44px/1 var(--font-display); font-stretch: 112%; color: var(--ink); font-variant-numeric: tabular-nums; }
-.price span { color: var(--muted); font-size: 15px; }
-.plan ul { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 10px; border-top: 1px solid var(--line); padding-top: 18px; }
-.plan li { font-size: 15px; padding-left: 18px; position: relative; }
-.plan li::before { content: ""; position: absolute; left: 0; top: 0.62em; width: 7px; height: 7px; border-radius: 2px; background: var(--steel); }
-.free-note {
-  margin-top: 28px; display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px;
-  font-size: 16px; color: var(--muted);
-}
-.free-note b { color: var(--ink); }
+/* Job card: mirrors components/job-card.tsx */
+.job { background: var(--job-bg); border: 2px solid var(--yellow); border-radius: var(--r-md); overflow: hidden; }
+.job-stripe { background: var(--yellow); color: var(--navy); font-size: 10px; font-weight: 700; letter-spacing: 0.1em; padding: 4px 12px; }
+.job-body { padding: 16px; }
+.job-head { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+.co { flex: none; width: 40px; height: 40px; border-radius: var(--r-sm); background: var(--navy); color: #fff; font-weight: 700; display: grid; place-items: center; }
+.job-co { flex: 1; min-width: 0; }
+.job-co b { display: block; font-size: 14px; color: var(--text); }
+.job-co span { font-size: 11px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-muted); }
+.job-dist { font-size: 11px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--navy); }
+.job-title { font-weight: 700; font-size: 16px; color: var(--navy); margin-bottom: 4px; }
+.job-pay { font-weight: 600; font-size: 14px; color: var(--navy); margin-bottom: 10px; }
+.job .tc-tags { margin: 0 0 14px; }
+.job-apply { display: block; text-align: center; background: var(--navy); color: #fff; font-weight: 700; font-size: 14px; padding: 9px; border-radius: var(--r-md); }
 
-/* Closing band */
-.closing { background: var(--band); color: var(--band-ink); padding-block: clamp(64px, 9vw, 104px); }
-.closing-inner { display: grid; grid-template-columns: 1fr auto; gap: 40px; align-items: center; }
-.closing h2 { color: var(--band-ink); }
-.closing p { color: var(--band-muted); max-width: 52ch; margin-top: 14px; font-size: 18px; }
-.closing .mark { width: 120px; height: 165px; }
-.contact { margin-top: 26px; display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
-.contact .addr { font: 500 16px/1 var(--font-mono); color: var(--band-ink); user-select: all; padding: 14px 16px; border: 1px solid rgba(255,255,255,0.28); border-radius: 10px; }
-@media (max-width: 720px) { .closing-inner { grid-template-columns: 1fr; } .closing .mark { display: none; } }
+/* Plans: mirrors post-job/plan.tsx */
+.plans { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+@media (max-width: 900px) { .plans { grid-template-columns: 1fr; max-width: 460px; } }
+.plan { background: var(--bg); border: 1px solid var(--border); border-radius: var(--r-md); padding: 20px; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.plan.featured { border-color: var(--yellow); background: var(--yellow-tint); }
+.plan-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.plan-badge { font-size: 10px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; background: var(--yellow); color: var(--navy); padding: 4px 8px; border-radius: var(--r-xs); }
+.plan-price { font-size: 15px; font-weight: 600; color: var(--navy); }
+.plan-price b { font-size: 30px; font-weight: 800; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.plan ul { list-style: none; margin: 8px 0 0; padding: 12px 0 0; border-top: 1px solid var(--border-soft); display: flex; flex-direction: column; gap: 6px; }
+.plan li { font-size: 14px; color: var(--text); padding-left: 16px; position: relative; }
+.plan li::before { content: ""; position: absolute; left: 0; top: 0.6em; width: 6px; height: 6px; border-radius: 50%; background: var(--navy); }
+.employer-grid { display: grid; grid-template-columns: 0.8fr 1.2fr; gap: clamp(24px, 4vw, 48px); align-items: start; }
+.employer-grid > * { min-width: 0; }
+@media (max-width: 900px) { .employer-grid { grid-template-columns: 1fr; } }
+.workers-free { margin-top: 20px; font-size: 14px; color: var(--text-muted); }
+.workers-free b { color: var(--navy); }
+
+/* Closing: profile-header navy band */
+.closing { background: var(--navy); color: #fff; padding-block: clamp(56px, 8vw, 88px); text-align: center; }
+.closing-inner { display: flex; flex-direction: column; align-items: center; gap: 16px; }
+.closing img { width: 72px; height: 72px; border-radius: var(--r-lg); }
+.closing h2 { color: #fff; }
+.closing p { color: rgba(255,255,255,0.85); max-width: 50ch; font-size: 17px; }
+.store-pill {
+  display: inline-flex; align-items: center; gap: 10px; margin-top: 8px;
+  padding: 10px 18px; border-radius: var(--r-pill); border: 1px solid rgba(255,255,255,0.3);
+  font-weight: 600; font-size: 14px; color: #fff;
+}
+.store-pill svg { width: 16px; height: 16px; }
+.closing .btn-outline { background: transparent; color: #fff; border-color: rgba(255,255,255,0.3); }
+.closing .btn-outline:hover { background: rgba(255,255,255,0.08); }
 
 /* Footer */
-.site-footer { padding-block: 36px; font-size: 14px; color: var(--muted); }
-.footer-row { display: flex; flex-wrap: wrap; gap: 12px 28px; align-items: center; justify-content: space-between; }
-.footer-links { display: flex; flex-wrap: wrap; gap: 20px; }
-.footer-links a { color: var(--muted); text-decoration: none; }
-.footer-links a:hover { color: var(--steel); }
+.site-footer { padding-block: 28px; font-size: 13px; color: var(--text-muted); border-top: 1px solid var(--border-soft); }
+.footer-row { display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: center; justify-content: space-between; }
+.footer-links { display: flex; flex-wrap: wrap; gap: 18px; }
+.footer-links a { color: var(--text-muted); text-decoration: underline; }
+.footer-links a:hover { color: var(--navy); }
 </style>
 </head>
 <body>
@@ -308,15 +294,16 @@ section { scroll-margin-top: 80px; }
 <header class="site-header">
   <div class="wrap nav">
     <a class="brand" href="#top" aria-label="BluBranch home">
-      <img src="assets/logo-mark.svg" alt="" width="30" height="40">
+      <img src="assets/apple-touch-icon.png" alt="" width="34" height="34">
       <span>BluBranch</span>
     </a>
     <nav class="nav-links" aria-label="Primary">
       <a href="#workers">For workers</a>
       <a href="#trade-card">Trade Card</a>
+      <a href="#vouches">Vouches</a>
       <a href="#employers">For employers</a>
     </nav>
-    <a class="btn btn-hivis" href="#early-access">Get early access</a>
+    <a class="btn btn-primary btn-sm" href="#get-the-app">Get the app</a>
   </div>
 </header>
 
@@ -324,66 +311,87 @@ section { scroll-margin-top: 80px; }
   <section class="hero">
     <div class="wrap hero-grid">
       <div class="hero-copy">
-        <p class="eyebrow">Networking for the Blue Collar</p>
-        <h1>The professional network built for the <span class="tape">Blue&nbsp;Collar.</span></h1>
-        <p class="lede">Link up with tradespeople, get vouched for by people you've actually worked with, and find local work that fits your trade. Your licenses and job history travel with you.</p>
+        <p class="micro">Networking for the Blue Collar</p>
+        <h1>The professional network built for the <span class="accent">Blue Collar.</span></h1>
+        <p class="lede">Link up with verified tradespeople, get vouched for by people you've actually worked with, and build a name that travels.</p>
         <div class="hero-ctas">
-          <a class="btn btn-hivis" href="#early-access">Get early access</a>
-          <a class="btn btn-ghost" href="#employers">Hiring? See plans</a>
+          <a class="btn btn-primary" href="#get-the-app">Get the app</a>
+          <a class="btn btn-outline" href="#employers">Hiring? See plans</a>
         </div>
-        <p class="hero-note">Always free for workers · iPhone beta now running</p>
+        <p class="free-line"><b>Workers always free.</b> Profiles, Trade Cards, vouches, messaging, and applying cost nothing.</p>
       </div>
 
-      <div class="card-stage" aria-label="Example Trade Card">
-        <article class="trade-card">
-          <div class="tc-top">
-            <span class="tc-label">Trade Card</span>
-            <img src="assets/logo-mark.svg" alt="" width="22" height="30">
-          </div>
-          <div>
-            <div class="tc-name">Marcus Reyes</div>
-            <div class="tc-trade">Journeyman Electrician · Austin, TX</div>
-          </div>
-          <div class="tc-stats">
-            <div><b>14</b><span>Years in trade</span></div>
-            <div><b>9</b><span>Vouches</span></div>
-            <div><b>212</b><span>Branches</span></div>
-          </div>
-          <div class="tc-licenses">
-            <div class="lic">
-              <div class="lic-name">Journeyman Electrician<small>TX TDLR · verified</small></div>
-              <span class="chip chip-ok">Exp 03/2027</span>
+      <div class="stage" aria-label="Example Trade Card">
+        <div class="stage-bg">
+          <article class="tc">
+            <div class="tc-band">
+              <div class="tc-eyebrow">BluBranch Trade Card</div>
+              <div class="tc-row">
+                <span class="avatar" aria-hidden="true">MR</span>
+                <div>
+                  <div class="tc-name">Marcus Reyes
+                    <span class="verified" aria-label="Verified"><svg viewBox="0 0 10 10"><path d="M2.2 5.2l1.8 1.7 3.8-3.9" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+                  </div>
+                  <div class="tc-loc">Austin, TX</div>
+                </div>
+              </div>
             </div>
-            <div class="lic">
-              <div class="lic-name">OSHA 30 Construction<small>Card on file</small></div>
-              <span class="chip chip-warn">41 days left</span>
+            <div class="tc-body">
+              <div class="tc-trade">Journeyman Electrician · 14 yrs</div>
+              <div class="tc-tags">
+                <span class="tag tag-yellow">Open to work</span>
+                <span class="tag">IBEW Local 520</span>
+              </div>
+              <div class="micro tc-label">Licenses &amp; certifications</div>
+              <div class="lic">
+                <div class="lic-text">
+                  <div class="lic-name">Journeyman Electrician</div>
+                  <div class="lic-sub">Texas TDLR</div>
+                </div>
+                <span class="chip chip-ok">Exp 03/2027</span>
+              </div>
+              <div class="lic">
+                <div class="lic-text">
+                  <div class="lic-name">OSHA 30 Construction</div>
+                  <div class="lic-sub">OSHA Outreach</div>
+                </div>
+                <span class="chip chip-amber">41 days left</span>
+              </div>
+              <div class="tc-stats">
+                <div><b>9</b><span>Vouches</span></div>
+                <div><b>212</b><span>Branches</span></div>
+                <div><b>3</b><span>Workplaces</span></div>
+              </div>
             </div>
-          </div>
-        </article>
-        <span class="example-tag">Example profile</span>
+          </article>
+        </div>
+        <span class="example">Example profile</span>
       </div>
     </div>
   </section>
 
-  <section class="band" id="workers">
+  <section class="band band-surface" id="workers">
     <div class="wrap">
       <div class="section-head">
-        <p class="eyebrow">For workers</p>
+        <p class="micro">For workers</p>
         <h2>Your trade. Your people. Your next job.</h2>
         <p class="lede">A résumé gets lost in a pile. Your reputation on the jobsite doesn't. BluBranch puts it where the next foreman can see it.</p>
       </div>
       <div class="pillars">
         <div class="pillar">
+          <span class="pillar-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
           <h3>Branch out</h3>
-          <p>Connect with the crews, foremen, and apprentices you've run into over the years. People you may know is built on shared jobsites, not random contacts.</p>
+          <p>Connect with the crews, foremen, and apprentices you've crossed paths with. Suggestions come from shared jobsites, not random contacts.</p>
         </div>
         <div class="pillar">
-          <h3>Find work that fits</h3>
-          <p>Jobs matched to your trade, experience, and how far you'll drive. Pay is posted up front. Apply with one tap.</p>
+          <span class="pillar-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg></span>
+          <h3>Find work that fits your skills</h3>
+          <p>Browse jobs matched to your trade, experience, and location. Pay is posted up front. Apply with one tap.</p>
         </div>
         <div class="pillar">
+          <span class="pillar-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg></span>
           <h3>Verified and trusted</h3>
-          <p>Verified licenses. Confirmed work history. Vouches from people who were actually there. No padded résumés.</p>
+          <p>Verified licenses. Confirmed work history. No padded résumés.</p>
         </div>
       </div>
     </div>
@@ -392,55 +400,62 @@ section { scroll-margin-top: 80px; }
   <section class="band" id="trade-card">
     <div class="wrap split">
       <div class="section-head">
-        <p class="eyebrow">Trade Card</p>
-        <h2>Your licenses, in your pocket and on a link.</h2>
-        <p class="lede">Every license and cert you hold, with its expiration date, on one card. Share it by text before you show up to an interview. License numbers stay private.</p>
+        <p class="micro">Trade Card</p>
+        <h2>Your licenses in your pocket, and on a link.</h2>
+        <p class="lede">Every license and cert you hold, with its expiration date, on one card. Text it to a foreman before you show up. License numbers stay private.</p>
         <ul class="checks">
-          <li>Shareable link that opens on any phone, no app needed</li>
-          <li>Expiration chips turn amber at 60 days and red at 14</li>
-          <li>Renewal reminders so a lapsed card never costs you a shift</li>
+          <li>The share link opens on any phone. No app needed.</li>
+          <li>Expiration chips turn amber at 60 days and red at 14.</li>
+          <li>Renewal reminders, so a lapsed card never costs you a shift.</li>
         </ul>
       </div>
-      <div class="timeline" aria-label="License renewal reminders">
-        <div class="tl-row">
-          <span class="tl-when">60 days</span>
-          <div class="tl-what"><b>Card turns amber</b><span>OSHA 30 · expires Nov 21</span></div>
+      <div class="list" aria-label="License renewal reminders">
+        <div class="list-row">
+          <span class="list-when">60 days</span>
+          <div class="list-text"><b>Card turns amber</b><span>OSHA 30 · expires Nov 21</span></div>
+          <span class="chip chip-amber">60d</span>
         </div>
-        <div class="tl-row">
-          <span class="tl-when">30 days</span>
-          <div class="tl-what"><b>First reminder</b><span>Push notification and email</span></div>
+        <div class="list-row">
+          <span class="list-when">30 days</span>
+          <div class="list-text"><b>First reminder</b><span>Push notification and email</span></div>
         </div>
-        <div class="tl-row">
-          <span class="tl-when">14 days</span>
-          <div class="tl-what"><b>Card turns red</b><span>Visible on your Trade Card</span></div>
+        <div class="list-row">
+          <span class="list-when">14 days</span>
+          <div class="list-text"><b>Card turns red</b><span>Shown on your Trade Card</span></div>
+          <span class="chip chip-red">14d</span>
         </div>
-        <div class="tl-row">
-          <span class="tl-when">7 days</span>
-          <div class="tl-what"><b>Last call</b><span>Final renewal reminder</span></div>
+        <div class="list-row">
+          <span class="list-when">7 days</span>
+          <div class="list-text"><b>Last reminder</b><span>Final heads-up before it lapses</span></div>
         </div>
       </div>
     </div>
   </section>
 
-  <section class="band" id="vouches">
+  <section class="band band-surface" id="vouches">
     <div class="wrap split">
-      <div class="vouch" aria-label="Example vouch">
-        <div class="vouch-people">
-          <span class="avatar a" aria-hidden="true">MR</span>
-          <span class="vouch-link" aria-hidden="true"></span>
-          <span class="avatar b" aria-hidden="true">DK</span>
+      <div class="vouch flip" aria-label="Example vouch">
+        <div class="vouch-head">
+          <span class="avatar" aria-hidden="true">DK</span>
+          <div class="vouch-who">
+            <b>Dana Kowalski</b>
+            <span>Electrical Foreman · vouched for Marcus</span>
+          </div>
         </div>
-        <p class="vouch-quote">Dana Kowalski vouched for Marcus Reyes</p>
+        <p class="vouch-quote">"Worked together at Ridgeline Electric. Would again."</p>
         <div class="vouch-meta">
-          <span class="tag">Worked together at Ridgeline Electric</span>
+          <span class="tag">Ridgeline Electric</span>
           <span class="tag">Mar 2021 – Aug 2023</span>
-          <span class="tag ok">Confirmed by both</span>
         </div>
+        <span class="vouch-status">
+          <span class="verified" aria-hidden="true"><svg viewBox="0 0 10 10"><path d="M2.2 5.2l1.8 1.7 3.8-3.9" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+          Confirmed by both
+        </span>
       </div>
       <div class="section-head">
-        <p class="eyebrow">Vouches</p>
+        <p class="micro">Vouches</p>
         <h2>Vouched for by people who worked beside you.</h2>
-        <p class="lede">A vouch only counts when both people confirm it. BluBranch spots where your work history overlaps with someone else's, so the people who know your work can back you up in one tap.</p>
+        <p class="lede">A vouch only shows once both people confirm it. BluBranch spots where your work history overlaps with someone else's, so the people who know your work can back you up in one tap.</p>
       </div>
     </div>
   </section>
@@ -448,11 +463,11 @@ section { scroll-margin-top: 80px; }
   <section class="band" id="trades">
     <div class="wrap">
       <div class="section-head">
-        <p class="eyebrow">Trades on BluBranch</p>
+        <p class="micro">Trades on BluBranch</p>
         <h2>Built for the trades that build everything else.</h2>
       </div>
       <ul class="trades">
-        <li>Electrician</li><li>Plumber</li><li>HVAC/Refrigeration</li><li>Carpenter</li>
+        <li class="on">Electrician</li><li>Plumber</li><li>HVAC/Refrigeration</li><li>Carpenter</li>
         <li>Welder</li><li>Pipefitter</li><li>Ironworker</li><li>Concrete</li>
         <li>Roofer</li><li>Trucker/CDL</li><li>Heavy Equipment</li><li>General Labor</li>
         <li>Electrical Lineman</li><li>and more</li>
@@ -460,69 +475,88 @@ section { scroll-margin-top: 80px; }
     </div>
   </section>
 
-  <section class="band" id="employers">
+  <section class="band band-surface" id="employers">
     <div class="wrap">
-      <div class="section-head">
-        <p class="eyebrow">For employers and contractors</p>
-        <h2>Hire people the trade already trusts.</h2>
-        <p class="lede">Post a job and reach local workers with verified licenses and real vouches. Every listing shows up in the feeds of people who match the trade and the area.</p>
+      <div class="employer-grid">
+        <div class="section-head">
+          <p class="micro">For employers and contractors</p>
+          <h2>Hire people the trade already trusts.</h2>
+          <p class="lede">Post a job and it lands in the feeds of local workers who match the trade, with verified licenses and real vouches.</p>
+          <article class="job" aria-label="Example featured job listing">
+            <div class="job-stripe">FEATURED</div>
+            <div class="job-body">
+              <div class="job-head">
+                <span class="co" aria-hidden="true">R</span>
+                <div class="job-co"><b>Ridgeline Electric</b><span>Round Rock, TX</span></div>
+                <span class="job-dist">12 mi</span>
+              </div>
+              <div class="job-title">Journeyman Electrician, Commercial</div>
+              <div class="job-pay">$34 – $42 / hr</div>
+              <div class="tc-tags">
+                <span class="tag">Full-time</span>
+                <span class="tag">Health insurance</span>
+                <span class="tag">401(k)</span>
+              </div>
+              <span class="job-apply">Quick Apply</span>
+            </div>
+          </article>
+        </div>
+        <div>
+          <div class="plans">
+            <div class="plan">
+              <div class="plan-top"><h3>Basic</h3></div>
+              <div class="plan-price"><b>$19</b> per post</div>
+              <ul>
+                <li>Listed in local feed</li>
+                <li>Quick Apply</li>
+                <li>Applicant dashboard</li>
+              </ul>
+            </div>
+            <div class="plan featured">
+              <div class="plan-top"><h3>Blu</h3><span class="plan-badge">Most popular</span></div>
+              <div class="plan-price"><b>$79</b> / month</div>
+              <ul>
+                <li>All Basic features</li>
+                <li>Unlimited Blu job posts</li>
+                <li>Featured top placement</li>
+                <li>Urgent badge</li>
+                <li>Applicant analytics</li>
+              </ul>
+            </div>
+            <div class="plan">
+              <div class="plan-top"><h3>Blu Max</h3></div>
+              <div class="plan-price"><b>$139</b> / month</div>
+              <ul>
+                <li>All Blu features</li>
+                <li>Push alerts to matching workers</li>
+                <li>Unlimited posts</li>
+                <li>Direct message applicants</li>
+                <li>Priority support</li>
+              </ul>
+            </div>
+          </div>
+          <p class="workers-free"><b>Workers never pay.</b> Employers only pay to post jobs.</p>
+        </div>
       </div>
-      <div class="plans">
-        <div class="plan">
-          <h3>Basic</h3>
-          <div class="price"><b>$19</b><span>per post</span></div>
-          <ul>
-            <li>Listed in the local feed</li>
-            <li>Quick Apply</li>
-            <li>Applicant dashboard</li>
-          </ul>
-        </div>
-        <div class="plan featured">
-          <span class="plan-badge">Most popular</span>
-          <h3>Blu</h3>
-          <div class="price"><b>$79</b><span>/ month</span></div>
-          <ul>
-            <li>Everything in Basic</li>
-            <li>Unlimited Blu job posts</li>
-            <li>Featured top placement</li>
-            <li>Urgent badge</li>
-            <li>Applicant analytics</li>
-          </ul>
-        </div>
-        <div class="plan">
-          <h3>Blu Max</h3>
-          <div class="price"><b>$139</b><span>/ month</span></div>
-          <ul>
-            <li>Everything in Blu</li>
-            <li>Push alerts to matching workers</li>
-            <li>Unlimited posts</li>
-            <li>Direct message applicants</li>
-            <li>Priority support</li>
-          </ul>
-        </div>
-      </div>
-      <p class="free-note"><b>Workers never pay.</b> Profiles, Trade Cards, vouches, messaging, and applying are free.</p>
     </div>
   </section>
 
-  <section class="closing" id="early-access">
+  <section class="closing" id="get-the-app">
     <div class="wrap closing-inner">
-      <div>
-        <h2>Get in early.</h2>
-        <p>BluBranch is in beta on iPhone with a first group of tradespeople and contractors. Want in, or want to post jobs at launch? Send us a note with your trade and city.</p>
-        <div class="contact">
-          <span class="addr">hello@blubranch.com</span>
-          <a class="btn btn-hivis" href="mailto:hello@blubranch.com?subject=BluBranch%20early%20access">Email us</a>
-        </div>
-      </div>
-      <img class="mark" src="assets/logo-mark.svg" alt="" width="120" height="165">
+      <img src="assets/apple-touch-icon.png" alt="" width="72" height="72">
+      <h2>Start branching out.</h2>
+      <p>BluBranch is in beta on iPhone with a first group of tradespeople and contractors. The public release is coming to the App Store soon.</p>
+      <span class="store-pill">
+        <svg viewBox="0 0 24 24" fill="#fff" aria-hidden="true"><path d="M16.37 12.6c-.02-2.2 1.8-3.26 1.88-3.31-1.02-1.5-2.62-1.7-3.19-1.73-1.36-.14-2.65.8-3.34.8-.69 0-1.75-.78-2.88-.76-1.48.02-2.85.86-3.61 2.19-1.54 2.67-.39 6.63 1.11 8.8.73 1.06 1.6 2.25 2.75 2.21 1.1-.04 1.52-.71 2.85-.71 1.33 0 1.71.71 2.88.69 1.19-.02 1.94-1.08 2.66-2.15.84-1.23 1.19-2.42 1.21-2.48-.03-.01-2.32-.89-2.34-3.53zM14.18 6.13c.61-.74 1.02-1.76.91-2.78-.88.04-1.94.59-2.57 1.32-.56.65-1.06 1.69-.93 2.69.98.08 1.98-.5 2.59-1.23z"/></svg>
+        Coming soon to the App Store
+      </span>
     </div>
   </section>
 </main>
 
 <footer class="site-footer">
   <div class="wrap footer-row">
-    <span>© 2026 BluBranch, Inc. · The professional network built for the Blue Collar.</span>
+    <span>© 2026 BluBranch, Inc. · Networking for the Blue Collar.</span>
     <nav class="footer-links" aria-label="Legal">
       <a href="https://api-staging.blubranch.com/legal/privacy">Privacy Policy</a>
       <a href="https://api-staging.blubranch.com/legal/terms">Terms of Service</a>
