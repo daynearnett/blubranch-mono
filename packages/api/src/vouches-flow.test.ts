@@ -98,6 +98,13 @@ describe('Vouch flow', () => {
         },
       ],
     });
+
+    // Vouching requires an existing connection (launch-blocker fix: a total
+    // stranger could otherwise vouch with zero shared ground). Alice and Bob
+    // are connected; Carol deliberately isn't, to exercise the gate below.
+    await prisma.connection.create({
+      data: { requesterId: alice.id, receiverId: bob.id, status: 'accepted' },
+    });
   });
 
   afterAll(async () => {
@@ -138,6 +145,16 @@ describe('Vouch flow', () => {
       payload: {},
     });
     expect(res.statusCode).toBe(400);
+  });
+
+  it('POST /users/:id/vouch — no connection to the target is rejected (403)', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: `/users/${alice.id}/vouch`,
+      headers: { authorization: `Bearer ${carol.token}` },
+      payload: { companyName: 'Made Up Co' },
+    });
+    expect(res.statusCode).toBe(403);
   });
 
   it('POST /users/:id/vouch — Alice vouches for Bob (201, pending)', async () => {

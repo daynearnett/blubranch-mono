@@ -142,6 +142,11 @@ model User {
   isVerified      Boolean      @default(false) @map("is_verified")
   emailVerified   Boolean      @default(false) @map("email_verified")
   phoneVerified   Boolean      @default(false) @map("phone_verified")
+  // Admin-flagged QA/internal probe account (e.g. ad hoc accounts created
+  // while manually testing a flow). Excluded from discovery surfaces like
+  // /network/suggestions so real users never see dummy accounts mixed in
+  // with real strangers. Set via PUT /admin/workers/:id/test-account.
+  isTestAccount   Boolean      @default(false) @map("is_test_account")
   slug            String?      @unique @db.VarChar(100)
   termsAcceptedAt DateTime?    @map("terms_accepted_at")
   termsVersion    String?      @map("terms_version") @db.VarChar(20)

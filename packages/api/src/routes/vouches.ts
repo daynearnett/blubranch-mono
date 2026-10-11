@@ -136,6 +136,33 @@ export async function vouchRoutes(app: FastifyInstance): Promise<void> {
       const vouchee = await prisma.user.findUnique({ where: { id: them }, select: { id: true } });
       if (!vouchee) return reply.code(404).send({ error: 'NotFound' });
 
+      // Gate: a vouch is a "we worked together, I'll back you" claim that
+      // shows up on the vouchee's public profile next to real trade history —
+      // without this, a total stranger with zero shared ground (vouch-context
+      // confirms it: no connection, no workplace overlap) could file one on a
+      // made-up company and have it go live the moment the other person taps
+      // confirm without reading closely. Shared-workplace overlap only
+      // pre-fills the claim (see the module comment above) because free-text
+      // company names miss real pairs too often to gate on — but "are these
+      // two people connected at all" has no such false-negative problem, so
+      // require at least that much before a vouch can be filed.
+      const connection = await prisma.connection.findFirst({
+        where: {
+          status: 'accepted',
+          OR: [
+            { requesterId: me, receiverId: them },
+            { requesterId: them, receiverId: me },
+          ],
+        },
+        select: { id: true },
+      });
+      if (!connection) {
+        return reply.code(403).send({
+          error: 'Forbidden',
+          message: 'You can only vouch for someone you’re connected with',
+        });
+      }
+
       const existing = await prisma.vouch.findUnique({
         where: { voucherId_voucheeId: { voucherId: me, voucheeId: them } },
       });
@@ -199,6 +226,23 @@ export async function vouchRoutes(app: FastifyInstance): Promise<void> {
         where: { id: vouch.id },
         data: { status: 'confirmed', confirmedAt: new Date() },
       });
+
+      // The "confirm your vouch" push/in-app notification that prompted this
+      // only gets marked read if the user happens to tap through it — someone
+      // confirming via the pending-vouches list directly leaves it sitting
+      // unread forever even though there's nothing left to act on. Resolve it
+      // here instead of relying on the client to have tapped the right row.
+      await prisma.notification
+        .updateMany({
+          where: {
+            userId: me,
+            type: 'vouch_received',
+            readAt: null,
+            data: { path: ['vouchId'], equals: vouch.id },
+          },
+          data: { readAt: new Date() },
+        })
+        .catch(() => {});
 
       const vouchee = await prisma.user.findUnique({
         where: { id: me },

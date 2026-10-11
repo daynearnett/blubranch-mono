@@ -170,6 +170,26 @@ export async function jobRoutes(app: FastifyInstance): Promise<void> {
     // returns results, just without distance sorting.
     const useGeo = isPostGisEnabled() && q.lat !== undefined && q.lng !== undefined;
 
+    // When the caller didn't supply a point (or PostGIS isn't available —
+    // the staging reality), the 'nearest' default used to fall all the way
+    // back to a location-blind "newest" ordering, so e.g. a Cleveland worker
+    // got a feed of nothing but Columbus jobs with no signal they were even
+    // far away. Mirror the city/state text-match the job-match notification
+    // job already uses without PostGIS (jobs/job-match.ts) to at least bubble
+    // same-city/same-state jobs to the top of the default feed for a logged-in
+    // worker — a boost, not a filter, so the feed never goes empty just
+    // because nothing nearby is open right now.
+    let myCity: string | null = null;
+    let myState: string | null = null;
+    if (!useGeo && request.user) {
+      const myProfile = await prisma.workerProfile.findUnique({
+        where: { userId: request.user.id },
+        select: { city: true, state: true },
+      });
+      myCity = myProfile?.city ?? null;
+      myState = myProfile?.state ?? null;
+    }
+
     let distanceSelect = Prisma.sql`NULL::double precision AS distance_miles`;
     if (useGeo) {
       const meters = q.radius * MILES_TO_METERS;
@@ -186,11 +206,26 @@ export async function jobRoutes(app: FastifyInstance): Promise<void> {
     if (q.sort === 'newest') {
       orderSql = Prisma.sql`ORDER BY j."is_featured" DESC, j."created_at" DESC`;
     } else if (q.sort === 'pay_highest') {
-      orderSql = Prisma.sql`ORDER BY j."is_featured" DESC, j."pay_max" DESC`;
+      // Pay is the explicit, literal thing the caller asked to sort by — unlike
+      // "newest"/"nearest" (discovery-ish defaults where featured placement is a
+      // reasonable tie-break-first bump), silently outranking it by featured
+      // status means "Highest pay" doesn't actually show highest pay first, with
+      // no UI signal explaining why. Sort by pay primarily; featured only breaks
+      // ties between equally-paying jobs.
+      orderSql = Prisma.sql`ORDER BY j."pay_max" DESC, j."is_featured" DESC`;
     } else if (useGeo) {
       orderSql = Prisma.sql`ORDER BY j."is_featured" DESC, distance_miles ASC NULLS LAST`;
+    } else if (myState) {
+      orderSql = Prisma.sql`
+        ORDER BY
+          j."is_featured" DESC,
+          (j."city" = ${myCity} AND j."state" = ${myState}) DESC,
+          (j."state" = ${myState}) DESC,
+          j."created_at" DESC`;
     } else {
-      // 'nearest' fallback when no point given OR PostGIS disabled.
+      // 'nearest' fallback when no point given OR PostGIS disabled, and we
+      // have no location signal at all for this caller (logged out, or no
+      // worker profile yet).
       orderSql = Prisma.sql`ORDER BY j."is_featured" DESC, j."created_at" DESC`;
     }
 

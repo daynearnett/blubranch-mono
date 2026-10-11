@@ -129,3 +129,91 @@ describe('Worker connection flow', () => {
     expect(postIds).toContain(post.id);
   });
 });
+
+describe('GET /network/suggestions — excludes flagged QA/test accounts', () => {
+  let app: FastifyInstance;
+  const prisma = getPrisma();
+  const stamp = Date.now();
+  let viewer: { id: string; token: string };
+  let realStranger: { id: string };
+  let probeAccount: { id: string };
+
+  beforeAll(async () => {
+    process.env.NODE_ENV = 'test';
+    app = await buildApp();
+
+    const v = await prisma.user.create({
+      data: {
+        firstName: 'Viewer',
+        lastName: 'Suggest',
+        email: `viewer-suggest-${stamp}@test.local`,
+        role: 'worker',
+        authProvider: 'email',
+        passwordHash: 'not-a-real-hash',
+      },
+    });
+    viewer = { id: v.id, token: signAccessToken(v.id, 'worker') };
+
+    const stranger = await prisma.user.create({
+      data: {
+        firstName: 'Real',
+        lastName: `Stranger${stamp}`,
+        email: `real-stranger-${stamp}@test.local`,
+        role: 'worker',
+        authProvider: 'email',
+        passwordHash: 'not-a-real-hash',
+      },
+    });
+    realStranger = { id: stranger.id };
+
+    const probe = await prisma.user.create({
+      data: {
+        firstName: 'Cmp',
+        lastName: `Probe${stamp}`,
+        email: `cmp-probe-${stamp}@test.local`,
+        role: 'worker',
+        authProvider: 'email',
+        passwordHash: 'not-a-real-hash',
+        isTestAccount: true,
+      },
+    });
+    probeAccount = { id: probe.id };
+
+    // Give the viewer a shared, uniquely-named workplace with BOTH the real
+    // stranger and the probe account — the strongest scoring signal
+    // (/network/suggestions +3) — so both would rank at the top of the
+    // candidate pool regardless of how many leftover fixture users other
+    // test files left behind. The probe account scoring just as high but
+    // still being excluded is the point of this test.
+    const sharedCompany = `Suggestion Test Co ${stamp}`;
+    await prisma.workPlace.createMany({
+      data: [viewer.id, realStranger.id, probeAccount.id].map((userId) => ({
+        userId,
+        companyName: sharedCompany,
+        role: 'Worker',
+        startDate: new Date('2023-01-01'),
+        endDate: new Date('2023-12-01'),
+        current: false,
+      })),
+    });
+  });
+
+  afterAll(async () => {
+    if (viewer) await prisma.user.delete({ where: { id: viewer.id } }).catch(() => {});
+    if (realStranger) await prisma.user.delete({ where: { id: realStranger.id } }).catch(() => {});
+    if (probeAccount) await prisma.user.delete({ where: { id: probeAccount.id } }).catch(() => {});
+    await app.close();
+  });
+
+  it('lists the real stranger but not the flagged test account', async () => {
+    const res = await app.inject({
+      method: 'GET',
+      url: '/network/suggestions',
+      headers: { authorization: `Bearer ${viewer.token}` },
+    });
+    expect(res.statusCode).toBe(200);
+    const ids = (res.json() as Array<{ id: string }>).map((s) => s.id);
+    expect(ids).toContain(realStranger.id);
+    expect(ids).not.toContain(probeAccount.id);
+  });
+});

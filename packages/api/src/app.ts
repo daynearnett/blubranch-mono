@@ -2,6 +2,7 @@ import cors from '@fastify/cors';
 import multipart from '@fastify/multipart';
 import sensible from '@fastify/sensible';
 import Fastify, { type FastifyInstance } from 'fastify';
+import { Prisma } from '@blubranch/db';
 import { extractUser } from './auth/middleware.js';
 import { registerSecurity } from './lib/security.js';
 import { startWorkers } from './jobs/worker-setup.js';
@@ -101,6 +102,23 @@ export async function buildApp(): Promise<FastifyInstance> {
   // Run extractUser on every request — populates request.user when a valid
   // bearer token is present, no-op otherwise.
   app.addHook('preHandler', extractUser);
+
+  // A `:id`/`:cursor` route param that isn't a well-formed UUID (a stale deep
+  // link, a hand-typed id, a cached id after a hard delete) reaches Prisma as
+  // raw SQL and throws PrismaClientKnownRequestError P2023 ("Error creating
+  // UUID..."). Left unhandled that was surfacing as a raw 500 with the full
+  // Prisma error text in the body — on public, unauthenticated routes like
+  // GET /jobs/:id, that leaks ORM/schema internals to anyone. Treat it as the
+  // 404 it should have been; this covers every route, not just the ones we
+  // remember to guard by hand.
+  app.setErrorHandler((err, _request, reply) => {
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2023') {
+      return reply.code(404).send({ error: 'NotFound' });
+    }
+    // Not ours to handle — fall back to Fastify's default error formatting
+    // (uses err.statusCode when set, 500 otherwise; still logs normally).
+    return reply.send(err);
+  });
 
   app.get('/health', async () => ({ status: 'ok' }));
 

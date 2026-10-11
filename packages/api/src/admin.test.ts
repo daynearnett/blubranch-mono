@@ -130,6 +130,38 @@ describe('Admin routes', () => {
     expect(typeof body.total).toBe('number');
   });
 
+  it('PUT /admin/workers/:id/test-account — flags, then unflags, a worker', async () => {
+    const token = signAccessToken(adminId, 'admin');
+
+    const flag = await app.inject({
+      method: 'PUT',
+      url: `/admin/workers/${workerId}/test-account`,
+      headers: { authorization: `Bearer ${token}` },
+      payload: { isTestAccount: true },
+    });
+    expect(flag.statusCode).toBe(200);
+    expect(flag.json()).toEqual({ id: workerId, isTestAccount: true });
+
+    const unflag = await app.inject({
+      method: 'PUT',
+      url: `/admin/workers/${workerId}/test-account`,
+      headers: { authorization: `Bearer ${token}` },
+      payload: { isTestAccount: false },
+    });
+    expect(unflag.statusCode).toBe(200);
+    expect(unflag.json()).toEqual({ id: workerId, isTestAccount: false });
+  });
+
+  it('PUT /admin/workers/:id/test-account — rejects a non-admin token (403)', async () => {
+    const res = await app.inject({
+      method: 'PUT',
+      url: `/admin/workers/${workerId}/test-account`,
+      headers: { authorization: `Bearer ${workerToken}` },
+      payload: { isTestAccount: true },
+    });
+    expect(res.statusCode).toBe(403);
+  });
+
   it('admin routes reject a non-admin token (403)', async () => {
     const res = await app.inject({
       method: 'GET',
