@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="250 150 530 730" role="img" aria-label="BluBranch">
+  <defs>
+    <linearGradient id="bbMark" x1="0" y1="180" x2="0" y2="842" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#B0C4DE"/>
+      <stop offset="1" stop-color="#4682B4"/>
+    </linearGradient>
+  </defs>
+  <g fill="none" stroke="url(#bbMark)">
+    <circle cx="615" cy="719" r="91" stroke-width="70"/>
+    <path d="M527 719 L527 455" stroke-width="74"/>
+    <circle cx="563" cy="346" r="91" stroke-width="70"/>
+    <path d="M548 460 L320 217" stroke-width="74" stroke-linecap="round"/>
+  </g>
+</svg>
