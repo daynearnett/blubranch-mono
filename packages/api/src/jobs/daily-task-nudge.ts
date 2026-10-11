@@ -82,6 +82,22 @@ export async function processDailyTaskNudge(now = new Date()): Promise<void> {
     take: MAX_PER_RUN,
   });
 
+  // A new day's task supersedes yesterday's — there's no value in an
+  // unresolving backlog of "post a photo" reminders piling up unread next to
+  // real social notifications (messages, likes) with identical styling and
+  // no escalation. Clear the old ones for anyone about to get a fresh nudge.
+  await prisma.notification
+    .updateMany({
+      where: {
+        userId: { in: candidates.map((c) => c.id) },
+        type: 'daily_task',
+        readAt: null,
+        createdAt: { lt: utcMidnight },
+      },
+      data: { readAt: new Date() },
+    })
+    .catch(() => {});
+
   for (const c of candidates) {
     await sendNotification({
       userId: c.id,
