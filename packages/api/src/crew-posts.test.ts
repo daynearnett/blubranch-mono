@@ -67,9 +67,14 @@ describe('Crew posts — co-author invite/accept', () => {
     expect(rows[0]!.userId).toBe(buddy.id);
     expect(rows[0]!.status).toBe('pending');
 
-    const notif = await prisma.notification.findFirst({
-      where: { userId: buddy.id, type: 'coauthor_invite' },
-    });
+    // Notification dispatch is fire-and-forget — poll briefly for the row.
+    let notif = null;
+    for (let i = 0; i < 20 && !notif; i++) {
+      notif = await prisma.notification.findFirst({
+        where: { userId: buddy.id, type: 'coauthor_invite' },
+      });
+      if (!notif) await new Promise((r) => setTimeout(r, 100));
+    }
     expect(notif).not.toBeNull();
     expect(notif!.title).toContain('put you on a post');
   });
