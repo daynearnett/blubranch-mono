@@ -9,7 +9,11 @@ Marketing site for BluBranch (blubranch.com). Plain static HTML + CSS, no build 
 - `assets/apple-touch-icon.png`, `assets/favicon.png`: copied from `apps/mobile/assets/`
 - `assets/og-image.png`: copied from `packages/api/assets/og-logo.png`
 
-Styled after the mobile app's light theme (`apps/mobile/src/theme.ts`): Workwear Denim primary buttons, CAT Yellow accents, 8px card radius. The Trade Card, job card and plan cards mirror their app components.
+Styled after the mobile app's light theme (`apps/mobile/src/theme.ts`): Workwear Denim primary buttons, CAT Yellow accents, 8px card radius. Worker-focused, with no app screenshots or UI mockups (pre-launch mystery); each section has an abstract brand animation that plays on scroll (respects `prefers-reduced-motion`). Employers get one short strip above the footer.
+
+## Waitlist
+
+Both forms (hero + closing) validate the email client-side. Set `WAITLIST_ENDPOINT` in the inline script to go live; it POSTs `{ email, role: 'worker' | 'employer', source: 'website' }` as JSON. Until then, submitting shows "Waitlist signups open in a few days."
 Employer pricing matches `packages/shared/src/schemas/payment.ts` (Basic $19/post, Blu $79/mo, Blu Max $139/mo).
 
 ## Preview locally
@@ -21,7 +25,7 @@ npx serve .        # or: python3 -m http.server
 ## Before going live
 
 - [ ] Point the footer Privacy/Terms links at the production API (`api.blubranch.com/legal/*`) once prod DNS is live; they currently use staging.
-- [ ] Swap the "Coming soon to the App Store" pill for the real App Store link at launch (or add a waitlist form).
+- [ ] Build the waitlist backend and set `WAITLIST_ENDPOINT` in `index.html`.
 - [ ] Deploy (e.g. Vercel: `vercel deploy --prod` from this folder) and point `blubranch.com` DNS at it.
 
 ## Moving to its own repo
