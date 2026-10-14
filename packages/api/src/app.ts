@@ -15,6 +15,7 @@ import { toolboxRoutes } from './routes/toolbox.js';
 import { shareRoutes } from './routes/share.js';
 import { legalRoutes } from './routes/legal.js';
 import { uploadRoutes } from './routes/upload.js';
+import { importRoutes } from './routes/imports.js';
 import { connectionRoutes } from './routes/connections.js';
 import { vouchRoutes } from './routes/vouches.js';
 import { headlineRoutes } from './routes/headlines.js';
@@ -126,6 +127,7 @@ export async function buildApp(): Promise<FastifyInstance> {
   await app.register(telemetryRoutes);
   await app.register(moderationRoutes);
   await app.register(uploadRoutes);
+  await app.register(importRoutes);
 
   // BullMQ workers + repeatable job schedules (expire-jobs hourly,
   // license-expiration nightly). Skip in test env to avoid Redis dependency.
