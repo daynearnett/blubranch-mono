@@ -11,6 +11,7 @@
     "web": "expo start --web",
     "build": "echo \"Use EAS Build: eas build --platform all\"",
     "lint": "eslint .",
+    "check:padding": "node scripts/check-screen-padding.mjs",
     "test": "jest --passWithNoTests",
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf .expo dist .turbo node_modules/.cache"

@@ -35,7 +35,7 @@ import {
   type JobSummary,
 } from '../../../src/lib/api.js';
 import { useDetailPanel } from '../../../src/lib/detail-panel-context.js';
-import { colors, radius, spacing, typography } from '../../../src/theme.js';
+import { colors, layout, radius, spacing, typography } from '../../../src/theme.js';
 
 type SortKey = 'nearest' | 'newest' | 'pay_highest';
 const SORT_LABELS: Record<SortKey, string> = {
@@ -155,6 +155,7 @@ export default function JobsTab() {
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
+              style={styles.tradePillsScroller}
               contentContainerStyle={styles.tradePills}
             >
               <Chip
@@ -265,10 +266,17 @@ export default function JobsTab() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
   rootRow: { flexDirection: 'row' },
-  scroll: { paddingVertical: spacing.lg },
-  tradePills: { paddingHorizontal: spacing.lg, paddingBottom: spacing.sm },
+  // The gutter lives here, once, so every child lines up. It used to be
+  // applied per-child, and the two card components were missed — JobCard and
+  // PayInsightsCard rendered flush to both edges with their rounded borders
+  // clipped, while the section labels directly above them sat at the gutter.
+  scroll: { paddingVertical: spacing.lg, paddingHorizontal: layout.screenPaddingH },
+  // Pills deliberately bleed past the gutter so the row reads as scrollable;
+  // the negative margin cancels the parent padding, the content padding puts
+  // the first pill back on the grid.
+  tradePillsScroller: { marginHorizontal: -layout.screenPaddingH },
+  tradePills: { paddingHorizontal: layout.screenPaddingH, paddingBottom: spacing.sm },
   resultsHeader: {
-    paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,
     flexDirection: 'row',
     alignItems: 'center',
@@ -291,13 +299,11 @@ const styles = StyleSheet.create({
     color: colors.navy,
     fontWeight: '700',
     letterSpacing: 1,
-    paddingHorizontal: spacing.lg,
     marginBottom: spacing.sm,
   },
   error: {
     ...typography.body,
     color: colors.danger,
-    paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
   },
   center: { paddingVertical: spacing.xl, alignItems: 'center' },
@@ -305,6 +311,5 @@ const styles = StyleSheet.create({
     ...typography.body,
     color: colors.textSecondary,
     textAlign: 'center',
-    paddingHorizontal: spacing.lg,
   },
 });

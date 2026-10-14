@@ -154,13 +154,14 @@ export const typography = {
 } as const;
 
 export const layout = {
+  /**
+   * The app's side gutter. Every in-app screen's root content container
+   * uses this; the onboarding/auth wizards and the legal documents run
+   * wider at spacing.xl (24) on purpose. `scripts/check-screen-padding.mjs`
+   * enforces that every screen has one or the other.
+   */
   screenPaddingH: 16,
-  sectionPaddingV: 16,
-  cardPadding: 14,
-  cardRadius: radius.md,
   inputHeight: 48,
   buttonHeight: 50,
   dividerHeight: 6,
-  // Kept for backwards compat with existing screens
-  screenPadding: 16,
 } as const;

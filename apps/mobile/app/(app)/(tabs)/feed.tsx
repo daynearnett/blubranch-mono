@@ -22,7 +22,7 @@ import { QuickApplyModal, type QuickApplyTarget } from '../../../src/components/
 import { ProfileGateSheet } from '../../../src/components/profile-gate-sheet.js';
 import { useApplyGate } from '../../../src/hooks/useApplyGate.js';
 import { ResponsiveContainer } from '../../../src/components/responsive.js';
-import { colors, spacing, typography } from '../../../src/theme.js';
+import { colors, layout, spacing, typography } from '../../../src/theme.js';
 
 export default function FeedTab() {
   const router = useRouter();
@@ -173,9 +173,11 @@ export default function FeedTab() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
-  scroll: { paddingVertical: spacing.lg },
-  feed: { paddingHorizontal: spacing.lg },
-  center: { paddingVertical: spacing.xxl, alignItems: 'center', paddingHorizontal: spacing.lg },
+  // Gutter on the scroll container, once, so every child lines up — same
+  // shape as the Jobs tab.
+  scroll: { paddingVertical: spacing.lg, paddingHorizontal: layout.screenPaddingH },
+  feed: {},
+  center: { paddingVertical: spacing.xxl, alignItems: 'center' },
   error: { ...typography.body, color: colors.danger, textAlign: 'center' },
   empty: { ...typography.body, color: colors.textSecondary, textAlign: 'center' },
   sectionLabel: {

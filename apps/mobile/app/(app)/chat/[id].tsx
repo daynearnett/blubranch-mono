@@ -18,7 +18,7 @@ import { messages, type MessageItem, type ConversationPreview } from '../../../s
 import { useSocket } from '../../../src/hooks/useSocket.js';
 import { useAuth } from '../../../src/lib/auth-context.js';
 import { secureStorage } from '../../../src/lib/storage.js';
-import { colors, radius, spacing, typography } from '../../../src/theme.js';
+import { colors, layout, radius, spacing, typography } from '../../../src/theme.js';
 
 export default function ChatScreen() {
   const { id: conversationId } = useLocalSearchParams<{ id: string }>();
@@ -299,7 +299,8 @@ const styles = StyleSheet.create({
   composer: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    paddingHorizontal: spacing.md,
+    // Line up with the message list's gutter directly above it.
+    paddingHorizontal: layout.screenPaddingH,
     paddingTop: spacing.sm,
     borderTopWidth: 1,
     borderTopColor: colors.borderSoft,

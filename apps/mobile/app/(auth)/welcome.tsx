@@ -190,7 +190,9 @@ const styles = StyleSheet.create({
   slide: {
     width: SCREEN_WIDTH,
     alignItems: 'center',
-    paddingHorizontal: spacing.xxl,
+    // Matches `actions` below — the slide copy used to sit at 32 while the
+    // CTAs under it sat at 24, so the two blocks didn't line up.
+    paddingHorizontal: spacing.xl,
     paddingTop: spacing.xl,
   },
   iconCircle: {

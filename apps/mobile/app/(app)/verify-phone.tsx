@@ -14,7 +14,7 @@ import { ArrowLeft, Phone, ShieldCheck } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { auth, me } from '../../src/lib/api.js';
 import { useAuth } from '../../src/lib/auth-context.js';
-import { colors, radius, spacing, typography } from '../../src/theme.js';
+import { colors, layout, radius, spacing, typography } from '../../src/theme.js';
 
 type Step = 'phone' | 'code';
 
@@ -221,7 +221,7 @@ const styles = StyleSheet.create({
   headerTitle: { ...typography.h3, flex: 1, textAlign: 'center', color: colors.navy },
   body: {
     flex: 1,
-    paddingHorizontal: spacing.xl,
+    paddingHorizontal: layout.screenPaddingH,
     paddingTop: spacing.xxl,
     alignItems: 'center',
   },
