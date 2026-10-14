@@ -47,9 +47,9 @@ export default function VerifyPhoneScreen() {
     setLoading(true);
     setError(null);
     try {
-      // First save the phone number to the user's profile.
-      await me.updateWorkerProfile({ phone: phone.trim() } as never);
-
+      // /auth/verify-phone/send persists the number on the caller's account
+      // (normalized to E.164) before sending the code, so there's nothing to
+      // save separately here.
       const res = await auth.sendPhoneCode(phone.trim());
       if (res.devCode) setDevCode(res.devCode);
       setStep('code');

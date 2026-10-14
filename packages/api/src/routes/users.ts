@@ -16,6 +16,7 @@ import { serializeUser } from '../lib/serialize.js';
 import { parseBody } from '../lib/validate.js';
 import { geocodeAddress, setGeographyPoint } from '../services/geocode.js';
 import { notifyProfileView } from '../services/push.js';
+import { checkApplyReadiness } from '../services/apply-readiness.js';
 import { recomputeProfileCompleteness } from '../services/profile-completeness.js';
 
 // Confirmed vouch → the shape public profiles display ("Vouched by" section).
@@ -234,6 +235,13 @@ export async function userRoutes(app: FastifyInstance): Promise<void> {
       ...profile,
       profileCompleteness: completeness ?? profile.profileCompleteness,
     });
+  });
+
+  // ── GET /users/me/apply-readiness ───────────────────────────────
+  // Lets the client show the Quick Apply gate before firing a doomed apply.
+  // Same service the apply route uses, so the two can't drift.
+  app.get('/users/me/apply-readiness', { preHandler: requireAuth }, async (request) => {
+    return checkApplyReadiness(request.user!.id);
   });
 
   // ── PUT /users/me/photo ─────────────────────────────────────────

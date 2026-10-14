@@ -7,6 +7,7 @@ import type { FastifyInstance } from 'fastify';
 import { requireAuth, requireRole } from '../auth/middleware.js';
 import { getPrisma } from '../lib/prisma.js';
 import { parseBody } from '../lib/validate.js';
+import { checkApplyReadiness, readinessMessage } from '../services/apply-readiness.js';
 import { sendNotification } from '../services/push.js';
 
 export async function applicationRoutes(app: FastifyInstance): Promise<void> {
@@ -21,18 +22,32 @@ export async function applicationRoutes(app: FastifyInstance): Promise<void> {
       const data = parseBody(jobApplyInputSchema, request, reply);
       if (!data) return;
 
-      // Phone-verification gate: workers must verify their phone number
-      // before they can apply to jobs. This prevents spam applications and
-      // ensures employers can reach applicants.
-      const applicant = await prisma.user.findUnique({
-        where: { id: request.user!.id },
-        select: { phoneVerified: true, phone: true },
-      });
-      if (!applicant?.phoneVerified) {
+      // Readiness gate: a worker's profile has to carry the fields the
+      // employer's applicant card actually renders before they can apply.
+      // Phone verification is one of those requirements (it also keeps spam
+      // applications down and guarantees the employer can reach them).
+      const readiness = await checkApplyReadiness(request.user!.id);
+      if (!readiness.ready) {
+        const onlyPhone = readiness.missing.length === 1 && readiness.missing[0]?.key === 'phone';
+        if (onlyPhone) {
+          // Back-compat: builds already on TestFlight string-match this code
+          // to route into the verify-phone screen. Keep it for the one case
+          // where that's still the right destination.
+          const applicant = await prisma.user.findUnique({
+            where: { id: request.user!.id },
+            select: { phone: true },
+          });
+          return reply.code(403).send({
+            error: 'PhoneVerificationRequired',
+            message: 'Please verify your phone number before applying to jobs',
+            hasPhone: !!applicant?.phone,
+            missing: readiness.missing,
+          });
+        }
         return reply.code(403).send({
-          error: 'PhoneVerificationRequired',
-          message: 'Please verify your phone number before applying to jobs',
-          hasPhone: !!applicant?.phone,
+          error: 'ProfileIncomplete',
+          message: readinessMessage(readiness.missing),
+          missing: readiness.missing,
         });
       }
 

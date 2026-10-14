@@ -16,7 +16,7 @@ const memoryCodes = new Map<string, { code: string; expiresAt: number }>();
  * Normalize a phone number to E.164 (e.g. +13173537345). Twilio Verify rejects
  * bare numbers ("INVALID PARAMETER `to`"). Defaults a 10-digit number to US (+1).
  */
-function toE164(phone: string): string {
+export function toE164(phone: string): string {
   const trimmed = phone.trim();
   if (trimmed.startsWith('+')) return trimmed.replace(/[^\d+]/g, '');
   const digits = trimmed.replace(/\D/g, '');

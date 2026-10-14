@@ -14,8 +14,9 @@ import {
 import type { FastifyInstance } from 'fastify';
 import { Prisma } from '@blubranch/db';
 import { signTokenPair, verifyRefreshToken } from '../auth/jwt.js';
+import { requireAuth } from '../auth/middleware.js';
 import { hashPassword, verifyPassword } from '../auth/password.js';
-import { checkVerificationCode, sendVerificationCode } from '../auth/twilio.js';
+import { checkVerificationCode, sendVerificationCode, toE164 } from '../auth/twilio.js';
 import {
   generateVerificationCode as generateEmailCode,
   checkVerificationCode as checkEmailVerificationCode,
@@ -28,6 +29,31 @@ import { parseBody } from '../lib/validate.js';
 import { verifySocialIdToken } from '../services/social-auth.js';
 
 const TERMS_VERSION = '1.0';
+
+/**
+ * Write a phone number onto one user. `User.phone` is unique, so a number
+ * already held by a different account has to be refused rather than throwing
+ * a raw P2002. Returns null on success, or the reply to send on conflict.
+ */
+async function claimPhone(
+  userId: string,
+  phone: string,
+  extra: { isVerified?: boolean; phoneVerified?: boolean } = {},
+): Promise<{ status: number; body: { error: string; message: string } } | null> {
+  const prisma = getPrisma();
+  const holder = await prisma.user.findUnique({ where: { phone }, select: { id: true } });
+  if (holder && holder.id !== userId) {
+    return {
+      status: 409,
+      body: {
+        error: 'PhoneInUse',
+        message: 'That phone number is already on another BluBranch account.',
+      },
+    };
+  }
+  await prisma.user.update({ where: { id: userId }, data: { phone, ...extra } });
+  return null;
+}
 
 export async function authRoutes(app: FastifyInstance): Promise<void> {
   const prisma = getPrisma();
@@ -123,26 +149,38 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
   });
 
   // ── POST /auth/verify-phone/send ────────────────────────────────
-  app.post('/auth/verify-phone/send', async (request, reply) => {
+  // Authenticated: the code is only ever issued on behalf of the caller, and
+  // the number is stored on their account so the check below can confirm it.
+  app.post('/auth/verify-phone/send', { preHandler: requireAuth }, async (request, reply) => {
     const data = parseBody(verifyPhoneSendSchema, request, reply);
     if (!data) return;
-    const { devCode } = await sendVerificationCode(data.phone);
+    const phone = toE164(data.phone);
+    // Persist before sending. Previously the number was never written (the
+    // mobile client tried to save it through the worker-profile schema, which
+    // has no phone field and silently dropped it), so the check below matched
+    // zero rows and phoneVerified never flipped — permanently blocking apply.
+    const claim = await claimPhone(request.user!.id, phone);
+    if (claim) return reply.code(claim.status).send(claim.body);
+    const { devCode } = await sendVerificationCode(phone);
     return reply.send({ sent: true, devCode });
   });
 
   // ── POST /auth/verify-phone (check) ─────────────────────────────
-  app.post('/auth/verify-phone', async (request, reply) => {
+  app.post('/auth/verify-phone', { preHandler: requireAuth }, async (request, reply) => {
     const data = parseBody(verifyPhoneCheckSchema, request, reply);
     if (!data) return;
-    const ok = await checkVerificationCode(data.phone, data.code);
+    const phone = toE164(data.phone);
+    const ok = await checkVerificationCode(phone, data.code);
     if (!ok) {
       return reply.code(400).send({ error: 'BadRequest', message: 'Invalid or expired code' });
     }
-    // Mark any user with this phone as verified.
-    await prisma.user.updateMany({
-      where: { phone: data.phone },
-      data: { isVerified: true, phoneVerified: true },
+    // Scoped to the caller. This used to be an updateMany keyed on the phone
+    // number, which marked *every* account holding that number verified.
+    const claim = await claimPhone(request.user!.id, phone, {
+      isVerified: true,
+      phoneVerified: true,
     });
+    if (claim) return reply.code(claim.status).send(claim.body);
     return reply.send({ verified: true });
   });
 

@@ -117,10 +117,54 @@ describe('E2E — signup → post job → apply → message', () => {
     jobId = job.json().id;
   });
 
-  it('4. the worker verifies their phone and applies', async () => {
-    // Applying is gated behind SMS phone verification. The verify flow itself is
-    // covered elsewhere; here we mark the worker verified to exercise the apply.
+  it('4. the worker finishes their profile, then applies', async () => {
+    // A freshly-registered worker is blocked by the Quick Apply readiness
+    // gate — their profile carries none of the fields the employer's
+    // applicant card renders.
+    const blocked = await app.inject({
+      method: 'POST',
+      url: `/jobs/${jobId}/apply`,
+      headers: { authorization: `Bearer ${workerToken}` },
+      payload: { coverNote: 'Licensed journeyman, 5 years commercial.' },
+    });
+    expect(blocked.statusCode).toBe(403);
+    expect(blocked.json().error).toBe('ProfileIncomplete');
+
+    // Walk the gate green through the same endpoints the profile-complete
+    // screen uses. (The SMS round trip is covered in phone-verify.test.ts.)
+    const trade = await prisma.trade.findFirstOrThrow();
+    await app.inject({
+      method: 'PUT',
+      url: '/users/me/worker-profile',
+      headers: { authorization: `Bearer ${workerToken}` },
+      payload: {
+        headline: 'Journeyman welder',
+        city: 'Chicago',
+        state: 'IL',
+        zipCode: '60601',
+        jobAvailability: 'actively_looking',
+      },
+    });
+    await app.inject({
+      method: 'POST',
+      url: '/users/me/trades',
+      headers: { authorization: `Bearer ${workerToken}` },
+      payload: { tradeIds: [trade.id] },
+    });
+    await app.inject({
+      method: 'PUT',
+      url: '/users/me/photo',
+      headers: { authorization: `Bearer ${workerToken}` },
+      payload: { profilePhotoUrl: 'https://example.test/wanda.jpg' },
+    });
     await prisma.user.update({ where: { id: workerId }, data: { phoneVerified: true } });
+
+    const readiness = await app.inject({
+      method: 'GET',
+      url: '/users/me/apply-readiness',
+      headers: { authorization: `Bearer ${workerToken}` },
+    });
+    expect(readiness.json().ready).toBe(true);
 
     const res = await app.inject({
       method: 'POST',

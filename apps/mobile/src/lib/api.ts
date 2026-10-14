@@ -69,6 +69,10 @@ export class ApiError extends Error {
     public readonly status: number,
     message: string,
     public readonly issues?: { path: string; message: string }[],
+    /** The server's machine-readable `error` field, e.g. 'ProfileIncomplete'. */
+    public readonly code?: string,
+    /** The full parsed error body, for codes that carry extra detail. */
+    public readonly body?: unknown,
   ) {
     super(message);
   }
@@ -88,14 +92,16 @@ async function request<T>(path: string, init: RequestInit = {}, allowRefresh = t
 
   // On a 401, the access token has likely expired mid-session. Transparently
   // refresh once and retry so a long flow (e.g. onboarding) doesn't dead-end
-  // with "Valid bearer token required". Skip /auth/* to avoid refresh recursion
-  // and skip the retry itself (allowRefresh=false) so a still-401 can't loop.
+  // with "Valid bearer token required". Skip /auth/refresh itself to avoid
+  // recursion, and skip the retry (allowRefresh=false) so a still-401 can't
+  // loop. Other /auth/* routes do refresh — verify-phone is authenticated.
+  // Unauthenticated routes never reach here: the `accessToken` guard below.
   if (
     res.status === 401 &&
     allowRefresh &&
     accessToken &&
     refreshHandler &&
-    !path.startsWith('/auth/')
+    path !== '/auth/refresh'
   ) {
     if (!refreshInFlight) {
       refreshInFlight = refreshHandler().finally(() => {
@@ -110,7 +116,13 @@ async function request<T>(path: string, init: RequestInit = {}, allowRefresh = t
   const data = text ? JSON.parse(text) : null;
 
   if (!res.ok) {
-    throw new ApiError(res.status, data?.message ?? data?.error ?? res.statusText, data?.issues);
+    throw new ApiError(
+      res.status,
+      data?.message ?? data?.error ?? res.statusText,
+      data?.issues,
+      data?.error,
+      data,
+    );
   }
   return data as T;
 }

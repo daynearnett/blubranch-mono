@@ -43,14 +43,18 @@ describe('Worker apply flow', () => {
         passwordHash: 'not-a-real-hash',
         phone: '+13125550100',
         phoneVerified: false,
+        // Everything the Quick Apply readiness gate wants EXCEPT a verified
+        // phone, so the assertions below isolate the phone requirement.
+        profilePhotoUrl: 'https://example.test/avatar.jpg',
         workerProfile: {
           create: {
             experienceLevel: 'years_3_5',
+            headline: 'Commercial electrician',
             city: 'Chicago',
             state: 'IL',
             zipCode: '60601',
             travelRadiusMiles: 25,
-            jobAvailability: 'open',
+            jobAvailability: 'actively_looking',
           },
         },
       },
@@ -58,6 +62,7 @@ describe('Worker apply flow', () => {
     worker = { id: wrk.id, token: signAccessToken(wrk.id, 'worker') };
 
     const trade = await prisma.trade.findFirst();
+    await prisma.userTrade.create({ data: { userId: wrk.id, tradeId: trade!.id } });
     const company = await prisma.company.create({
       data: {
         employerId: emp.id,
