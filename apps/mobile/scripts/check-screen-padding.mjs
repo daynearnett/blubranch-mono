@@ -54,6 +54,7 @@ const DELEGATES = {
   'app/(auth)/signup-verify.tsx': 'src/components/signup-shell.tsx',
   'app/(auth)/signup-location.tsx': 'src/components/signup-shell.tsx',
   'app/(auth)/signup-trade.tsx': 'src/components/signup-shell.tsx',
+  'app/(auth)/signup-import.tsx': 'src/components/signup-shell.tsx',
 };
 
 const GUTTER_RE =

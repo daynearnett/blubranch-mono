@@ -25,7 +25,7 @@ export default function SignupVerify() {
           const { verified } = await auth.verifyEmailCode(draft.email, res.devCode);
           if (verified) {
             update({ emailVerified: true });
-            router.push('/(auth)/signup-location');
+            router.push('/(auth)/signup-import');
           }
         } catch { /* user can still enter manually */ }
       }
@@ -80,7 +80,7 @@ export default function SignupVerify() {
       const { verified } = await auth.verifyEmailCode(draft.email, code);
       if (verified) {
         update({ emailVerified: true });
-        router.push('/(auth)/signup-location');
+        router.push('/(auth)/signup-import');
       } else {
         setError('Invalid code. Please try again.');
         setDigits(Array(CODE_LENGTH).fill(''));
