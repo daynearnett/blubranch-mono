@@ -6,14 +6,9 @@ import { Bookmark } from 'lucide-react-native';
 import { Badge, Button } from './ui.js';
 import { QuickApplyModal } from './quick-apply-modal.js';
 import { ProfileGateSheet } from './profile-gate-sheet.js';
+import { useApplyGate } from '../hooks/useApplyGate.js';
 import { colors, radius, spacing, typography } from '../theme.js';
-import {
-  ApiError,
-  jobs as jobsApi,
-  me,
-  type JobDetail,
-  type MissingRequirement,
-} from '../lib/api.js';
+import { ApiError, jobs as jobsApi, type JobDetail } from '../lib/api.js';
 
 const STATUS_LABEL: Record<NonNullable<JobDetail['myApplication']>['status'], string> = {
   applied: 'Application sent',
@@ -55,8 +50,7 @@ interface Props {
 export function JobDetailBody({ jobId, stickyApply }: Props) {
   const [job, setJob] = useState<JobDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [modalVisible, setModalVisible] = useState(false);
-  const [missing, setMissing] = useState<MissingRequirement[]>([]);
+  const gate = useApplyGate<true>();
 
   useEffect(() => {
     let cancelled = false;
@@ -77,21 +71,10 @@ export function JobDetailBody({ jobId, stickyApply }: Props) {
     };
   }, [jobId]);
 
-  // Check readiness before opening the apply sheet, so a worker with an
-  // unfinished profile sees the gate rather than a doomed apply.
-  const openModal = async () => {
-    try {
-      const readiness = await me.applyReadiness();
-      if (!readiness.ready) {
-        setMissing(readiness.missing);
-        return;
-      }
-    } catch {
-      // Best-effort: the server still enforces the gate on POST.
-    }
-    setModalVisible(true);
-  };
-  const closeModal = () => setModalVisible(false);
+  // Readiness is cached by the hook (fetched on focus, not on press) so
+  // tapping Apply opens either sheet immediately.
+  const openModal = () => gate.open(true);
+  const closeModal = () => gate.closeApply();
   const onApplied = async () => {
     // Refetch so the sticky CTA flips to the "Application sent" pill.
     try {
@@ -227,20 +210,17 @@ export function JobDetailBody({ jobId, stickyApply }: Props) {
       ) : null}
 
       <QuickApplyModal
-        visible={modalVisible}
+        visible={gate.target !== null}
         job={{ id: job.id, title: job.title, companyName: job.company.name }}
         onClose={closeModal}
         onApplied={onApplied}
-        onBlocked={(next) => {
-          setModalVisible(false);
-          setMissing(next);
-        }}
+        onBlocked={gate.handleBlocked}
       />
       <ProfileGateSheet
-        visible={missing.length > 0}
-        missing={missing}
+        visible={gate.missing.length > 0}
+        missing={gate.missing}
         returnTo={job.id}
-        onClose={() => setMissing([])}
+        onClose={gate.closeGate}
       />
     </View>
   );

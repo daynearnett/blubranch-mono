@@ -137,7 +137,7 @@ export default function JobsTab() {
   // Tap "Quick Apply" → open the cover-message modal, or the readiness
   // gate if the profile isn't ready to apply yet.
   const openApply = (job: JobSummary) =>
-    void gate.open({ id: job.id, title: job.title, companyName: job.company.name });
+    gate.open({ id: job.id, title: job.title, companyName: job.company.name });
 
   const onApplied = (target: QuickApplyTarget) => {
     if (isDesktop) setTarget({ kind: 'job', id: target.id });

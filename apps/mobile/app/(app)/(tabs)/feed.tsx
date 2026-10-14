@@ -63,7 +63,7 @@ export default function FeedTab() {
   // unless the profile isn't ready, in which case the gate sheet opens
   // instead. The modal does the apply call itself; on success we navigate to
   // detail so the user lands on a page that confirms application status.
-  const openApply = (target: QuickApplyTarget) => void gate.open(target);
+  const openApply = (target: QuickApplyTarget) => gate.open(target);
   const onApplied = (target: QuickApplyTarget) => router.push(`/jobs/${target.id}`);
 
   return (
