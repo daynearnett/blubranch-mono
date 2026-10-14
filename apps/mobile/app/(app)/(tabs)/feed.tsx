@@ -19,6 +19,8 @@ import { JobCard } from '../../../src/components/job-card.js';
 import { PostCard } from '../../../src/components/post-card.js';
 import { TodaysHeadlineCard } from '../../../src/components/todays-headline-card.js';
 import { QuickApplyModal, type QuickApplyTarget } from '../../../src/components/quick-apply-modal.js';
+import { ProfileGateSheet } from '../../../src/components/profile-gate-sheet.js';
+import { useApplyGate } from '../../../src/hooks/useApplyGate.js';
 import { ResponsiveContainer } from '../../../src/components/responsive.js';
 import { colors, spacing, typography } from '../../../src/theme.js';
 
@@ -29,7 +31,7 @@ export default function FeedTab() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [applyTarget, setApplyTarget] = useState<QuickApplyTarget | null>(null);
+  const gate = useApplyGate<QuickApplyTarget>();
 
   const load = useCallback(async () => {
     try {
@@ -57,10 +59,11 @@ export default function FeedTab() {
     load();
   };
 
-  // Tap "Quick Apply" on a feed job card → open the cover-message modal.
-  // The modal does the apply call itself; on success we navigate to detail
-  // so the user lands on a page that confirms application status.
-  const openApply = (target: QuickApplyTarget) => setApplyTarget(target);
+  // Tap "Quick Apply" on a feed job card → open the cover-message modal,
+  // unless the profile isn't ready, in which case the gate sheet opens
+  // instead. The modal does the apply call itself; on success we navigate to
+  // detail so the user lands on a page that confirms application status.
+  const openApply = (target: QuickApplyTarget) => void gate.open(target);
   const onApplied = (target: QuickApplyTarget) => router.push(`/jobs/${target.id}`);
 
   return (
@@ -153,10 +156,16 @@ export default function FeedTab() {
       </ScrollView>
 
       <QuickApplyModal
-        visible={applyTarget !== null}
-        job={applyTarget}
-        onClose={() => setApplyTarget(null)}
+        visible={gate.target !== null}
+        job={gate.target}
+        onClose={gate.closeApply}
         onApplied={onApplied}
+        onBlocked={gate.handleBlocked}
+      />
+      <ProfileGateSheet
+        visible={gate.missing.length > 0}
+        missing={gate.missing}
+        onClose={gate.closeGate}
       />
     </View>
   );

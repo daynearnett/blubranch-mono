@@ -24,7 +24,12 @@ import {
 import { X } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { Button } from './ui.js';
-import { ApiError, jobs as jobsApi } from '../lib/api.js';
+import {
+  ApiError,
+  jobs as jobsApi,
+  readinessFromError,
+  type MissingRequirement,
+} from '../lib/api.js';
 import { colors, radius, spacing, typography } from '../theme.js';
 
 const MAX = 500;
@@ -41,9 +46,16 @@ interface Props {
   onClose: () => void;
   /** Called after a successful apply. Use to refresh the underlying screen. */
   onApplied?: (target: QuickApplyTarget) => void;
+  /**
+   * Called when the server refuses the apply because the profile isn't
+   * ready. The parent swaps this sheet for the ProfileGateSheet. Normally
+   * the parent's pre-check catches this first; this is the backstop for
+   * readiness changing in between.
+   */
+  onBlocked?: (missing: MissingRequirement[], target: QuickApplyTarget) => void;
 }
 
-export function QuickApplyModal({ visible, job, onClose, onApplied }: Props) {
+export function QuickApplyModal({ visible, job, onClose, onApplied, onBlocked }: Props) {
   const router = useRouter();
   const [message, setMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -68,11 +80,17 @@ export function QuickApplyModal({ visible, job, onClose, onApplied }: Props) {
       onApplied?.(job);
       onClose();
     } catch (err) {
-      if (err instanceof ApiError && err.status === 403 && err.message.includes('verify your phone')) {
-        // Phone verification required — close the modal and navigate to verify screen.
+      const missing = readinessFromError(err);
+      if (missing) {
+        if (onBlocked) {
+          onBlocked(missing, job);
+          return;
+        }
+        // No gate sheet wired up (e.g. an embedded use): fall back to
+        // sending them at the first thing they're missing.
         onClose();
         router.push({
-          pathname: '/(app)/verify-phone',
+          pathname: (missing[0]?.route ?? '/(app)/profile-complete') as never,
           params: { returnTo: job.id },
         });
         return;

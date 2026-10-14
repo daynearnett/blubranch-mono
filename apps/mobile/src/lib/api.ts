@@ -177,9 +177,58 @@ export const auth = {
     }),
 };
 
+// ── Quick Apply readiness ───────────────────────────────────────
+// Mirrors packages/api/src/services/apply-readiness.ts. The copy and the
+// destination route come from the server so the gate sheet never carries a
+// second, drifting copy of the rules.
+export type ApplyRequirementKey =
+  | 'phone'
+  | 'photo'
+  | 'headline'
+  | 'trade'
+  | 'location'
+  | 'experience';
+
+export interface MissingRequirement {
+  key: ApplyRequirementKey;
+  label: string;
+  hint: string;
+  route: string;
+}
+
+export interface ApplyReadiness {
+  ready: boolean;
+  missing: MissingRequirement[];
+  satisfied: ApplyRequirementKey[];
+}
+
+/**
+ * Pull the `missing` list off a 403 from POST /jobs/:id/apply. Returns null
+ * when the error isn't a readiness refusal. Older servers (and the legacy
+ * phone-only code path) may omit the list, so a bare phone refusal still
+ * yields a usable single-item result.
+ */
+export function readinessFromError(err: unknown): MissingRequirement[] | null {
+  if (!(err instanceof ApiError) || err.status !== 403) return null;
+  if (err.code !== 'ProfileIncomplete' && err.code !== 'PhoneVerificationRequired') return null;
+  const missing = (err.body as { missing?: MissingRequirement[] } | null)?.missing;
+  if (missing?.length) return missing;
+  return err.code === 'PhoneVerificationRequired'
+    ? [
+        {
+          key: 'phone',
+          label: 'Verify your phone',
+          hint: 'So the employer can actually reach you',
+          route: '/(app)/verify-phone',
+        },
+      ]
+    : null;
+}
+
 // ── Profile ─────────────────────────────────────────────────────
 export const me = {
   get: () => request<MeResponse>('/users/me'),
+  applyReadiness: () => request<ApplyReadiness>('/users/me/apply-readiness'),
   updatePhoto: (profilePhotoUrl: string) =>
     request<{ profilePhotoUrl: string | null }>('/users/me/photo', {
       method: 'PUT',
@@ -353,6 +402,8 @@ export interface WorkerProfileFields {
   currentTitle: string | null;
   currentStartDate: string | null;
   currentEndDate: string | null;
+  /** 0-100, recomputed server-side on every profile mutation. */
+  profileCompleteness: number;
 }
 
 export interface PublicProfile {

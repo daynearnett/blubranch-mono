@@ -23,6 +23,8 @@ import {
   QuickApplyModal,
   type QuickApplyTarget,
 } from '../../../src/components/quick-apply-modal.js';
+import { ProfileGateSheet } from '../../../src/components/profile-gate-sheet.js';
+import { useApplyGate } from '../../../src/hooks/useApplyGate.js';
 import { ResponsiveContainer } from '../../../src/components/responsive.js';
 import { useLayout } from '../../../src/hooks/useLayout.js';
 import {
@@ -64,7 +66,7 @@ export default function JobsTab() {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [applyTarget, setApplyTarget] = useState<QuickApplyTarget | null>(null);
+  const gate = useApplyGate<QuickApplyTarget>();
 
   // Pull trades once and the user's saved location for radius search.
   useEffect(() => {
@@ -132,9 +134,10 @@ export default function JobsTab() {
     }
   };
 
-  // Tap "Quick Apply" → open the cover-message modal.
+  // Tap "Quick Apply" → open the cover-message modal, or the readiness
+  // gate if the profile isn't ready to apply yet.
   const openApply = (job: JobSummary) =>
-    setApplyTarget({ id: job.id, title: job.title, companyName: job.company.name });
+    void gate.open({ id: job.id, title: job.title, companyName: job.company.name });
 
   const onApplied = (target: QuickApplyTarget) => {
     if (isDesktop) setTarget({ kind: 'job', id: target.id });
@@ -244,10 +247,16 @@ export default function JobsTab() {
       {isDesktop ? <JobDetailPane onClose={() => setTarget(null)} /> : null}
 
       <QuickApplyModal
-        visible={applyTarget !== null}
-        job={applyTarget}
-        onClose={() => setApplyTarget(null)}
+        visible={gate.target !== null}
+        job={gate.target}
+        onClose={gate.closeApply}
         onApplied={onApplied}
+        onBlocked={gate.handleBlocked}
+      />
+      <ProfileGateSheet
+        visible={gate.missing.length > 0}
+        missing={gate.missing}
+        onClose={gate.closeGate}
       />
     </View>
   );

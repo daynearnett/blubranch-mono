@@ -127,7 +127,11 @@ export default function Profile() {
   }
 
   const stats = { connections: 0, posts: 0, rating: 0, endorsements: 0 };
-  const completeness = computeCompleteness(data);
+  // The server computes this on every profile mutation (see
+  // services/profile-completeness.ts). The screen used to run its own,
+  // differently-weighted formula, so the % here disagreed with the one the
+  // weekly nudge fires on.
+  const completeness = data.workerProfile?.profileCompleteness ?? 0;
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -145,7 +149,12 @@ export default function Profile() {
         />
 
         {completeness < 100 ? (
-          <View style={styles.completenessCard}>
+          <Pressable
+            style={styles.completenessCard}
+            onPress={() => router.push('/(app)/profile-complete')}
+            accessibilityRole="button"
+            accessibilityLabel="Complete your profile"
+          >
             <View style={styles.completenessHeader}>
               <Text style={styles.completenessTitle}>Get found more</Text>
               <Text style={styles.completenessPercent}>{completeness}%</Text>
@@ -154,7 +163,7 @@ export default function Profile() {
             <Text style={styles.completenessHint}>
               The more you fill in, the more contractors find you
             </Text>
-          </View>
+          </Pressable>
         ) : null}
 
         {/* Vouches waiting on my confirmation */}
@@ -205,6 +214,7 @@ export default function Profile() {
               data={data}
               onVerify={() => router.push('/(app)/verifications')}
               onAddPhoto={onChangePhoto}
+              onComplete={() => router.push('/(app)/profile-complete')}
             />
           ) : null}
           {tab === 'portfolio' ? <PortfolioTab data={data} vouches={myVouches} /> : null}
@@ -217,26 +227,19 @@ export default function Profile() {
   );
 }
 
-function computeCompleteness(data: MeResponse): number {
-  let score = 0;
-  if (data.profilePhotoUrl) score += 25;
-  if (data.skills.length > 0) score += 20;
-  if (data.workerProfile?.bio) score += 15;
-  if (data.certifications.length > 0 || (data.licenses?.length ?? 0) > 0) score += 15;
-  if (data.workHistory.length > 0 || (data.workPlaces?.length ?? 0) > 0) score += 10;
-  if (data.portfolioPhotos.length > 0) score += 15;
-  return Math.min(100, score);
-}
 
 // ── S9/S10: Enrichment cards ────────────────────────────────────
 function EnrichmentCards({
   data,
   onVerify,
   onAddPhoto,
+  onComplete,
 }: {
   data: MeResponse;
   onVerify?: () => void;
   onAddPhoto?: () => void;
+  /** Opens the profile-complete checklist. */
+  onComplete?: () => void;
 }) {
   const cards: { key: string; title: string; subtitle: string; icon: typeof Camera; onPress?: () => void }[] = [];
 
@@ -255,11 +258,7 @@ function EnrichmentCards({
       title: 'Add your skills',
       subtitle: 'So the right outfits can find you',
       icon: Shield,
-      onPress: () =>
-        Alert.alert(
-          'Add your skills',
-          'Still on the workbench — the skills picker is coming in an update.',
-        ),
+      onPress: onComplete,
     });
   }
   if ((data.licenses?.length ?? 0) === 0 && data.certifications.length === 0) {
@@ -326,10 +325,12 @@ function AboutTab({
   data,
   onVerify,
   onAddPhoto,
+  onComplete,
 }: {
   data: MeResponse;
   onVerify?: () => void;
   onAddPhoto?: () => void;
+  onComplete?: () => void;
 }) {
   const [bioExpanded, setBioExpanded] = useState(false);
   const bio = data.workerProfile?.bio ?? '';
@@ -337,7 +338,12 @@ function AboutTab({
 
   return (
     <View>
-      <EnrichmentCards data={data} onVerify={onVerify} onAddPhoto={onAddPhoto} />
+      <EnrichmentCards
+        data={data}
+        onVerify={onVerify}
+        onAddPhoto={onAddPhoto}
+        onComplete={onComplete}
+      />
 
       {bio ? (
         <Card>

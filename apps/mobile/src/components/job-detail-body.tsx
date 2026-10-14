@@ -5,8 +5,15 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-nati
 import { Bookmark } from 'lucide-react-native';
 import { Badge, Button } from './ui.js';
 import { QuickApplyModal } from './quick-apply-modal.js';
+import { ProfileGateSheet } from './profile-gate-sheet.js';
 import { colors, radius, spacing, typography } from '../theme.js';
-import { ApiError, jobs as jobsApi, type JobDetail } from '../lib/api.js';
+import {
+  ApiError,
+  jobs as jobsApi,
+  me,
+  type JobDetail,
+  type MissingRequirement,
+} from '../lib/api.js';
 
 const STATUS_LABEL: Record<NonNullable<JobDetail['myApplication']>['status'], string> = {
   applied: 'Application sent',
@@ -49,6 +56,7 @@ export function JobDetailBody({ jobId, stickyApply }: Props) {
   const [job, setJob] = useState<JobDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
+  const [missing, setMissing] = useState<MissingRequirement[]>([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -69,7 +77,20 @@ export function JobDetailBody({ jobId, stickyApply }: Props) {
     };
   }, [jobId]);
 
-  const openModal = () => setModalVisible(true);
+  // Check readiness before opening the apply sheet, so a worker with an
+  // unfinished profile sees the gate rather than a doomed apply.
+  const openModal = async () => {
+    try {
+      const readiness = await me.applyReadiness();
+      if (!readiness.ready) {
+        setMissing(readiness.missing);
+        return;
+      }
+    } catch {
+      // Best-effort: the server still enforces the gate on POST.
+    }
+    setModalVisible(true);
+  };
   const closeModal = () => setModalVisible(false);
   const onApplied = async () => {
     // Refetch so the sticky CTA flips to the "Application sent" pill.
@@ -210,6 +231,16 @@ export function JobDetailBody({ jobId, stickyApply }: Props) {
         job={{ id: job.id, title: job.title, companyName: job.company.name }}
         onClose={closeModal}
         onApplied={onApplied}
+        onBlocked={(next) => {
+          setModalVisible(false);
+          setMissing(next);
+        }}
+      />
+      <ProfileGateSheet
+        visible={missing.length > 0}
+        missing={missing}
+        returnTo={job.id}
+        onClose={() => setMissing([])}
       />
     </View>
   );
