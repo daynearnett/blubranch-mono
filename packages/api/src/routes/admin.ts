@@ -126,6 +126,7 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
           emailVerified: true,
           phoneVerified: true,
           profilePhotoUrl: true,
+          isTestAccount: true,
           createdAt: true,
           workerProfile: {
             select: { headline: true, city: true, state: true, experienceLevel: true, profileCompleteness: true },
@@ -137,6 +138,30 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
     ]);
     return reply.send({ items, total, page: q.page, limit: q.limit });
   });
+
+  // ── PUT /admin/workers/:id/test-account ──────────────────────────
+  // Flag (or unflag) an ad hoc QA/internal probe account so it's excluded
+  // from discovery surfaces (currently GET /network/suggestions) that real
+  // users see — without this, dummy accounts created while manually testing
+  // a flow (e.g. "Cmp Probe", "Verify Owner") mix in with real strangers.
+  app.put<{ Params: { id: string }; Body: { isTestAccount?: boolean } }>(
+    '/admin/workers/:id/test-account',
+    admin,
+    async (request, reply) => {
+      const flag = request.body?.isTestAccount;
+      if (typeof flag !== 'boolean') {
+        return reply.code(400).send({ error: 'ValidationError', message: 'isTestAccount must be a boolean' });
+      }
+      const existing = await prisma.user.findUnique({ where: { id: request.params.id }, select: { id: true } });
+      if (!existing) return reply.code(404).send({ error: 'NotFound' });
+      const user = await prisma.user.update({
+        where: { id: request.params.id },
+        data: { isTestAccount: flag },
+        select: { id: true, isTestAccount: true },
+      });
+      return reply.send(user);
+    },
+  );
 
   // ── App usage ───────────────────────────────────────────────────
   // Per-user rollup of mobile foreground time, newest-heaviest first. Built

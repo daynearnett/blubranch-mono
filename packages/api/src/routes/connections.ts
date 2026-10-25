@@ -364,6 +364,7 @@ export async function connectionRoutes(app: FastifyInstance): Promise<void> {
       where: {
         id: { notIn: [...connectedIds] },
         role: 'worker',
+        isTestAccount: false,
       },
       take: 50,
       include: {

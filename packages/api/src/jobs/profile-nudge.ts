@@ -26,6 +26,19 @@ export async function processProfileNudge(): Promise<void> {
     take: MAX_PER_RUN,
   });
 
+  // This week's nudge supersedes last week's — don't leave the previous one
+  // sitting unread forever once a fresh reminder for the same thing goes out.
+  await prisma.notification
+    .updateMany({
+      where: {
+        userId: { in: candidates.map((c) => c.id) },
+        type: 'profile_nudge',
+        readAt: null,
+      },
+      data: { readAt: new Date() },
+    })
+    .catch(() => {});
+
   for (const c of candidates) {
     // sendNotification enforces the notifyProfileNudges preference itself.
     await sendNotification({
