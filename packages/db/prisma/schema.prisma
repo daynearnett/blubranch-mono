@@ -220,6 +220,11 @@ model WorkerProfile {
   state               String          @db.VarChar(50)
   zipCode             String          @map("zip_code") @db.VarChar(10)
   // geo is geography(Point, 4326) — added via raw SQL in migration; PostGIS GiST index also added there.
+  // Plain lat/lng mirror of `geo`, kept whenever PostGIS isn't available
+  // (e.g. Railway's stock Postgres — see lib/postgis.ts) so distance can
+  // still be computed with a Haversine formula instead of going blind.
+  lat                 Decimal?        @db.Decimal(10, 7)
+  lng                 Decimal?        @db.Decimal(10, 7)
   travelRadiusMiles   Int             @map("travel_radius_miles")
   jobAvailability     JobAvailability @map("job_availability")
   unionName           String?         @map("union_name") @db.VarChar(200)

@@ -9,7 +9,7 @@ import { requireAuth } from '../auth/middleware.js';
 import { getPrisma } from '../lib/prisma.js';
 import { getRedis } from '../lib/redis.js';
 import { parseBody } from '../lib/validate.js';
-import { sendNotification } from '../services/push.js';
+import { resolveNotifications, sendNotification } from '../services/push.js';
 
 // Non-connections can send max 50 messages per day.
 const NON_CONNECTION_DAILY_LIMIT = 50;
@@ -53,6 +53,55 @@ export async function messageRoutes(app: FastifyInstance): Promise<void> {
       // Redis down — allow the message through (fail open).
       return true;
     }
+  }
+
+  // ── Helper: mark the other participant's messages read + resolve the
+  // notification(s) they generated. Used by both the explicit "mark read"
+  // endpoint AND by fetching the thread — opening a conversation and reading
+  // its messages IS reading it; relying only on an explicit PUT call (that
+  // the client has to remember to also fire) is why unread counts/badges
+  // were getting stuck even after a worker had plainly read the thread.
+  async function markConversationRead(
+    conversationId: string,
+    userId: string,
+    otherUserId: string,
+  ): Promise<number> {
+    const now = new Date();
+    const result = await prisma.message.updateMany({
+      where: { conversationId, senderId: { not: userId }, readAt: null },
+      data: { readAt: now },
+    });
+
+    if (result.count > 0) {
+      resolveNotifications(userId, 'new_message', ['conversationId'], conversationId).catch(
+        () => {},
+      );
+      try {
+        const { getIO } = await import('../lib/socket.js');
+        const { emitMessageRead } = await import('../socket/message-handlers.js');
+        emitMessageRead(getIO(), conversationId, otherUserId, userId, now);
+      } catch {
+        // Socket.io not available — skip.
+      }
+    }
+    return result.count;
+  }
+
+  // ── Helper: idempotency guard against a double-tapped send ──────
+  // Returns an identical message from the same sender in the same
+  // conversation sent in the last few seconds, if one exists.
+  const SEND_DEDUP_WINDOW_MS = 10_000;
+  async function findRecentDuplicateMessage(conversationId: string, senderId: string, content: string) {
+    return prisma.message.findFirst({
+      where: {
+        conversationId,
+        senderId,
+        content,
+        createdAt: { gte: new Date(Date.now() - SEND_DEDUP_WINDOW_MS) },
+      },
+      orderBy: { createdAt: 'desc' },
+      select: { id: true, content: true, senderId: true, createdAt: true, readAt: true },
+    });
   }
 
   // ── Helper: find or create a conversation between two users ─────
@@ -187,6 +236,11 @@ export async function messageRoutes(app: FastifyInstance): Promise<void> {
 
       const nextCursor = messages.length === limit ? messages[messages.length - 1]?.id : undefined;
 
+      // Fetching the thread marks the other participant's messages read
+      // (fire-and-forget — never slows the response).
+      const otherUserId = convo.userAId === userId ? convo.userBId : convo.userAId;
+      markConversationRead(conversationId, userId, otherUserId).catch(() => {});
+
       return reply.send({ messages, nextCursor });
     },
   );
@@ -211,6 +265,11 @@ export async function messageRoutes(app: FastifyInstance): Promise<void> {
       }
 
       const recipientId = convo.userAId === userId ? convo.userBId : convo.userAId;
+
+      const duplicate = await findRecentDuplicateMessage(conversationId, userId, body.content);
+      if (duplicate) {
+        return reply.code(200).send({ message: duplicate });
+      }
 
       // Rate limit: 50/day to non-connections.
       const connected = await areConnected(userId, recipientId);
@@ -314,6 +373,11 @@ export async function messageRoutes(app: FastifyInstance): Promise<void> {
 
       const convo = await findOrCreateConversation(userId, body.recipientId);
 
+      const duplicate = await findRecentDuplicateMessage(convo.id, userId, body.content);
+      if (duplicate) {
+        return reply.code(200).send({ conversation: { id: convo.id }, message: duplicate });
+      }
+
       const message = await prisma.message.create({
         data: {
           conversationId: convo.id,
@@ -382,29 +446,10 @@ export async function messageRoutes(app: FastifyInstance): Promise<void> {
         return reply.code(404).send({ error: 'Conversation not found' });
       }
 
-      const now = new Date();
-      const result = await prisma.message.updateMany({
-        where: {
-          conversationId,
-          senderId: { not: userId },
-          readAt: null,
-        },
-        data: { readAt: now },
-      });
+      const otherUserId = convo.userAId === userId ? convo.userBId : convo.userAId;
+      const readCount = await markConversationRead(conversationId, userId, otherUserId);
 
-      // Emit read receipt via Socket.io.
-      if (result.count > 0) {
-        try {
-          const { getIO } = await import('../lib/socket.js');
-          const { emitMessageRead } = await import('../socket/message-handlers.js');
-          const senderId = convo.userAId === userId ? convo.userBId : convo.userAId;
-          emitMessageRead(getIO(), conversationId, senderId, userId, now);
-        } catch {
-          // Socket.io not available — skip.
-        }
-      }
-
-      return reply.send({ readCount: result.count });
+      return reply.send({ readCount });
     },
   );
 

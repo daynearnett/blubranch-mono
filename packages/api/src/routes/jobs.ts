@@ -10,8 +10,10 @@ import type { FastifyInstance } from 'fastify';
 import { requireAuth } from '../auth/middleware.js';
 import { isPostGisEnabled } from '../lib/postgis.js';
 import { getPrisma } from '../lib/prisma.js';
+import { excludeQaAccountsWhere } from '../lib/qa-filter.js';
+import { isUuid } from '../lib/validate.js';
 import { parseBody } from '../lib/validate.js';
-import { geocodeAddress, setGeographyPoint } from '../services/geocode.js';
+import { geocodeAddress, setGeographyPoint, setPlainPoint } from '../services/geocode.js';
 import { isStripeConfigured } from '../services/stripe.js';
 import { hasActiveSubscription } from './payments.js';
 import { planTtlDays } from '../lib/plans.js';
@@ -58,6 +60,27 @@ export async function jobRoutes(app: FastifyInstance): Promise<void> {
           .send({ error: 'BadRequest', message: 'payMax must be ≥ payMin' });
       }
 
+      // Idempotency guard: a double-tapped submit button (or a retried
+      // request) sends the exact same posting twice in quick succession —
+      // without this, each tap created its own job (confirmed on staging:
+      // two identical postings 9 seconds apart). Treat an identical posting
+      // from the same employer in the last 15s as the same request.
+      const DEDUP_WINDOW_MS = 15_000;
+      const recentDuplicate = await prisma.job.findFirst({
+        where: {
+          employerId: request.user!.id,
+          companyId: data.companyId,
+          title: data.title,
+          payMin: data.payMin,
+          payMax: data.payMax,
+          createdAt: { gte: new Date(Date.now() - DEDUP_WINDOW_MS) },
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+      if (recentDuplicate) {
+        return reply.code(200).send(recentDuplicate);
+      }
+
       // Decide the initial status from the plan + payment state.
       let status: 'draft' | 'open';
       if (!isStripeConfigured() || request.user!.role === 'admin') {
@@ -77,8 +100,11 @@ export async function jobRoutes(app: FastifyInstance): Promise<void> {
       }
 
       const expiresAt = new Date(Date.now() + planTtlDays(data.planTier) * 24 * 60 * 60 * 1000);
-      // Pro/Unlimited get featured placement automatically; Basic doesn't qualify.
-      const isFeatured = data.boostFeaturedPlacement && data.planTier !== 'basic';
+      // Pro/Unlimited get featured placement automatically; Basic doesn't
+      // qualify. `isFeatured` is accepted as an alias for
+      // `boostFeaturedPlacement` — see the schema comment for why.
+      const wantsFeatured = data.boostFeaturedPlacement || data.isFeatured === true;
+      const isFeatured = wantsFeatured && data.planTier !== 'basic';
 
       const job = await prisma.job.create({
         data: {
@@ -111,8 +137,11 @@ export async function jobRoutes(app: FastifyInstance): Promise<void> {
         },
       });
 
-      // Best-effort geocode → write geography point via raw SQL.
+      // Best-effort geocode → write the point via raw SQL.
       // We never want a geocode hiccup to kill the create — log and move on.
+      // Plain lat/lng are written unconditionally (any Postgres); the
+      // PostGIS geography column only when the extension is actually
+      // available (lib/postgis.ts) — writing it otherwise throws.
       try {
         const geo = await geocodeAddress({
           city: data.city,
@@ -120,7 +149,8 @@ export async function jobRoutes(app: FastifyInstance): Promise<void> {
           zipCode: data.zipCode,
         });
         if (geo) {
-          await setGeographyPoint(prisma, 'jobs', job.id, geo);
+          await setPlainPoint(prisma, 'jobs', job.id, geo);
+          if (isPostGisEnabled()) await setGeographyPoint(prisma, 'jobs', job.id, geo);
         }
       } catch (err) {
         request.log.warn({ err, jobId: job.id }, 'job geocode/setGeographyPoint failed');
@@ -163,12 +193,15 @@ export async function jobRoutes(app: FastifyInstance): Promise<void> {
       conditions.push(Prisma.sql`(j."title" ILIKE ${term} OR j."description" ILIKE ${term})`);
     }
 
-    // PostGIS-aware lat/lng filtering only fires when (a) the caller
-    // supplied a point AND (b) PostGIS is enabled in this environment.
-    // On Railway's stock Postgres POSTGIS_ENABLED=false → we skip the
-    // radius filter and the distance column entirely. The query still
-    // returns results, just without distance sorting.
-    const useGeo = isPostGisEnabled() && q.lat !== undefined && q.lng !== undefined;
+    // A caller-supplied point drives distance filtering/sorting either way;
+    // which SQL we use depends on whether PostGIS is available in this
+    // environment. On Railway's stock Postgres (POSTGIS_ENABLED=false) we
+    // fall back to a plain Haversine calc over the `lat`/`lng` columns
+    // (populated by services/geocode.ts regardless of PostGIS) instead of
+    // going distance-blind entirely.
+    const hasPoint = q.lat !== undefined && q.lng !== undefined;
+    const useGeo = isPostGisEnabled() && hasPoint;
+    const useHaversine = !isPostGisEnabled() && hasPoint;
 
     let distanceSelect = Prisma.sql`NULL::double precision AS distance_miles`;
     if (useGeo) {
@@ -177,6 +210,21 @@ export async function jobRoutes(app: FastifyInstance): Promise<void> {
       distanceSelect = Prisma.sql`(ST_Distance(j."geo", ${point}) / ${MILES_TO_METERS}) AS distance_miles`;
       conditions.push(
         Prisma.sql`j."geo" IS NOT NULL AND ST_DWithin(j."geo", ${point}, ${meters})`,
+      );
+    } else if (useHaversine) {
+      // Great-circle distance in miles (Earth radius ≈ 3958.8 mi). `LEAST(1, ...)`
+      // guards the `acos` domain against floating-point drift at ~0 distance.
+      const haversineMiles = Prisma.sql`(
+        3958.8 * acos(
+          LEAST(1, GREATEST(-1,
+            cos(radians(${q.lat})) * cos(radians(j."lat")) * cos(radians(j."lng") - radians(${q.lng}))
+            + sin(radians(${q.lat})) * sin(radians(j."lat"))
+          ))
+        )
+      )`;
+      distanceSelect = Prisma.sql`${haversineMiles} AS distance_miles`;
+      conditions.push(
+        Prisma.sql`j."lat" IS NOT NULL AND j."lng" IS NOT NULL AND ${haversineMiles} <= ${q.radius}`,
       );
     }
 
@@ -187,10 +235,10 @@ export async function jobRoutes(app: FastifyInstance): Promise<void> {
       orderSql = Prisma.sql`ORDER BY j."is_featured" DESC, j."created_at" DESC`;
     } else if (q.sort === 'pay_highest') {
       orderSql = Prisma.sql`ORDER BY j."is_featured" DESC, j."pay_max" DESC`;
-    } else if (useGeo) {
+    } else if (useGeo || useHaversine) {
       orderSql = Prisma.sql`ORDER BY j."is_featured" DESC, distance_miles ASC NULLS LAST`;
     } else {
-      // 'nearest' fallback when no point given OR PostGIS disabled.
+      // 'nearest' fallback when no point was given at all.
       orderSql = Prisma.sql`ORDER BY j."is_featured" DESC, j."created_at" DESC`;
     }
 
@@ -274,6 +322,7 @@ export async function jobRoutes(app: FastifyInstance): Promise<void> {
   // ── GET /jobs/:id ───────────────────────────────────────────────
   // Full detail (Mockup screen 6B) — employer card, benefits, applicant count.
   app.get<{ Params: { id: string } }>('/jobs/:id', async (request, reply) => {
+    if (!isUuid(request.params.id)) return reply.code(404).send({ error: 'NotFound' });
     const job = await prisma.job.findUnique({
       where: { id: request.params.id },
       include: {
@@ -333,6 +382,7 @@ export async function jobRoutes(app: FastifyInstance): Promise<void> {
     '/jobs/:id',
     { preHandler: requireAuth },
     async (request, reply) => {
+      if (!isUuid(request.params.id)) return reply.code(404).send({ error: 'NotFound' });
       const data = parseBody(jobUpdateSchema, request, reply);
       if (!data) return;
 
@@ -379,7 +429,10 @@ export async function jobRoutes(app: FastifyInstance): Promise<void> {
             state: data.state ?? existing.state,
             zipCode: data.zipCode ?? existing.zipCode,
           });
-          if (geo) await setGeographyPoint(prisma, 'jobs', updated.id, geo);
+          if (geo) {
+            await setPlainPoint(prisma, 'jobs', updated.id, geo);
+            if (isPostGisEnabled()) await setGeographyPoint(prisma, 'jobs', updated.id, geo);
+          }
         } catch (err) {
           request.log.warn({ err, jobId: updated.id }, 'job re-geocode failed');
         }
@@ -395,6 +448,7 @@ export async function jobRoutes(app: FastifyInstance): Promise<void> {
     '/jobs/:id',
     { preHandler: requireAuth },
     async (request, reply) => {
+      if (!isUuid(request.params.id)) return reply.code(404).send({ error: 'NotFound' });
       const existing = await prisma.job.findUnique({ where: { id: request.params.id } });
       if (!existing) return reply.code(404).send({ error: 'NotFound' });
       if (existing.employerId !== request.user!.id && request.user!.role !== 'admin') {
@@ -418,8 +472,21 @@ export async function jobRoutes(app: FastifyInstance): Promise<void> {
     { preHandler: requireAuth },
     async (request, reply) => {
       const userId = request.user!.id;
-      let tradeId = Number(request.query.tradeId) || 0;
+      const rawTradeId = (request.query.tradeId ?? '').trim();
+      let tradeId = Number(rawTradeId) || 0;
       let state = (request.query.state ?? '').trim();
+
+      // A slug-shaped param (e.g. `?tradeId=electrician`) used to silently
+      // `Number()` to NaN → 0 → fall back to the caller's own default
+      // trade, with no indication the param was ignored. Resolve it by
+      // slug before giving up on it.
+      if (!tradeId && rawTradeId) {
+        const bySlug = await prisma.trade.findUnique({
+          where: { slug: rawTradeId },
+          select: { id: true },
+        });
+        if (bySlug) tradeId = bySlug.id;
+      }
 
       if (!tradeId) {
         const firstTrade = await prisma.userTrade.findFirst({ where: { userId } });
@@ -500,6 +567,7 @@ export async function jobRoutes(app: FastifyInstance): Promise<void> {
     '/jobs/:id/bookmark',
     { preHandler: requireAuth },
     async (request, reply) => {
+      if (!isUuid(request.params.id)) return reply.code(404).send({ error: 'NotFound' });
       const userId = request.user!.id;
       const jobId = request.params.id;
       try {
@@ -614,6 +682,7 @@ export async function jobRoutes(app: FastifyInstance): Promise<void> {
             { firstName: { contains: q, mode: 'insensitive' } },
             { lastName: { contains: q, mode: 'insensitive' } },
           ],
+          ...excludeQaAccountsWhere(),
         };
         const wp: Prisma.WorkerProfileWhereInput = {};
         if (openToWork === 'true') wp.jobAvailability = { in: ['open', 'actively_looking'] };

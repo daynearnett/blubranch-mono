@@ -118,6 +118,20 @@ describe('Employer job posting (by plan tier)', () => {
     expect(job.boostPushNotification).toBe(false);
   });
 
+  it('Blu plan (pro) — `isFeatured` is accepted as an alias for `boostFeaturedPlacement`', async () => {
+    // Was silently stripped as an unrecognized key — a client sending
+    // isFeatured instead of boostFeaturedPlacement got a job that came
+    // back isFeatured:false with no error explaining why.
+    const res = await postJob({
+      planTier: 'pro',
+      title: 'Blu Post (isFeatured alias)',
+      isFeatured: true,
+    });
+    expect(res.statusCode).toBe(201);
+    expect(res.json().isFeatured).toBe(true);
+    expect(res.json().boostFeaturedPlacement).toBe(true);
+  });
+
   it('Blu plan (pro) — publishes open with a 60-day TTL and honors boosts', async () => {
     const res = await postJob({
       planTier: 'pro',
@@ -205,5 +219,25 @@ describe('Employer job posting (by plan tier)', () => {
       companyId: '00000000-0000-0000-0000-000000000000',
     });
     expect(res.statusCode).toBe(400);
+  });
+
+  it('a duplicate submit (same employer/company/title/pay, quick succession) returns the existing job instead of creating a second one', async () => {
+    const first = await postJob({ planTier: 'basic', title: 'Dedup Test Role' });
+    expect(first.statusCode).toBe(201);
+
+    const second = await postJob({ planTier: 'basic', title: 'Dedup Test Role' });
+    expect(second.statusCode).toBe(200); // not 201 — no new row created
+    expect(second.json().id).toBe(first.json().id);
+
+    const count = await prisma.job.count({
+      where: { companyId, title: 'Dedup Test Role' },
+    });
+    expect(count).toBe(1);
+  });
+
+  it('GET /jobs/:id — a malformed (non-UUID) id is a clean 404, not a raw Prisma 500', async () => {
+    const res = await app.inject({ method: 'GET', url: '/jobs/not-a-real-uuid' });
+    expect(res.statusCode).toBe(404);
+    expect(res.json()).toEqual({ error: 'NotFound' });
   });
 });

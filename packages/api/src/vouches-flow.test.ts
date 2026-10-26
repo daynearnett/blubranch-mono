@@ -98,6 +98,13 @@ describe('Vouch flow', () => {
         },
       ],
     });
+
+    // Vouching is gated on an existing accepted connection — Alice/Bob are
+    // connected (so they can vouch each other); Carol deliberately isn't
+    // (used below to prove the stranger gate).
+    await prisma.connection.create({
+      data: { requesterId: alice.id, receiverId: bob.id, status: 'accepted' },
+    });
   });
 
   afterAll(async () => {
@@ -138,6 +145,17 @@ describe('Vouch flow', () => {
       payload: {},
     });
     expect(res.statusCode).toBe(400);
+  });
+
+  it('POST /users/:id/vouch — rejected without an existing connection (403)', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: `/users/${carol.id}/vouch`,
+      headers: { authorization: `Bearer ${alice.token}` },
+      payload: { companyName: 'Not actually connected' },
+    });
+    expect(res.statusCode).toBe(403);
+    expect(res.json().error).toBe('NotConnected');
   });
 
   it('POST /users/:id/vouch — Alice vouches for Bob (201, pending)', async () => {

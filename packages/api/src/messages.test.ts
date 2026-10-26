@@ -171,6 +171,70 @@ describe('Messaging routes', () => {
     expect(body.messages[1].content).toBe('Hey Bob, nice to meet you!');
   });
 
+  it('GET /conversations/:id/messages — fetching the thread marks it read (no explicit PUT needed)', async () => {
+    // Bob never called PUT .../read — he still has Alice's first message
+    // unread. Fetching the thread should mark it read on its own; relying
+    // solely on a separate explicit call is what let unread badges get
+    // stuck even after a worker had plainly read the thread.
+    const preRes = await app.inject({
+      method: 'GET',
+      url: '/messages/unread-count',
+      headers: { authorization: `Bearer ${workerB.token}` },
+    });
+    expect(preRes.json().unreadCount).toBe(1);
+
+    const listRes = await app.inject({
+      method: 'GET',
+      url: '/conversations',
+      headers: { authorization: `Bearer ${workerB.token}` },
+    });
+    const convoId = listRes.json().conversations[0].id;
+
+    await app.inject({
+      method: 'GET',
+      url: `/conversations/${convoId}/messages?limit=10`,
+      headers: { authorization: `Bearer ${workerB.token}` },
+    });
+
+    const postRes = await app.inject({
+      method: 'GET',
+      url: '/messages/unread-count',
+      headers: { authorization: `Bearer ${workerB.token}` },
+    });
+    expect(postRes.json().unreadCount).toBe(0);
+  });
+
+  it('POST /conversations/:id/messages — a duplicate submit (same sender/content, quick succession) returns the existing message instead of creating a second one', async () => {
+    const listRes = await app.inject({
+      method: 'GET',
+      url: '/conversations',
+      headers: { authorization: `Bearer ${workerA.token}` },
+    });
+    const convoId = listRes.json().conversations[0].id;
+
+    const first = await app.inject({
+      method: 'POST',
+      url: `/conversations/${convoId}/messages`,
+      headers: { authorization: `Bearer ${workerA.token}` },
+      payload: { content: 'Double-tapped send' },
+    });
+    expect(first.statusCode).toBe(201);
+
+    const second = await app.inject({
+      method: 'POST',
+      url: `/conversations/${convoId}/messages`,
+      headers: { authorization: `Bearer ${workerA.token}` },
+      payload: { content: 'Double-tapped send' },
+    });
+    expect(second.statusCode).toBe(200); // not 201 — no new row created
+    expect(second.json().message.id).toBe(first.json().message.id);
+
+    const count = await prisma.message.count({
+      where: { conversationId: convoId, content: 'Double-tapped send' },
+    });
+    expect(count).toBe(1);
+  });
+
   it('POST /messages — rejects self-messaging', async () => {
     const res = await app.inject({
       method: 'POST',

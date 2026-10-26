@@ -360,8 +360,12 @@ export async function postRoutes(app: FastifyInstance): Promise<void> {
         },
         photos: { orderBy: { sortOrder: 'asc' } },
         likes: { where: { userId }, select: { userId: true } },
+        // Unfiltered (not just accepted) so we can tell the viewer their OWN
+        // pending/declined invite apart from the accepted list shown to
+        // everyone else — see viewerCoauthorStatus below. GET /posts/:id
+        // already does this; the feed never did, so a fresh coauthor invite
+        // never showed an accept/decline banner there.
         coauthors: {
-          where: { status: 'accepted' },
           include: {
             user: { select: { id: true, firstName: true, lastName: true, profilePhotoUrl: true } },
           },
@@ -477,7 +481,10 @@ export async function postRoutes(app: FastifyInstance): Promise<void> {
               headline: p.user.workerProfile?.headline ?? null,
               unionName: p.user.workerProfile?.unionName ?? null,
             },
-            coauthors: p.coauthors.map((c) => c.user),
+            coauthors: p.coauthors.filter((c) => c.status === 'accepted').map((c) => c.user),
+            // Lets the client show the accept/decline banner on the viewer's
+            // own invite — mirrors GET /posts/:id, which already had this.
+            viewerCoauthorStatus: p.coauthors.find((c) => c.userId === userId)?.status ?? null,
             // Latest 2 comments, shown oldest-first under the post (LinkedIn-style).
             topComments: [...p.comments].reverse().map((c) => ({
               id: c.id,

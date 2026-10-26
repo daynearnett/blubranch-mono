@@ -4,12 +4,19 @@
 // because WorkPlace.companyName is free text and real pairs would be missed.
 // Only confirmed vouches are ever displayed; there is no decline path — an
 // unconfirmed vouch just silently never shows.
+//
+// What DOES gate the vouch: an existing accepted connection between the two
+// users. Without this, anyone could vouch for a total stranger with a
+// fabricated company name and the claim would still show up as a pending
+// (and pushed) notification — there's no relationship requirement otherwise
+// to stop it. Connections are free and ungated, so this costs nothing
+// legitimate while closing the "vouch a stranger" hole.
 import { vouchInputSchema } from '@blubranch/shared';
 import type { FastifyInstance } from 'fastify';
 import { requireAuth } from '../auth/middleware.js';
 import { getPrisma } from '../lib/prisma.js';
 import { parseBody } from '../lib/validate.js';
-import { sendNotification } from '../services/push.js';
+import { resolveNotifications, sendNotification } from '../services/push.js';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const MIN_OVERLAP_DAYS = 30;
@@ -136,6 +143,23 @@ export async function vouchRoutes(app: FastifyInstance): Promise<void> {
       const vouchee = await prisma.user.findUnique({ where: { id: them }, select: { id: true } });
       if (!vouchee) return reply.code(404).send({ error: 'NotFound' });
 
+      const connected = await prisma.connection.findFirst({
+        where: {
+          status: 'accepted',
+          OR: [
+            { requesterId: me, receiverId: them },
+            { requesterId: them, receiverId: me },
+          ],
+        },
+        select: { id: true },
+      });
+      if (!connected) {
+        return reply.code(403).send({
+          error: 'NotConnected',
+          message: 'You can only vouch for people in your branch — connect first.',
+        });
+      }
+
       const existing = await prisma.vouch.findUnique({
         where: { voucherId_voucheeId: { voucherId: me, voucheeId: them } },
       });
@@ -199,6 +223,10 @@ export async function vouchRoutes(app: FastifyInstance): Promise<void> {
         where: { id: vouch.id },
         data: { status: 'confirmed', confirmedAt: new Date() },
       });
+
+      // The voucher's own "you vouched for them, go confirm it" notification
+      // (if any) is now moot — clear it so it doesn't sit unread forever.
+      resolveNotifications(me, 'vouch_received', ['vouchId'], vouch.id).catch(() => {});
 
       const vouchee = await prisma.user.findUnique({
         where: { id: me },

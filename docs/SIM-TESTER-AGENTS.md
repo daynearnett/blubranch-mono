@@ -31,10 +31,36 @@ one-pager for Dayne + Balint.
 
 ## Known constraint (do not "fix" mid-sim)
 
-The SMS apply-gate will 403 (`PhoneVerificationRequired`) for all agents —
-Twilio is on trial and only texts verified caller IDs. Agents should HIT the
-gate once each, record the UX of the failure, and otherwise test everything
-around applying (browse, search, save/bookmark, job detail, pay-insights).
+The SMS apply-gate will 403 for all agents — Twilio is on trial and only
+texts verified caller IDs. **As of 2026-10-14 the gate's shape is the richer
+`403 ProfileIncomplete, missing:[...]`** (phone + photo + headline + trade +
+location + experience-or-"actively looking"), not the old phone-only
+`PhoneVerificationRequired` — that legacy code only still fires when phone is
+literally the *only* missing field. Confirmed stable across every sim run
+since (2026-10-19, 10-21, 10-23). Agents should HIT the gate once each,
+record the UX of the failure, and otherwise test everything around applying
+(browse, search, save/bookmark, job detail, pay-insights).
+
+## Fixture maintenance (read before Thu/network-day runs)
+
+**Underrepresented trades:** staging's job listings come entirely from the
+sim's own employer personas posting real jobs — there is no admin seed
+script backing them. By 2026-10-21 the plumber trade (Tommy/w2's own trade)
+had **zero** postings on staging across both `/jobs?trade=plumber` and
+`/jobs/pay-insights`, a real cold-start gap a plumber signing up at launch
+would also hit. When an employer persona (e1/e2/e3) posts a job and the
+trade doesn't matter to the day's theme, prefer a trade that currently has
+thin or no coverage (check `GET /jobs?trade=<slug>&limit=1` first) over
+repeating electrician/welder/HVAC again.
+
+**Out-of-network "stranger" fixture:** by 2026-10-23 every pair among the
+six personas had some relationship (connection, vouch, or message) — the
+"can an outsider do X" scenario (cold vouch, cold connection request) can no
+longer produce a genuinely untested pairing. Before a Thu/network-day run
+that wants to test this, **deliberately reset one relationship** first
+(`DELETE /connections/:id` on an existing w3↔employer connection, for
+example) so there's a real stranger to probe, rather than re-confirming a
+finding that's already proven six ways.
 
 ## Per-run protocol (the prompt each scheduled run executes)
 

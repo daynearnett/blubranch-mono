@@ -6,7 +6,7 @@ import {
 import type { FastifyInstance } from 'fastify';
 import { requireAuth, requireRole } from '../auth/middleware.js';
 import { getPrisma } from '../lib/prisma.js';
-import { parseBody } from '../lib/validate.js';
+import { isUuid, parseBody } from '../lib/validate.js';
 import { checkApplyReadiness, readinessMessage } from '../services/apply-readiness.js';
 import { sendNotification } from '../services/push.js';
 
@@ -19,6 +19,7 @@ export async function applicationRoutes(app: FastifyInstance): Promise<void> {
     '/jobs/:id/apply',
     { preHandler: requireRole('worker', 'admin') },
     async (request, reply) => {
+      if (!isUuid(request.params.id)) return reply.code(404).send({ error: 'NotFound' });
       const data = parseBody(jobApplyInputSchema, request, reply);
       if (!data) return;
 
@@ -87,6 +88,7 @@ export async function applicationRoutes(app: FastifyInstance): Promise<void> {
     '/jobs/:id/applications',
     { preHandler: requireAuth },
     async (request, reply) => {
+      if (!isUuid(request.params.id)) return reply.code(404).send({ error: 'NotFound' });
       const job = await prisma.job.findUnique({ where: { id: request.params.id } });
       if (!job) return reply.code(404).send({ error: 'NotFound' });
       if (job.employerId !== request.user!.id && request.user!.role !== 'admin') {
@@ -204,6 +206,9 @@ export async function applicationRoutes(app: FastifyInstance): Promise<void> {
     '/jobs/:id/applications/:applicationId',
     { preHandler: requireAuth },
     async (request, reply) => {
+      if (!isUuid(request.params.id) || !isUuid(request.params.applicationId)) {
+        return reply.code(404).send({ error: 'NotFound' });
+      }
       const data = parseBody(applicationStatusUpdateSchema, request, reply);
       if (!data) return;
 
