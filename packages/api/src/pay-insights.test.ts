@@ -232,4 +232,19 @@ describe('Pay insights — posted-pay aggregates', () => {
     expect(res.json().n).toBe(0);
     expect(res.json().insufficient).toBe(true);
   });
+
+  it('a slug-shaped tradeId (e.g. "electrician") resolves by slug instead of silently falling back to the caller\'s own trade', async () => {
+    const trade = await prisma.trade.findUnique({ where: { id: tradeId } });
+    const res = await app.inject({
+      method: 'GET',
+      url: `/jobs/pay-insights?tradeId=${trade!.slug}&state=${state}`,
+      headers: { authorization: `Bearer ${worker.token}` },
+    });
+    expect(res.statusCode).toBe(200);
+    // Same trade, resolved via slug — same aggregate the numeric-id call
+    // would return (5 original hourly postings + the "Route-created job"
+    // hourly posting added by the payPeriod test above).
+    expect(res.json().tradeId).toBe(tradeId);
+    expect(res.json().n).toBe(6);
+  });
 });

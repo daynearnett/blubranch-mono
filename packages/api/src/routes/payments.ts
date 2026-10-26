@@ -1,5 +1,6 @@
 import type Stripe from 'stripe';
 import {
+  PLAN_LABELS,
   PLAN_PRICE_CENTS,
   isSubscriptionPlan,
   subscriptionCovers,
@@ -369,6 +370,7 @@ export async function paymentRoutes(app: FastifyInstance): Promise<void> {
     const body: SubscriptionStatus = {
       active: !!sub && ['active', 'trialing'].includes(sub.status),
       plan: sub?.plan ?? null,
+      planName: sub?.plan ? PLAN_LABELS[sub.plan as Tier] : null,
       status: sub?.status ?? null,
       currentPeriodEnd: sub?.currentPeriodEnd ?? null,
       cancelAtPeriodEnd: sub?.cancelAtPeriodEnd ?? false,

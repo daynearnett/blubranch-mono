@@ -90,7 +90,9 @@ export async function geocodeAddress(input: {
 
 /**
  * Update the geography(Point, 4326) column on a row. Prisma can't model
- * PostGIS types, so we do this with a raw query each time.
+ * PostGIS types, so we do this with a raw query each time. Only call this
+ * when PostGIS is actually available (`isPostGisEnabled()`) — on Railway's
+ * stock Postgres the `geo` column/extension aren't there and this throws.
  */
 export async function setGeographyPoint(
   prisma: import('@blubranch/db').PrismaClient,
@@ -105,4 +107,22 @@ export async function setGeographyPoint(
   // text and Postgres doesn't auto-cast uuid columns.
   const sql = `UPDATE "${table}" SET "geo" = ST_SetSRID(ST_MakePoint($1, $2), 4326)::geography WHERE "${idColumn}" = $3::uuid`;
   await prisma.$executeRawUnsafe(sql, point.lng, point.lat, id);
+}
+
+/**
+ * Update the plain `lat`/`lng` columns on a row (ordinary decimals, not a
+ * PostGIS type) — these work on ANY Postgres, including Railway's stock
+ * instance where PostGIS isn't available. Always call this regardless of
+ * `isPostGisEnabled()`; it's what GET /jobs and the feed fall back to for
+ * distance filtering/sorting when the geography column isn't usable.
+ */
+export async function setPlainPoint(
+  prisma: import('@blubranch/db').PrismaClient,
+  table: 'jobs' | 'worker_profiles',
+  id: string,
+  point: { lat: number; lng: number },
+  idColumn: 'id' | 'user_id' = 'id',
+): Promise<void> {
+  const sql = `UPDATE "${table}" SET "lat" = $1, "lng" = $2 WHERE "${idColumn}" = $3::uuid`;
+  await prisma.$executeRawUnsafe(sql, point.lat, point.lng, id);
 }

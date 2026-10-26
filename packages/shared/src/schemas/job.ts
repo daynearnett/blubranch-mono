@@ -102,6 +102,12 @@ export const jobInputSchema = z.object({
   isUrgent: z.boolean().default(false),
   boostPushNotification: z.boolean().default(false),
   boostFeaturedPlacement: z.boolean().default(false),
+  // `isFeatured` is the display-side field name (see `jobSchema` above) and
+  // a client requesting featured placement sometimes sends THAT name
+  // instead of `boostFeaturedPlacement` — it was silently stripped as an
+  // unrecognized key. Accept either; the route treats them as the same
+  // request.
+  isFeatured: z.boolean().optional(),
   benefitIds: z.array(z.number().int().positive()).max(20).default([]),
   // Sent as draft → server flips to 'open' once payment lands. For Phase 3
   // we accept either value and treat 'open' as immediate publish.

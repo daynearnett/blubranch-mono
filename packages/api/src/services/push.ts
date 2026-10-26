@@ -17,6 +17,36 @@ const EMAIL_TYPES = new Set<NotificationType>([
 ]);
 
 /**
+ * Mark a user's unread notifications of one `type` as read when the action
+ * they were ABOUT has itself happened — confirming a vouch, accepting a
+ * connection, reading a message thread. Without this, nothing ever resolves
+ * a notification except an explicit PUT /notifications/read-all, so claims
+ * and requests pile up unread indefinitely even after they're acted on.
+ * `matchPath`/`matchValue` scope it to the one notification the action
+ * actually resolves (e.g. `data.vouchId === vouch.id`), not every unread
+ * notification of that type.
+ */
+export async function resolveNotifications(
+  userId: string,
+  type: NotificationType,
+  matchPath: string[],
+  matchValue: string,
+): Promise<void> {
+  const prisma = getPrisma();
+  await prisma.notification
+    .updateMany({
+      where: {
+        userId,
+        type,
+        readAt: null,
+        data: { path: matchPath, equals: matchValue },
+      },
+      data: { readAt: new Date() },
+    })
+    .catch(() => {});
+}
+
+/**
  * Create an in-app notification record and send a push notification
  * to the user's registered devices via FCM.
  *

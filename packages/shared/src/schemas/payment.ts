@@ -75,6 +75,10 @@ export type PaymentSheetParams = z.infer<typeof paymentSheetParamsSchema>;
 export const subscriptionStatusSchema = z.object({
   active: z.boolean(),
   plan: PlanTier.nullable(),
+  // Branded label for `plan` ("Blu" / "Blu Max"), since `plan` itself has to
+  // stay the internal slug ("pro" / "unlimited") for existing client logic
+  // that switches on it.
+  planName: z.string().nullable(),
   status: z.string().nullable(),
   currentPeriodEnd: z.coerce.date().nullable(),
   cancelAtPeriodEnd: z.boolean(),

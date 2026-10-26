@@ -136,6 +136,34 @@ describe('Phase 5 payments', () => {
     expect(res.json().status).toBe('canceled');
   });
 
+  it('GET /payments/subscription returns a branded planName alongside the internal plan slug', async () => {
+    const fakePro = {
+      id: `sub_test_pro_${stamp}`,
+      status: 'active',
+      customer: `cus_test_${stamp}`,
+      cancel_at_period_end: false,
+      metadata: { userId: employer.id, plan: 'pro' },
+      items: { data: [{ current_period_end: Math.floor(Date.now() / 1000) + 86400 }] },
+    } as unknown as Stripe.Subscription;
+    await syncSubscription(prisma, fakePro);
+
+    try {
+      const res = await app.inject({
+        method: 'GET',
+        url: '/payments/subscription',
+        headers: { authorization: `Bearer ${employer.token}` },
+      });
+      expect(res.statusCode).toBe(200);
+      expect(res.json().plan).toBe('pro'); // internal slug, unchanged for existing client logic
+      expect(res.json().planName).toBe('Blu'); // branded name — was missing entirely
+    } finally {
+      // This `employer` fixture is reused by the payment-gating describe
+      // block below, which assumes NO active subscription — leaving this
+      // one active would wrongly let Pro/Unlimited jobs publish for free.
+      await syncSubscription(prisma, { ...fakePro, status: 'canceled' } as unknown as Stripe.Subscription);
+    }
+  });
+
   it('GET /payments/config returns a (possibly empty) publishable key', async () => {
     const res = await app.inject({ method: 'GET', url: '/payments/config' });
     expect(res.statusCode).toBe(200);
@@ -186,15 +214,21 @@ describe('Phase 5 payments', () => {
       else process.env.STRIPE_SECRET_KEY = prevKey;
     });
 
+    let postJobCounter = 0;
     async function postJob(planTier: 'basic' | 'pro' | 'unlimited') {
       const trade = await prisma.trade.findFirst();
+      // Unique title per call — these tests intentionally re-post the same
+      // scenario several times in quick succession, which the duplicate-
+      // submit guard (POST /jobs idempotency) would otherwise collapse into
+      // a single job.
+      postJobCounter += 1;
       return app.inject({
         method: 'POST',
         url: '/jobs',
         headers: { authorization: `Bearer ${employer.token}` },
         payload: {
           companyId,
-          title: `Gating ${planTier}`,
+          title: `Gating ${planTier} ${postJobCounter}`,
           tradeId: trade!.id,
           experienceLevel: 'years_3_5',
           payMin: 30,

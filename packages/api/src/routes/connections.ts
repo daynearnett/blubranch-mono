@@ -2,8 +2,9 @@ import { connectionListQuerySchema, connectionRequestSchema } from '@blubranch/s
 import type { FastifyInstance } from 'fastify';
 import { requireAuth } from '../auth/middleware.js';
 import { getPrisma } from '../lib/prisma.js';
+import { excludeQaAccountsWhere } from '../lib/qa-filter.js';
 import { parseBody } from '../lib/validate.js';
-import { sendNotification } from '../services/push.js';
+import { resolveNotifications, sendNotification } from '../services/push.js';
 import { normalizeCompanyName } from './vouches.js';
 
 export async function connectionRoutes(app: FastifyInstance): Promise<void> {
@@ -221,6 +222,10 @@ export async function connectionRoutes(app: FastifyInstance): Promise<void> {
         data: { status: 'accepted' },
       });
 
+      // The request that got accepted is now resolved — clear it so it
+      // doesn't sit in the receiver's unread backlog indefinitely.
+      resolveNotifications(userId, 'connection_request', ['connectionId'], connection.id).catch(() => {});
+
       // Push notification to requester that their request was accepted.
       const accepter = await prisma.user.findUnique({
         where: { id: userId },
@@ -252,6 +257,15 @@ export async function connectionRoutes(app: FastifyInstance): Promise<void> {
       if (connection.requesterId !== userId && connection.receiverId !== userId) {
         return reply.code(404).send({ error: 'NotFound' });
       }
+
+      // A declined/removed pending request is also resolved — clear the
+      // receiver's notification about it either way.
+      resolveNotifications(
+        connection.receiverId,
+        'connection_request',
+        ['connectionId'],
+        connection.id,
+      ).catch(() => {});
 
       await prisma.connection.delete({ where: { id: connection.id } });
       return reply.code(204).send();
@@ -359,11 +373,13 @@ export async function connectionRoutes(app: FastifyInstance): Promise<void> {
       myVouches.flatMap((v) => [v.voucherId, v.voucheeId]).filter((id) => id !== userId),
     );
 
-    // Fetch candidate users (not already connected, limit pool)
+    // Fetch candidate users (not already connected, limit pool, QA/script
+    // accounts excluded — see lib/qa-filter.ts).
     const candidates = await prisma.user.findMany({
       where: {
         id: { notIn: [...connectedIds] },
         role: 'worker',
+        ...excludeQaAccountsWhere(),
       },
       take: 50,
       include: {

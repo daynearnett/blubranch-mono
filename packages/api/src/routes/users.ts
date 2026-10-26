@@ -11,10 +11,11 @@ import {
 } from '@blubranch/shared';
 import type { FastifyInstance } from 'fastify';
 import { requireAuth } from '../auth/middleware.js';
+import { isPostGisEnabled } from '../lib/postgis.js';
 import { getPrisma } from '../lib/prisma.js';
 import { serializeUser } from '../lib/serialize.js';
 import { parseBody } from '../lib/validate.js';
-import { geocodeAddress, setGeographyPoint } from '../services/geocode.js';
+import { geocodeAddress, setGeographyPoint, setPlainPoint } from '../services/geocode.js';
 import { notifyProfileView } from '../services/push.js';
 import { checkApplyReadiness } from '../services/apply-readiness.js';
 import { recomputeProfileCompleteness } from '../services/profile-completeness.js';
@@ -223,7 +224,10 @@ export async function userRoutes(app: FastifyInstance): Promise<void> {
           zipCode: profile.zipCode,
         });
         if (geo) {
-          await setGeographyPoint(prisma, 'worker_profiles', profile.userId, geo, 'user_id');
+          await setPlainPoint(prisma, 'worker_profiles', profile.userId, geo, 'user_id');
+          if (isPostGisEnabled()) {
+            await setGeographyPoint(prisma, 'worker_profiles', profile.userId, geo, 'user_id');
+          }
         }
       } catch (err) {
         request.log.warn({ err, userId: profile.userId }, 'worker geocode failed');

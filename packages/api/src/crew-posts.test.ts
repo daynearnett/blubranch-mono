@@ -131,6 +131,9 @@ describe('Crew posts — co-author invite/accept', () => {
     expect(item).toBeDefined();
     expect(item.data.coauthors).toHaveLength(1);
     expect(item.data.coauthors[0].firstName).toBe('Bob');
+    // Was missing from the feed entirely (present on GET /posts/:id only) —
+    // the client had no way to show the accept/decline banner there.
+    expect(item.data.viewerCoauthorStatus).toBe('accepted');
   });
 
   it('declined invites never surface as co-authors', async () => {
