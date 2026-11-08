@@ -359,11 +359,15 @@ export async function connectionRoutes(app: FastifyInstance): Promise<void> {
       myVouches.flatMap((v) => [v.voucherId, v.voucheeId]).filter((id) => id !== userId),
     );
 
-    // Fetch candidate users (not already connected, limit pool)
+    // Fetch candidate users (not already connected, limit pool). Excludes
+    // throwaway QA/smoke-test accounts (seeded with an @*.invalid email, per
+    // convention — see docs/SIM-TESTER-AGENTS.md) so they don't crowd out real
+    // people in the suggestion list.
     const candidates = await prisma.user.findMany({
       where: {
         id: { notIn: [...connectedIds] },
         role: 'worker',
+        email: { not: { endsWith: '.invalid' } },
       },
       take: 50,
       include: {
@@ -409,6 +413,17 @@ export async function connectionRoutes(app: FastifyInstance): Promise<void> {
 
     scored.sort((a, b) => b.score - a.score);
 
-    return reply.send(scored.slice(0, 20));
+    // Collapse exact duplicate accounts (same name, trimmed/case-folded —
+    // seen with repeat QA sign-ups and trailing-whitespace entries), keeping
+    // the highest-scored one.
+    const seenNames = new Set<string>();
+    const deduped = scored.filter((c) => {
+      const key = `${c.firstName} ${c.lastName}`.trim().toLowerCase().replace(/\s+/g, ' ');
+      if (seenNames.has(key)) return false;
+      seenNames.add(key);
+      return true;
+    });
+
+    return reply.send(deduped.slice(0, 20));
   });
 }

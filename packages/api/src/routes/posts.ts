@@ -361,7 +361,6 @@ export async function postRoutes(app: FastifyInstance): Promise<void> {
         photos: { orderBy: { sortOrder: 'asc' } },
         likes: { where: { userId }, select: { userId: true } },
         coauthors: {
-          where: { status: 'accepted' },
           include: {
             user: { select: { id: true, firstName: true, lastName: true, profilePhotoUrl: true } },
           },
@@ -477,7 +476,11 @@ export async function postRoutes(app: FastifyInstance): Promise<void> {
               headline: p.user.workerProfile?.headline ?? null,
               unionName: p.user.workerProfile?.unionName ?? null,
             },
-            coauthors: p.coauthors.map((c) => c.user),
+            coauthors: p.coauthors.filter((c) => c.status === 'accepted').map((c) => c.user),
+            // Lets the client show the accept/decline banner on the viewer's invite
+            // (mirrors GET /posts/:id — this was missing here, so the banner never
+            // showed up in the feed itself, only after opening the post directly).
+            viewerCoauthorStatus: p.coauthors.find((c) => c.userId === userId)?.status ?? null,
             // Latest 2 comments, shown oldest-first under the post (LinkedIn-style).
             topComments: [...p.comments].reverse().map((c) => ({
               id: c.id,

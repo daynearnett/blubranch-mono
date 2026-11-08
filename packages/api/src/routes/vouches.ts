@@ -1,9 +1,13 @@
 // "Worked together" vouches — peer credibility gated by shared job history.
 // A vouch is a claim + one-tap confirmation (mutual attestation): workplace
-// date-overlap only PRE-FILLS the shared context, it never gates the vouch,
-// because WorkPlace.companyName is free text and real pairs would be missed.
-// Only confirmed vouches are ever displayed; there is no decline path — an
-// unconfirmed vouch just silently never shows.
+// date-overlap only PRE-FILLS the shared context, it never gates the vouch
+// content, because WorkPlace.companyName is free text and real pairs would be
+// missed. It DOES gate who may vouch at all — voucher and vouchee must have an
+// accepted connection first, so a stranger can't fabricate a "worked together"
+// claim on someone they've never met. Only confirmed vouches are ever
+// displayed; an unconfirmed one can be dismissed immediately via
+// PUT /vouches/:id/decline, or it ages out on its own via the nightly
+// vouch-expiry job (jobs/vouch-expiry.ts).
 import { vouchInputSchema } from '@blubranch/shared';
 import type { FastifyInstance } from 'fastify';
 import { requireAuth } from '../auth/middleware.js';
@@ -136,6 +140,25 @@ export async function vouchRoutes(app: FastifyInstance): Promise<void> {
       const vouchee = await prisma.user.findUnique({ where: { id: them }, select: { id: true } });
       if (!vouchee) return reply.code(404).send({ error: 'NotFound' });
 
+      // A vouch is "we worked together" — require an accepted connection first,
+      // so a stranger can't fabricate a claim on someone they've never met.
+      const connection = await prisma.connection.findFirst({
+        where: {
+          status: 'accepted',
+          OR: [
+            { requesterId: me, receiverId: them },
+            { requesterId: them, receiverId: me },
+          ],
+        },
+        select: { id: true },
+      });
+      if (!connection) {
+        return reply.code(403).send({
+          error: 'NotConnected',
+          message: 'You can only vouch for people you are connected with',
+        });
+      }
+
       const existing = await prisma.vouch.findUnique({
         where: { voucherId_voucheeId: { voucherId: me, voucheeId: them } },
       });
@@ -213,6 +236,33 @@ export async function vouchRoutes(app: FastifyInstance): Promise<void> {
       }).catch(() => {});
 
       return reply.send(updated);
+    },
+  );
+
+  // ── PUT /vouches/:id/decline ─────────────────────────────────────
+  // Lets the vouchee dismiss an unwanted/unrecognized pending vouch right
+  // away instead of waiting on the nightly shelf-life expiry (vouch-expiry.ts).
+  // Deletes the vouch and its "confirm your vouch" notification, same as expiry.
+  app.put<{ Params: { id: string } }>(
+    '/vouches/:id/decline',
+    { preHandler: requireAuth },
+    async (request, reply) => {
+      const me = request.user!.id;
+      const vouch = await prisma.vouch.findUnique({ where: { id: request.params.id } });
+
+      if (!vouch || vouch.voucheeId !== me) {
+        return reply.code(404).send({ error: 'NotFound' });
+      }
+      if (vouch.status !== 'pending') {
+        return reply.code(400).send({ error: 'BadRequest', message: 'Already confirmed' });
+      }
+
+      await prisma.notification.deleteMany({
+        where: { type: 'vouch_received', userId: me, data: { path: ['vouchId'], equals: vouch.id } },
+      });
+      await prisma.vouch.delete({ where: { id: vouch.id } });
+
+      return reply.send({ declined: true });
     },
   );
 

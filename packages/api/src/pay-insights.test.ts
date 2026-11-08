@@ -232,4 +232,13 @@ describe('Pay insights — posted-pay aggregates', () => {
     expect(res.json().n).toBe(0);
     expect(res.json().insufficient).toBe(true);
   });
+
+  it('a non-numeric tradeId (e.g. a slug) is rejected instead of silently ignored', async () => {
+    const res = await app.inject({
+      method: 'GET',
+      url: '/jobs/pay-insights?tradeId=electrician',
+      headers: { authorization: `Bearer ${worker.token}` },
+    });
+    expect(res.statusCode).toBe(400);
+  });
 });

@@ -98,6 +98,12 @@ describe('Vouch flow', () => {
         },
       ],
     });
+
+    // Alice + Bob are connected — required before either can vouch the other.
+    // Carol is left unconnected to exercise the cold-vouch gate.
+    await prisma.connection.create({
+      data: { requesterId: alice.id, receiverId: bob.id, status: 'accepted' },
+    });
   });
 
   afterAll(async () => {
@@ -138,6 +144,17 @@ describe('Vouch flow', () => {
       payload: {},
     });
     expect(res.statusCode).toBe(400);
+  });
+
+  it('POST /users/:id/vouch — blocked without a connection (403)', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: `/users/${carol.id}/vouch`,
+      headers: { authorization: `Bearer ${alice.token}` },
+      payload: { companyName: 'Made Up Co' },
+    });
+    expect(res.statusCode).toBe(403);
+    expect(res.json().error).toBe('NotConnected');
   });
 
   it('POST /users/:id/vouch — Alice vouches for Bob (201, pending)', async () => {
@@ -250,5 +267,48 @@ describe('Vouch flow', () => {
       payload: { companyName: 'Turner Construction' },
     });
     expect(res.statusCode).toBe(201);
+  });
+
+  it('PUT /vouches/:id/decline — vouchee can dismiss an unwanted pending vouch', async () => {
+    await prisma.connection.create({
+      data: { requesterId: alice.id, receiverId: carol.id, status: 'accepted' },
+    });
+    const create = await app.inject({
+      method: 'POST',
+      url: `/users/${carol.id}/vouch`,
+      headers: { authorization: `Bearer ${alice.token}` },
+      payload: { companyName: 'Made Up Co' },
+    });
+    expect(create.statusCode).toBe(201);
+    const declineVouchId = create.json().id;
+
+    let notif = null;
+    for (let i = 0; i < 20 && !notif; i++) {
+      notif = await prisma.notification.findFirst({
+        where: { userId: carol.id, type: 'vouch_received' },
+      });
+      if (!notif) await new Promise((r) => setTimeout(r, 100));
+    }
+    expect(notif).not.toBeNull();
+
+    const decline = await app.inject({
+      method: 'PUT',
+      url: `/vouches/${declineVouchId}/decline`,
+      headers: { authorization: `Bearer ${carol.token}` },
+    });
+    expect(decline.statusCode).toBe(200);
+    expect(decline.json().declined).toBe(true);
+
+    expect(await prisma.vouch.findUnique({ where: { id: declineVouchId } })).toBeNull();
+    expect(
+      await prisma.notification.findFirst({ where: { userId: carol.id, type: 'vouch_received' } }),
+    ).toBeNull();
+
+    const declineAgain = await app.inject({
+      method: 'PUT',
+      url: `/vouches/${declineVouchId}/decline`,
+      headers: { authorization: `Bearer ${carol.token}` },
+    });
+    expect(declineAgain.statusCode).toBe(404);
   });
 });
