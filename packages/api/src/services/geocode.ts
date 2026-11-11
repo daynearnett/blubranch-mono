@@ -3,6 +3,8 @@
 // returns a Chicago-anchored fallback so dev databases get usable points
 // (with a small zip-derived offset so multiple fixtures don't collide).
 
+import { isPostGisEnabled } from '../lib/postgis.js';
+
 export interface GeocodeResult {
   lat: number;
   lng: number;
@@ -89,8 +91,19 @@ export async function geocodeAddress(input: {
 }
 
 /**
- * Update the geography(Point, 4326) column on a row. Prisma can't model
- * PostGIS types, so we do this with a raw query each time.
+ * Update a row's location. Prisma can't model PostGIS types, so this is a
+ * raw query either way.
+ *
+ * "jobs" also has plain lat/lng Decimal columns (no PostGIS needed) that
+ * GET /jobs uses as a Haversine fallback for radius search when PostGIS
+ * isn't available. We write those unconditionally so radius search works
+ * on every environment — not just ones with the extension.
+ *
+ * The geography point itself only exists when PostGIS is enabled (on
+ * Railway's stock Postgres the "geo" column is never created at all — see
+ * the postgis_geography migration's PostGIS-availability guard), so we
+ * skip that write entirely when it's off instead of issuing a query that's
+ * guaranteed to fail with "column geo does not exist".
  */
 export async function setGeographyPoint(
   prisma: import('@blubranch/db').PrismaClient,
@@ -103,6 +116,13 @@ export async function setGeographyPoint(
   // only — both names are checked against a closed enum above. The `$3::uuid`
   // cast is required because Prisma's extended protocol passes parameters as
   // text and Postgres doesn't auto-cast uuid columns.
-  const sql = `UPDATE "${table}" SET "geo" = ST_SetSRID(ST_MakePoint($1, $2), 4326)::geography WHERE "${idColumn}" = $3::uuid`;
-  await prisma.$executeRawUnsafe(sql, point.lng, point.lat, id);
+  if (table === 'jobs') {
+    const latLngSql = `UPDATE "jobs" SET "lat" = $1, "lng" = $2 WHERE "${idColumn}" = $3::uuid`;
+    await prisma.$executeRawUnsafe(latLngSql, point.lat, point.lng, id);
+  }
+
+  if (!isPostGisEnabled()) return;
+
+  const geoSql = `UPDATE "${table}" SET "geo" = ST_SetSRID(ST_MakePoint($1, $2), 4326)::geography WHERE "${idColumn}" = $3::uuid`;
+  await prisma.$executeRawUnsafe(geoSql, point.lng, point.lat, id);
 }

@@ -163,12 +163,16 @@ export async function jobRoutes(app: FastifyInstance): Promise<void> {
       conditions.push(Prisma.sql`(j."title" ILIKE ${term} OR j."description" ILIKE ${term})`);
     }
 
-    // PostGIS-aware lat/lng filtering only fires when (a) the caller
-    // supplied a point AND (b) PostGIS is enabled in this environment.
-    // On Railway's stock Postgres POSTGIS_ENABLED=false → we skip the
-    // radius filter and the distance column entirely. The query still
-    // returns results, just without distance sorting.
+    // PostGIS-aware lat/lng filtering fires when (a) the caller supplied a
+    // point AND (b) PostGIS is enabled in this environment, using the
+    // "geo" geography column + ST_DWithin/ST_Distance.
+    //
+    // On Railway's stock Postgres (POSTGIS_ENABLED=false, no "geo" column
+    // at all) we fall back to a plain-SQL Haversine great-circle distance
+    // over the jobs.lat/jobs.lng Decimal columns instead — real radius
+    // filtering and distance sorting, just without a spatial index.
     const useGeo = isPostGisEnabled() && q.lat !== undefined && q.lng !== undefined;
+    const useHaversine = !isPostGisEnabled() && q.lat !== undefined && q.lng !== undefined;
 
     let distanceSelect = Prisma.sql`NULL::double precision AS distance_miles`;
     if (useGeo) {
@@ -177,6 +181,18 @@ export async function jobRoutes(app: FastifyInstance): Promise<void> {
       distanceSelect = Prisma.sql`(ST_Distance(j."geo", ${point}) / ${MILES_TO_METERS}) AS distance_miles`;
       conditions.push(
         Prisma.sql`j."geo" IS NOT NULL AND ST_DWithin(j."geo", ${point}, ${meters})`,
+      );
+    } else if (useHaversine) {
+      // Great-circle distance in miles (haversine formula), earth radius
+      // 3958.8 mi. GREATEST/LEAST clamp the acos() argument to [-1, 1] to
+      // guard against floating-point drift on near-identical points.
+      const distanceExpr = Prisma.sql`(3958.8 * acos(GREATEST(-1, LEAST(1,
+        cos(radians(${q.lat})) * cos(radians(j."lat")) * cos(radians(j."lng") - radians(${q.lng}))
+          + sin(radians(${q.lat})) * sin(radians(j."lat"))
+      ))))`;
+      distanceSelect = Prisma.sql`${distanceExpr} AS distance_miles`;
+      conditions.push(
+        Prisma.sql`j."lat" IS NOT NULL AND j."lng" IS NOT NULL AND ${distanceExpr} <= ${q.radius}`,
       );
     }
 
@@ -187,10 +203,10 @@ export async function jobRoutes(app: FastifyInstance): Promise<void> {
       orderSql = Prisma.sql`ORDER BY j."is_featured" DESC, j."created_at" DESC`;
     } else if (q.sort === 'pay_highest') {
       orderSql = Prisma.sql`ORDER BY j."is_featured" DESC, j."pay_max" DESC`;
-    } else if (useGeo) {
+    } else if (useGeo || useHaversine) {
       orderSql = Prisma.sql`ORDER BY j."is_featured" DESC, distance_miles ASC NULLS LAST`;
     } else {
-      // 'nearest' fallback when no point given OR PostGIS disabled.
+      // 'nearest' fallback when no point given.
       orderSql = Prisma.sql`ORDER BY j."is_featured" DESC, j."created_at" DESC`;
     }
 

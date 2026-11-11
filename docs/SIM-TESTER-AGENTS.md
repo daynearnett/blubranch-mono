@@ -66,6 +66,25 @@ nobody's looked), it should make BOTH calls, the way the app does — a `GET`
 to fetch, then the matching `PUT .../read-all` or `PUT .../read` — and only
 report a lifecycle bug if THAT round-trip fails to clear the badge.
 
+**2026-11-11 re-confirmation:** despite the above, the Nov-02/04/06/08/11
+findings docs kept re-reporting this as "notification lifecycle drift" /
+"new high-water mark" on nothing but repeated `GET /notifications/unread-count`
+checks — never the `PUT .../read-all` round-trip this doc already asks for.
+Verified directly against staging on 2026-11-11: `GET unread-count` → `5`,
+`PUT /notifications/read-all` → `{"readCount":5}`, `GET unread-count`
+(same session, immediately after) → `0`. The route code
+(`packages/api/src/routes/notifications.ts`) is correct — `read-all` does an
+unconditional `updateMany` on every unread row, `unread-count` filters on
+`readAt: null`, nothing is excluded or stuck. **There is no server bug here.**
+The "new high-water mark every run" pattern is exactly what you'd expect from
+accounts nothing ever marks read: ordinary sim activity (messages, connection
+requests, vouches) keeps generating real notifications, and a `GET`-only sim
+never clears them, so the count can only ever climb. Future runs: this is now
+CLOSED as a methodology artifact, not an open issue — do not re-list
+"notification lifecycle" / "unread-count growth" on the regression watchlist
+unless a run that actually performs the `GET` + `PUT read-all` round-trip
+observes the count fail to drop to 0.
+
 ## Per-run protocol (the prompt each scheduled run executes)
 
 > Read docs/SIM-TESTER-AGENTS.md and ~/.config/blubranch/tester-agents.json.
