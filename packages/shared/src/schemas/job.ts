@@ -112,19 +112,24 @@ export type JobInput = z.infer<typeof jobInputSchema>;
 export const jobUpdateSchema = jobInputSchema.partial();
 export type JobUpdate = z.infer<typeof jobUpdateSchema>;
 
-// Search query — used by GET /jobs.
-export const jobSearchQuerySchema = z.object({
-  trade: z.string().optional(),
-  lat: z.coerce.number().min(-90).max(90).optional(),
-  lng: z.coerce.number().min(-180).max(180).optional(),
-  radius: z.coerce.number().positive().max(500).default(25),
-  type: JobType.optional(),
-  setting: WorkSetting.optional(),
-  search: z.string().max(200).optional(),
-  sort: z.enum(['nearest', 'newest', 'pay_highest']).default('nearest'),
-  page: z.coerce.number().int().min(1).default(1),
-  limit: z.coerce.number().int().min(1).max(50).default(20),
-});
+// Search query — used by GET /jobs. `.strict()` so a caller using a plausible
+// but wrong param name (e.g. `tradeId`/`state`, the names job creation and
+// pay-insights use) gets a 400 instead of silently falling through to the
+// unfiltered catalog — the filter it asked for never ran and nothing said so.
+export const jobSearchQuerySchema = z
+  .object({
+    trade: z.string().optional(),
+    lat: z.coerce.number().min(-90).max(90).optional(),
+    lng: z.coerce.number().min(-180).max(180).optional(),
+    radius: z.coerce.number().positive().max(500).default(25),
+    type: JobType.optional(),
+    setting: WorkSetting.optional(),
+    search: z.string().max(200).optional(),
+    sort: z.enum(['nearest', 'newest', 'pay_highest']).default('nearest'),
+    page: z.coerce.number().int().min(1).default(1),
+    limit: z.coerce.number().int().min(1).max(50).default(20),
+  })
+  .strict();
 export type JobSearchQuery = z.infer<typeof jobSearchQuerySchema>;
 
 // Worker → Quick Apply.

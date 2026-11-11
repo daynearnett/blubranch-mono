@@ -7,15 +7,25 @@ one-pager for Dayne + Balint.
 
 ## Personas
 
-| Tag | Name | Role | Setup |
+| Tag | Name | Role | Plan / starting setup |
 |-----|------|------|-------|
-| w1 | Ray Delgado | Worker — journeyman electrician, Columbus OH | Connected to w2 |
-| w2 | Tommy Barnes | Worker — plumber, Columbus OH | Connected to w1 |
-| w3 | Nina Kowalski | Worker — HVAC tech, Cleveland OH | **Out of network** (no connections) |
+| w1 | Ray Delgado | Worker — journeyman electrician, Columbus OH | — |
+| w2 | Tommy Barnes | Worker — plumber, Columbus OH | — |
+| w3 | Nina Kowalski | Worker — HVAC tech, Cleveland OH | — |
 | e1 | Hank Morrow | Employer — Morrow Electric LLC | **Basic** ($19/post, pay-per-job) |
 | e2 | Deb Castillo | Employer — Castillo Mechanical | **Blu** ($79/mo subscription) |
 | e3 | Vic Tran | Employer — Tran Builds Group | **Blu Max** ($139/mo subscription) |
 
+- **Connections are NOT fixed and this doc does not track them.** The original
+  Aug-3 setup had w1↔w2 connected and w3 isolated, but months of cold
+  connection-requests/vouches in prior runs have changed that for real (as of
+  2026-11-06, w3/Nina had *more* live connections than any other persona). A
+  run that needs a "stranger" pair (cold vouch/DM/connection-request tests) or
+  an "already connected" pair MUST call `GET /connections` live for the
+  accounts involved and decide from that — never from this table or from
+  `vouch-context`'s `given`/`received` being `null` (that only means "no
+  vouch attempted," not "no connection exists" — see the 2026-11-01 and
+  2026-11-06 findings docs for how that assumption went wrong twice).
 - **Credentials:** master copy in `~/.config/blubranch/tester-agents.json` on
   Dayne's Mac (NOT in the repo — public); the cloud routines carry them in
   their private prompts. Accounts registered 2026-08-03; w1↔w2 accepted.
@@ -35,6 +45,26 @@ The SMS apply-gate will 403 (`PhoneVerificationRequired`) for all agents —
 Twilio is on trial and only texts verified caller IDs. Agents should HIT the
 gate once each, record the UX of the failure, and otherwise test everything
 around applying (browse, search, save/bookmark, job detail, pay-insights).
+
+As of 2026-11-08, `POST /users/:id/vouch` requires an accepted connection
+between voucher and vouchee (403 `NotConnected` otherwise) — the long-running
+"cold vouch" launch-blocker is fixed. Check `GET /connections` before trying a
+vouch; a genuine stranger pair should now 403, not 201.
+
+## REST-only testing misses client-side mark-read calls — don't over-report notification/message backlogs
+
+The mobile app calls `PUT /notifications/read-all` right after loading the
+Notifications screen, and `PUT /conversations/:id/read` right after opening a
+chat thread — both happen automatically, separately from the `GET` that
+fetches the list/thread. Several 2026-10/11 findings-doc entries ("notification
+lifecycle never clears," "read-receipt timing bug") were sim-methodology
+artifacts: the sim only ever called the `GET` endpoints over raw REST and
+never made the follow-up `PUT` call a real client always makes, so unread
+counts looked like they only ever grow. If a run wants to test whether
+notifications/messages genuinely go stale (rather than just unread because
+nobody's looked), it should make BOTH calls, the way the app does — a `GET`
+to fetch, then the matching `PUT .../read-all` or `PUT .../read` — and only
+report a lifecycle bug if THAT round-trip fails to clear the badge.
 
 ## Per-run protocol (the prompt each scheduled run executes)
 

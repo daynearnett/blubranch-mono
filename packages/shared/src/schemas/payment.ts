@@ -74,7 +74,11 @@ export type PaymentSheetParams = z.infer<typeof paymentSheetParamsSchema>;
 // ── Subscription status (API → mobile) ────────────────────────────
 export const subscriptionStatusSchema = z.object({
   active: z.boolean(),
+  // Internal tier id — kept stable for comparisons (e.g. against a job's
+  // planTier). `planLabel` carries the branded name (Blu/Blu Max) for display
+  // without a client needing its own copy of PLAN_LABELS.
   plan: PlanTier.nullable(),
+  planLabel: z.string().nullable(),
   status: z.string().nullable(),
   currentPeriodEnd: z.coerce.date().nullable(),
   cancelAtPeriodEnd: z.boolean(),

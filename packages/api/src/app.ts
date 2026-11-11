@@ -1,7 +1,8 @@
 import cors from '@fastify/cors';
 import multipart from '@fastify/multipart';
 import sensible from '@fastify/sensible';
-import Fastify, { type FastifyInstance } from 'fastify';
+import Fastify, { type FastifyError, type FastifyInstance } from 'fastify';
+import { Prisma } from '@blubranch/db';
 import { extractUser } from './auth/middleware.js';
 import { registerSecurity } from './lib/security.js';
 import { startWorkers } from './jobs/worker-setup.js';
@@ -101,6 +102,29 @@ export async function buildApp(): Promise<FastifyInstance> {
   // Run extractUser on every request — populates request.user when a valid
   // bearer token is present, no-op otherwise.
   app.addHook('preHandler', extractUser);
+
+  // Any raw `:id`-param route that passes a caller-supplied string straight into
+  // a Prisma `where` on a uuid column (e.g. GET /jobs/:id with a non-UUID id)
+  // throws PrismaClientKnownRequestError P2023 from Postgres's own "invalid
+  // input syntax for type uuid" — left uncaught, that surfaced as a raw 500
+  // with no JSON body. Map known Prisma error codes to clean client errors and
+  // never leak internals for anything else.
+  app.setErrorHandler((error: FastifyError, request, reply) => {
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      if (error.code === 'P2023') {
+        return reply.code(400).send({ error: 'BadRequest', message: 'Invalid id' });
+      }
+      if (error.code === 'P2025') {
+        return reply.code(404).send({ error: 'NotFound' });
+      }
+    }
+    const statusCode = typeof error.statusCode === 'number' && error.statusCode < 500 ? error.statusCode : 500;
+    if (statusCode === 500) {
+      request.log.error(error);
+      return reply.code(500).send({ error: 'InternalServerError', message: 'Something went wrong' });
+    }
+    return reply.code(statusCode).send({ error: error.name ?? 'Error', message: error.message });
+  });
 
   app.get('/health', async () => ({ status: 'ok' }));
 

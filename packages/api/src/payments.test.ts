@@ -134,6 +134,10 @@ describe('Phase 5 payments', () => {
     expect(res.statusCode).toBe(200);
     expect(res.json().active).toBe(false);
     expect(res.json().status).toBe('canceled');
+    // `plan` stays the internal slug (compared against a job's planTier
+    // elsewhere); `planLabel` carries the branded Blu/Blu Max name for display.
+    expect(res.json().plan).toBe('unlimited');
+    expect(res.json().planLabel).toBe('Blu Max');
   });
 
   it('GET /payments/config returns a (possibly empty) publishable key', async () => {

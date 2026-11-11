@@ -128,4 +128,79 @@ describe('Worker connection flow', () => {
     const postIds = items.filter((i) => i.kind === 'post').map((i) => i.data.id);
     expect(postIds).toContain(post.id);
   });
+
+  describe('GET /network/suggestions — QA/duplicate-account filtering', () => {
+    let real: { id: string };
+    let qa: { id: string };
+    let dupeA: { id: string };
+    let dupeB: { id: string };
+
+    beforeAll(async () => {
+      real = await prisma.user.create({
+        data: {
+          firstName: 'Carol',
+          lastName: `Real${stamp}`,
+          email: `carol-real-${stamp}@test.local`,
+          role: 'worker',
+          authProvider: 'email',
+          passwordHash: 'not-a-real-hash',
+        },
+      });
+      qa = await prisma.user.create({
+        data: {
+          firstName: 'Gate',
+          lastName: 'Smoketest',
+          email: `gate-smoketest-${stamp}@blubranch-qa.invalid`,
+          role: 'worker',
+          authProvider: 'email',
+          passwordHash: 'not-a-real-hash',
+        },
+      });
+      dupeA = await prisma.user.create({
+        data: {
+          firstName: 'Dana',
+          lastName: `Dupe${stamp}`,
+          email: `dana-dupe-a-${stamp}@test.local`,
+          role: 'worker',
+          authProvider: 'email',
+          passwordHash: 'not-a-real-hash',
+        },
+      });
+      // Same name as dupeA, trailing-space variant — mirrors the real
+      // "Bob The builder " duplicate the sim found on staging.
+      dupeB = await prisma.user.create({
+        data: {
+          firstName: 'Dana',
+          lastName: `Dupe${stamp} `,
+          email: `dana-dupe-b-${stamp}@test.local`,
+          role: 'worker',
+          authProvider: 'email',
+          passwordHash: 'not-a-real-hash',
+        },
+      });
+    });
+
+    afterAll(async () => {
+      for (const u of [real, qa, dupeA, dupeB]) {
+        if (u) await prisma.user.delete({ where: { id: u.id } }).catch(() => {});
+      }
+    });
+
+    it('excludes @*.invalid QA accounts and collapses duplicate-name accounts', async () => {
+      const res = await app.inject({
+        method: 'GET',
+        url: '/network/suggestions',
+        headers: { authorization: `Bearer ${alice.token}` },
+      });
+      expect(res.statusCode).toBe(200);
+      const ids = (res.json() as Array<{ id: string }>).map((c) => c.id);
+
+      expect(ids).toContain(real.id);
+      expect(ids).not.toContain(qa.id);
+
+      // Only one of the two "Dana Dupe" accounts should survive the dedupe.
+      const dupeSurvivors = ids.filter((id) => id === dupeA.id || id === dupeB.id);
+      expect(dupeSurvivors).toHaveLength(1);
+    });
+  });
 });

@@ -418,7 +418,20 @@ export async function jobRoutes(app: FastifyInstance): Promise<void> {
     { preHandler: requireAuth },
     async (request, reply) => {
       const userId = request.user!.id;
-      let tradeId = Number(request.query.tradeId) || 0;
+      const rawTradeId = request.query.tradeId;
+      let tradeId = 0;
+      if (rawTradeId !== undefined && rawTradeId !== '') {
+        const parsed = Number(rawTradeId);
+        // A non-numeric tradeId (e.g. a trade slug like "electrician" instead
+        // of its numeric id) used to silently become NaN → 0 → fall through to
+        // the caller's own trade with no error, as if the param were ignored.
+        if (!Number.isInteger(parsed) || parsed <= 0) {
+          return reply
+            .code(400)
+            .send({ error: 'BadRequest', message: 'tradeId must be a positive integer' });
+        }
+        tradeId = parsed;
+      }
       let state = (request.query.state ?? '').trim();
 
       if (!tradeId) {
