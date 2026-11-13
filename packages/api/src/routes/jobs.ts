@@ -8,7 +8,7 @@ import {
 import { Prisma } from '@blubranch/db';
 import type { FastifyInstance } from 'fastify';
 import { requireAuth } from '../auth/middleware.js';
-import { isPostGisEnabled } from '../lib/postgis.js';
+import { isGeoColumnMissingError, isPostGisEnabled, markGeoColumnMissing } from '../lib/postgis.js';
 import { getPrisma } from '../lib/prisma.js';
 import { parseBody } from '../lib/validate.js';
 import { geocodeAddress, setGeographyPoint } from '../services/geocode.js';
@@ -146,71 +146,25 @@ export async function jobRoutes(app: FastifyInstance): Promise<void> {
     const q = result.data;
     const offset = (q.page - 1) * q.limit;
 
-    // Build WHERE clauses. Use Prisma.sql for safe parameterization.
-    const conditions: Prisma.Sql[] = [Prisma.sql`j."status" = 'open'::"JobStatus"`];
+    // Base WHERE clauses shared by both the PostGIS and Haversine paths.
+    // Use Prisma.sql for safe parameterization.
+    const baseConditions: Prisma.Sql[] = [Prisma.sql`j."status" = 'open'::"JobStatus"`];
 
     if (q.trade) {
-      conditions.push(Prisma.sql`t."slug" = ${q.trade}`);
+      baseConditions.push(Prisma.sql`t."slug" = ${q.trade}`);
     }
     if (q.type) {
-      conditions.push(Prisma.sql`j."job_type"::text = ${q.type}`);
+      baseConditions.push(Prisma.sql`j."job_type"::text = ${q.type}`);
     }
     if (q.setting) {
-      conditions.push(Prisma.sql`j."work_setting"::text = ${q.setting}`);
+      baseConditions.push(Prisma.sql`j."work_setting"::text = ${q.setting}`);
     }
     if (q.search) {
       const term = `%${q.search}%`;
-      conditions.push(Prisma.sql`(j."title" ILIKE ${term} OR j."description" ILIKE ${term})`);
+      baseConditions.push(Prisma.sql`(j."title" ILIKE ${term} OR j."description" ILIKE ${term})`);
     }
 
-    // PostGIS-aware lat/lng filtering fires when (a) the caller supplied a
-    // point AND (b) PostGIS is enabled in this environment, using the
-    // "geo" geography column + ST_DWithin/ST_Distance.
-    //
-    // On Railway's stock Postgres (POSTGIS_ENABLED=false, no "geo" column
-    // at all) we fall back to a plain-SQL Haversine great-circle distance
-    // over the jobs.lat/jobs.lng Decimal columns instead — real radius
-    // filtering and distance sorting, just without a spatial index.
-    const useGeo = isPostGisEnabled() && q.lat !== undefined && q.lng !== undefined;
-    const useHaversine = !isPostGisEnabled() && q.lat !== undefined && q.lng !== undefined;
-
-    let distanceSelect = Prisma.sql`NULL::double precision AS distance_miles`;
-    if (useGeo) {
-      const meters = q.radius * MILES_TO_METERS;
-      const point = Prisma.sql`ST_SetSRID(ST_MakePoint(${q.lng}, ${q.lat}), 4326)::geography`;
-      distanceSelect = Prisma.sql`(ST_Distance(j."geo", ${point}) / ${MILES_TO_METERS}) AS distance_miles`;
-      conditions.push(
-        Prisma.sql`j."geo" IS NOT NULL AND ST_DWithin(j."geo", ${point}, ${meters})`,
-      );
-    } else if (useHaversine) {
-      // Great-circle distance in miles (haversine formula), earth radius
-      // 3958.8 mi. GREATEST/LEAST clamp the acos() argument to [-1, 1] to
-      // guard against floating-point drift on near-identical points.
-      const distanceExpr = Prisma.sql`(3958.8 * acos(GREATEST(-1, LEAST(1,
-        cos(radians(${q.lat})) * cos(radians(j."lat")) * cos(radians(j."lng") - radians(${q.lng}))
-          + sin(radians(${q.lat})) * sin(radians(j."lat"))
-      ))))`;
-      distanceSelect = Prisma.sql`${distanceExpr} AS distance_miles`;
-      conditions.push(
-        Prisma.sql`j."lat" IS NOT NULL AND j."lng" IS NOT NULL AND ${distanceExpr} <= ${q.radius}`,
-      );
-    }
-
-    const whereSql = Prisma.sql`WHERE ${Prisma.join(conditions, ' AND ')}`;
-
-    let orderSql: Prisma.Sql;
-    if (q.sort === 'newest') {
-      orderSql = Prisma.sql`ORDER BY j."is_featured" DESC, j."created_at" DESC`;
-    } else if (q.sort === 'pay_highest') {
-      orderSql = Prisma.sql`ORDER BY j."is_featured" DESC, j."pay_max" DESC`;
-    } else if (useGeo || useHaversine) {
-      orderSql = Prisma.sql`ORDER BY j."is_featured" DESC, distance_miles ASC NULLS LAST`;
-    } else {
-      // 'nearest' fallback when no point given.
-      orderSql = Prisma.sql`ORDER BY j."is_featured" DESC, j."created_at" DESC`;
-    }
-
-    const rows = await prisma.$queryRaw<Array<{
+    type JobRow = {
       id: string;
       title: string;
       pay_min: string;
@@ -234,30 +188,107 @@ export async function jobRoutes(app: FastifyInstance): Promise<void> {
       trade_name: string;
       trade_slug: string;
       distance_miles: number | null;
-    }>>(Prisma.sql`
-      SELECT
-        j."id", j."title", j."pay_min", j."pay_max", j."job_type", j."work_setting",
-        j."city", j."state", j."zip_code", j."experience_level", j."openings_count",
-        j."plan_tier", j."is_featured", j."is_urgent", j."created_at", j."expires_at",
-        c."id" AS company_id, c."name" AS company_name, c."logo_url" AS company_logo_url,
-        t."id" AS trade_id, t."name" AS trade_name, t."slug" AS trade_slug,
-        ${distanceSelect}
-      FROM "jobs" j
-      JOIN "companies" c ON c."id" = j."company_id"
-      JOIN "trades" t ON t."id" = j."trade_id"
-      ${whereSql}
-      ${orderSql}
-      LIMIT ${q.limit} OFFSET ${offset}
-    `);
+    };
 
-    // Total for pagination — same WHERE clause, no joins/order needed.
-    const totals = await prisma.$queryRaw<Array<{ count: bigint }>>(Prisma.sql`
-      SELECT COUNT(*)::bigint AS count
-      FROM "jobs" j
-      JOIN "trades" t ON t."id" = j."trade_id"
-      ${whereSql}
-    `);
-    const total = Number(totals[0]?.count ?? 0n);
+    // Builds and runs the two search queries for a given PostGIS
+    // availability. Takes an explicit flag (rather than re-reading
+    // isPostGisEnabled() internally) so the caller can force a retry on
+    // the non-PostGIS path without this function racing a second read of
+    // mutable global state.
+    async function runSearch(
+      postGisAvailable: boolean,
+    ): Promise<{ rows: JobRow[]; total: number }> {
+      // PostGIS-aware lat/lng filtering fires when (a) the caller supplied a
+      // point AND (b) PostGIS is enabled in this environment, using the
+      // "geo" geography column + ST_DWithin/ST_Distance.
+      //
+      // On Railway's stock Postgres (POSTGIS_ENABLED=false, no "geo" column
+      // at all) we fall back to a plain-SQL Haversine great-circle distance
+      // over the jobs.lat/jobs.lng Decimal columns instead — real radius
+      // filtering and distance sorting, just without a spatial index.
+      const useGeo = postGisAvailable && q.lat !== undefined && q.lng !== undefined;
+      const useHaversine = !postGisAvailable && q.lat !== undefined && q.lng !== undefined;
+
+      const conditions = [...baseConditions];
+      let distanceSelect = Prisma.sql`NULL::double precision AS distance_miles`;
+      if (useGeo) {
+        const meters = q.radius * MILES_TO_METERS;
+        const point = Prisma.sql`ST_SetSRID(ST_MakePoint(${q.lng}, ${q.lat}), 4326)::geography`;
+        distanceSelect = Prisma.sql`(ST_Distance(j."geo", ${point}) / ${MILES_TO_METERS}) AS distance_miles`;
+        conditions.push(
+          Prisma.sql`j."geo" IS NOT NULL AND ST_DWithin(j."geo", ${point}, ${meters})`,
+        );
+      } else if (useHaversine) {
+        // Great-circle distance in miles (haversine formula), earth radius
+        // 3958.8 mi. GREATEST/LEAST clamp the acos() argument to [-1, 1] to
+        // guard against floating-point drift on near-identical points.
+        const distanceExpr = Prisma.sql`(3958.8 * acos(GREATEST(-1, LEAST(1,
+          cos(radians(${q.lat})) * cos(radians(j."lat")) * cos(radians(j."lng") - radians(${q.lng}))
+            + sin(radians(${q.lat})) * sin(radians(j."lat"))
+        ))))`;
+        distanceSelect = Prisma.sql`${distanceExpr} AS distance_miles`;
+        conditions.push(
+          Prisma.sql`j."lat" IS NOT NULL AND j."lng" IS NOT NULL AND ${distanceExpr} <= ${q.radius}`,
+        );
+      }
+
+      const whereSql = Prisma.sql`WHERE ${Prisma.join(conditions, ' AND ')}`;
+
+      let orderSql: Prisma.Sql;
+      if (q.sort === 'newest') {
+        orderSql = Prisma.sql`ORDER BY j."is_featured" DESC, j."created_at" DESC`;
+      } else if (q.sort === 'pay_highest') {
+        orderSql = Prisma.sql`ORDER BY j."is_featured" DESC, j."pay_max" DESC`;
+      } else if (useGeo || useHaversine) {
+        orderSql = Prisma.sql`ORDER BY j."is_featured" DESC, distance_miles ASC NULLS LAST`;
+      } else {
+        // 'nearest' fallback when no point given.
+        orderSql = Prisma.sql`ORDER BY j."is_featured" DESC, j."created_at" DESC`;
+      }
+
+      const rows = await prisma.$queryRaw<JobRow[]>(Prisma.sql`
+        SELECT
+          j."id", j."title", j."pay_min", j."pay_max", j."job_type", j."work_setting",
+          j."city", j."state", j."zip_code", j."experience_level", j."openings_count",
+          j."plan_tier", j."is_featured", j."is_urgent", j."created_at", j."expires_at",
+          c."id" AS company_id, c."name" AS company_name, c."logo_url" AS company_logo_url,
+          t."id" AS trade_id, t."name" AS trade_name, t."slug" AS trade_slug,
+          ${distanceSelect}
+        FROM "jobs" j
+        JOIN "companies" c ON c."id" = j."company_id"
+        JOIN "trades" t ON t."id" = j."trade_id"
+        ${whereSql}
+        ${orderSql}
+        LIMIT ${q.limit} OFFSET ${offset}
+      `);
+
+      // Total for pagination — same WHERE clause, no joins/order needed.
+      const totals = await prisma.$queryRaw<Array<{ count: bigint }>>(Prisma.sql`
+        SELECT COUNT(*)::bigint AS count
+        FROM "jobs" j
+        JOIN "trades" t ON t."id" = j."trade_id"
+        ${whereSql}
+      `);
+
+      return { rows, total: Number(totals[0]?.count ?? 0n) };
+    }
+
+    // POSTGIS_ENABLED can be wrong for the environment it's running in —
+    // e.g. a schema sync that skips migrations (`prisma db push`) never
+    // creates the "geo" column even on a Postgres that has the PostGIS
+    // extension. If the PostGIS-path query hits that exact "undefined
+    // column" error, retry once on the Haversine path instead of 500ing —
+    // every later request in this process will already see PostGIS as off
+    // via markGeoColumnMissing.
+    let rows: JobRow[];
+    let total: number;
+    try {
+      ({ rows, total } = await runSearch(isPostGisEnabled()));
+    } catch (err) {
+      if (!isGeoColumnMissingError(err)) throw err;
+      markGeoColumnMissing();
+      ({ rows, total } = await runSearch(false));
+    }
 
     return reply.send({
       page: q.page,

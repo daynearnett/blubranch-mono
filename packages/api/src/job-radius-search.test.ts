@@ -93,8 +93,16 @@ describe('GET /jobs radius search (PostGIS + Haversine fallback)', () => {
     // Pin exact coordinates (the real geocode service uses a hashed dev
     // offset, which would make distances non-deterministic for this test).
     // Calling this with POSTGIS_ENABLED at its current (unset → true)
-    // default also writes the "geo" column, so the PostGIS-path assertions
-    // below exercise real ST_DWithin/ST_Distance, not just the fallback.
+    // default attempts to also write the "geo" column, exercising real
+    // ST_DWithin/ST_Distance in the "PostGIS enabled" describe below — but
+    // only on a database where that column genuinely exists (the real
+    // PostGIS extension alone isn't enough; see docs/TESTING.md and
+    // lib/postgis.ts's markGeoColumnMissing). Where it doesn't — e.g. this
+    // repo's `prisma db push`-based test setup, which can't model the
+    // PostGIS-only column — the write self-detects that and falls back,
+    // so the "PostGIS enabled" describe below transparently runs over the
+    // Haversine path too. Either way these assertions hold, since both
+    // paths are expected to filter/sort/measure distance correctly.
     await setGeographyPoint(prisma, 'jobs', nearJobId, COLUMBUS);
     await setGeographyPoint(prisma, 'jobs', farJobId, SEATTLE);
   });

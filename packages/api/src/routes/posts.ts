@@ -7,7 +7,7 @@ import {
 import { Prisma } from '@blubranch/db';
 import type { FastifyInstance } from 'fastify';
 import { requireAuth } from '../auth/middleware.js';
-import { isPostGisEnabled } from '../lib/postgis.js';
+import { isGeoColumnMissingError, isPostGisEnabled, markGeoColumnMissing } from '../lib/postgis.js';
 import { canViewPost } from '../lib/post-visibility.js';
 import { getPrisma } from '../lib/prisma.js';
 import { parseBody } from '../lib/validate.js';
@@ -385,7 +385,7 @@ export async function postRoutes(app: FastifyInstance): Promise<void> {
 
     const tradeIds = trades.map((t) => t.tradeId);
 
-    let jobsRows: Array<{
+    type FeedJobRow = {
       id: string;
       title: string;
       pay_min: string;
@@ -402,37 +402,13 @@ export async function postRoutes(app: FastifyInstance): Promise<void> {
       trade_name: string;
       trade_slug: string;
       distance_miles: number | null;
-    }> = [];
+    };
 
-    if (profile?.city && profile?.state && isPostGisEnabled()) {
-      const conditions: Prisma.Sql[] = [Prisma.sql`j."status" = 'open'::"JobStatus"`];
-      if (tradeIds.length > 0) {
-        conditions.push(Prisma.sql`j."trade_id" = ANY(${tradeIds}::int[])`);
-      }
-      // Nearest first; PostGIS distance over the user's stored point.
-      jobsRows = await prisma.$queryRaw(Prisma.sql`
-        SELECT
-          j."id", j."title", j."pay_min", j."pay_max", j."city", j."state",
-          j."job_type", j."work_setting", j."created_at", j."is_featured", j."is_urgent",
-          c."id" AS company_id, c."name" AS company_name,
-          t."name" AS trade_name, t."slug" AS trade_slug,
-          (
-            CASE WHEN wp."geo" IS NOT NULL AND j."geo" IS NOT NULL
-              THEN ST_Distance(j."geo", wp."geo") / 1609.344
-              ELSE NULL
-            END
-          ) AS distance_miles
-        FROM "jobs" j
-        JOIN "companies" c ON c."id" = j."company_id"
-        JOIN "trades" t ON t."id" = j."trade_id"
-        LEFT JOIN "worker_profiles" wp ON wp."user_id" = ${userId}::uuid
-        WHERE ${Prisma.join(conditions, ' AND ')}
-        ORDER BY j."is_featured" DESC, distance_miles ASC NULLS LAST, j."created_at" DESC
-        LIMIT 6
-      `);
-    } else {
-      // No saved location → just newest open jobs.
-      jobsRows = await prisma.$queryRaw(Prisma.sql`
+    let jobsRows: FeedJobRow[] = [];
+
+    async function newestOpenJobs() {
+      // No saved location (or no PostGIS) → just newest open jobs.
+      return prisma.$queryRaw<FeedJobRow[]>(Prisma.sql`
         SELECT
           j."id", j."title", j."pay_min", j."pay_max", j."city", j."state",
           j."job_type", j."work_setting", j."created_at", j."is_featured", j."is_urgent",
@@ -446,6 +422,45 @@ export async function postRoutes(app: FastifyInstance): Promise<void> {
         ORDER BY j."is_featured" DESC, j."created_at" DESC
         LIMIT 6
       `);
+    }
+
+    if (profile?.city && profile?.state && isPostGisEnabled()) {
+      const conditions: Prisma.Sql[] = [Prisma.sql`j."status" = 'open'::"JobStatus"`];
+      if (tradeIds.length > 0) {
+        conditions.push(Prisma.sql`j."trade_id" = ANY(${tradeIds}::int[])`);
+      }
+      try {
+        // Nearest first; PostGIS distance over the user's stored point.
+        jobsRows = await prisma.$queryRaw<FeedJobRow[]>(Prisma.sql`
+          SELECT
+            j."id", j."title", j."pay_min", j."pay_max", j."city", j."state",
+            j."job_type", j."work_setting", j."created_at", j."is_featured", j."is_urgent",
+            c."id" AS company_id, c."name" AS company_name,
+            t."name" AS trade_name, t."slug" AS trade_slug,
+            (
+              CASE WHEN wp."geo" IS NOT NULL AND j."geo" IS NOT NULL
+                THEN ST_Distance(j."geo", wp."geo") / 1609.344
+                ELSE NULL
+              END
+            ) AS distance_miles
+          FROM "jobs" j
+          JOIN "companies" c ON c."id" = j."company_id"
+          JOIN "trades" t ON t."id" = j."trade_id"
+          LEFT JOIN "worker_profiles" wp ON wp."user_id" = ${userId}::uuid
+          WHERE ${Prisma.join(conditions, ' AND ')}
+          ORDER BY j."is_featured" DESC, distance_miles ASC NULLS LAST, j."created_at" DESC
+          LIMIT 6
+        `);
+      } catch (err) {
+        // POSTGIS_ENABLED can be wrong for the environment it's running in
+        // (see markGeoColumnMissing) — fall back to the no-distance query
+        // instead of 500ing the whole feed.
+        if (!isGeoColumnMissingError(err)) throw err;
+        markGeoColumnMissing();
+        jobsRows = await newestOpenJobs();
+      }
+    } else {
+      jobsRows = await newestOpenJobs();
     }
 
     const posts = await postsPromise;

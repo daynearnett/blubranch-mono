@@ -3,7 +3,7 @@
 // returns a Chicago-anchored fallback so dev databases get usable points
 // (with a small zip-derived offset so multiple fixtures don't collide).
 
-import { isPostGisEnabled } from '../lib/postgis.js';
+import { isGeoColumnMissingError, isPostGisEnabled, markGeoColumnMissing } from '../lib/postgis.js';
 
 export interface GeocodeResult {
   lat: number;
@@ -104,6 +104,14 @@ export async function geocodeAddress(input: {
  * the postgis_geography migration's PostGIS-availability guard), so we
  * skip that write entirely when it's off instead of issuing a query that's
  * guaranteed to fail with "column geo does not exist".
+ *
+ * POSTGIS_ENABLED can also be wrong for the environment it's running in —
+ * e.g. a schema sync that skips migrations (`prisma db push`) never
+ * creates the "geo" column even on a Postgres that has the PostGIS
+ * extension. If the write below hits that exact "undefined column" error,
+ * we treat it the same as PostGIS being off (see markGeoColumnMissing)
+ * instead of throwing, since the lat/lng Haversine-fallback columns were
+ * already written unconditionally above.
  */
 export async function setGeographyPoint(
   prisma: import('@blubranch/db').PrismaClient,
@@ -124,5 +132,10 @@ export async function setGeographyPoint(
   if (!isPostGisEnabled()) return;
 
   const geoSql = `UPDATE "${table}" SET "geo" = ST_SetSRID(ST_MakePoint($1, $2), 4326)::geography WHERE "${idColumn}" = $3::uuid`;
-  await prisma.$executeRawUnsafe(geoSql, point.lng, point.lat, id);
+  try {
+    await prisma.$executeRawUnsafe(geoSql, point.lng, point.lat, id);
+  } catch (err) {
+    if (!isGeoColumnMissingError(err)) throw err;
+    markGeoColumnMissing();
+  }
 }
