@@ -14,8 +14,16 @@ export interface SignupDraft {
   email: string;
   password: string;
   termsAccepted: boolean;
+  /**
+   * The account is created at the end of step 2, not at the end of the
+   * wizard — every step after it runs authenticated. Set so a back-and-
+   * forward through this screen doesn't try to register a second time.
+   */
+  accountCreated: boolean;
   // Step 3 (S6): email verified flag
   emailVerified: boolean;
+  /** Step 3.5: answered the "want a head start?" import question. */
+  importAnswered: boolean;
   // Step 4 (S7): location
   city: string;
   state: string;
@@ -40,7 +48,9 @@ const empty: SignupDraft = {
   email: '',
   password: '',
   termsAccepted: false,
+  accountCreated: false,
   emailVerified: false,
+  importAnswered: false,
   city: '',
   state: '',
   zipCode: '',

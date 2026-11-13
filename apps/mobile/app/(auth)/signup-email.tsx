@@ -5,12 +5,14 @@ import { Check } from 'lucide-react-native';
 import { Button, Input } from '../../src/components/ui.js';
 import { SignupShell } from '../../src/components/signup-shell.js';
 import { useSignup } from '../../src/lib/signup-context.js';
-import { auth } from '../../src/lib/api.js';
+import { ApiError, auth } from '../../src/lib/api.js';
+import { useAuth } from '../../src/lib/auth-context.js';
 import { colors, radius, spacing, typography } from '../../src/theme.js';
 
 export default function SignupEmail() {
   const router = useRouter();
   const { draft, update } = useSignup();
+  const { register } = useAuth();
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [checking, setChecking] = useState(false);
 
@@ -41,9 +43,31 @@ export default function SignupEmail() {
         );
         return;
       }
+      // Create the account here rather than at the end of the wizard. The
+      // remaining steps (verify, import, location, trade) then run
+      // authenticated, which is what lets the LinkedIn/resume import write
+      // straight to the profile instead of staging everything in the draft.
+      //
+      // Re-entering this screen after a back-navigation must not register
+      // twice — `accountCreated` short-circuits it.
+      if (!draft.accountCreated) {
+        await register({
+          firstName: draft.firstName,
+          lastName: draft.lastName,
+          email: draft.email,
+          password: draft.password,
+          role: draft.role,
+          termsAccepted: draft.termsAccepted,
+        });
+        update({ accountCreated: true });
+      }
       router.push('/(auth)/signup-verify');
-    } catch {
-      router.push('/(auth)/signup-verify');
+    } catch (err) {
+      const msg =
+        err instanceof ApiError && err.message && err.message !== 'ValidationError'
+          ? err.message
+          : "Couldn't create your account. Give it another shot.";
+      Alert.alert('Signup failed', msg);
     } finally {
       setChecking(false);
     }

@@ -269,6 +269,51 @@ export const me = {
     request<WorkplaceRecord>('/users/me/workplaces', { method: 'POST', body: JSON.stringify(input) }),
 };
 
+// ── Onboarding profile import ───────────────────────────────────
+// Both calls only RETURN parsed data — nothing is written until the worker
+// confirms on the review screen. See packages/api/src/routes/imports.ts.
+export interface LinkedInImportResult {
+  firstName: string;
+  lastName: string;
+  email: string | null;
+  pictureUrl: string | null;
+}
+
+export interface ResumeImportResult {
+  headline: string | null;
+  bio: string | null;
+  workHistory: {
+    companyName: string;
+    title: string;
+    /** YYYY-MM */
+    startDate: string;
+    endDate: string | null;
+    isCurrent: boolean;
+  }[];
+  skillIds: number[];
+}
+
+export const imports = {
+  /** Which import options the server has credentials for. */
+  config: () => request<{ linkedin: boolean; resume: boolean }>('/imports/config'),
+  startLinkedIn: () =>
+    request<{ authorizeUrl: string }>('/imports/linkedin/start', { method: 'POST' }),
+  /** Redeem the one-time ticket from the blubranch://linkedin-import deep link. */
+  linkedIn: (ticket: string) =>
+    request<LinkedInImportResult>('/users/me/import/linkedin', {
+      method: 'POST',
+      body: JSON.stringify({ ticket }),
+    }),
+  resume: async (uri: string, filename = 'resume.pdf') => {
+    const form = new FormData();
+    form.append('file', { uri, name: filename, type: 'application/pdf' } as never);
+    return request<ResumeImportResult>('/users/me/import/resume', {
+      method: 'POST',
+      body: form,
+    });
+  },
+};
+
 // ── Public profile ──────────────────────────────────────────────
 export const users = {
   get: (id: string) => request<PublicProfile>(`/users/${id}`),

@@ -6,7 +6,6 @@ import { TRADE_LIST } from '@blubranch/shared';
 import { Button, Chip, Input } from '../../src/components/ui.js';
 import { SignupShell } from '../../src/components/signup-shell.js';
 import { ApiError, me, reference } from '../../src/lib/api.js';
-import { useAuth } from '../../src/lib/auth-context.js';
 import { useSignup } from '../../src/lib/signup-context.js';
 import { colors, radius, spacing, typography } from '../../src/theme.js';
 
@@ -33,7 +32,6 @@ function currentOrdinal(): number {
 export default function SignupTrade() {
   const router = useRouter();
   const { draft, update, reset } = useSignup();
-  const { register } = useAuth();
   const [trades, setTrades] = useState<TradeOption[]>([]);
   const [showAll, setShowAll] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -87,15 +85,9 @@ export default function SignupTrade() {
 
     setSubmitting(true);
     try {
-      await register({
-        firstName: draft.firstName,
-        lastName: draft.lastName,
-        email: draft.email,
-        password: draft.password,
-        role: draft.role,
-        termsAccepted: draft.termsAccepted,
-      });
-
+      // The account already exists — it's created at the end of the email
+      // step so the rest of the wizard can run authenticated. This step is
+      // now profile updates only.
       const positiveTradeIds = draft.tradeIds.filter((id) => id > 0);
       if (positiveTradeIds.length) {
         await me.setTrades({ tradeIds: positiveTradeIds }).catch(() => undefined);
@@ -121,7 +113,7 @@ export default function SignupTrade() {
         err instanceof ApiError && err.message && err.message !== 'ValidationError'
           ? err.message
           : "Couldn't save your profile. Give it another shot.";
-      Alert.alert('Signup failed', msg);
+      Alert.alert('Could not save', msg);
     } finally {
       setSubmitting(false);
     }

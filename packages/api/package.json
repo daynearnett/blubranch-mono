@@ -16,6 +16,7 @@
     "clean": "rm -rf .turbo"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.133.0",
     "@aws-sdk/client-s3": "^3.1048.0",
     "@aws-sdk/s3-request-presigner": "^3.1048.0",
     "@blubranch/db": "workspace:*",
