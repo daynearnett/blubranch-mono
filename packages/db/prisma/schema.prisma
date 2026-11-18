@@ -260,6 +260,7 @@ model UserSettings {
   notifyLicenseExpiry       Boolean @default(true) @map("notify_license_expiry")
   notifyVouches             Boolean @default(true) @map("notify_vouches")
   notifyDailyTasks          Boolean @default(true) @map("notify_daily_tasks")
+  notifyCoauthorInvites     Boolean @default(true) @map("notify_coauthor_invites")
 
   @@map("user_settings")
 }
