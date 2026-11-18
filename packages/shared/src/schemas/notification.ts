@@ -30,6 +30,7 @@ export const notificationPreferencesSchema = z
     notifyLicenseExpiry: z.boolean().optional(),
     notifyVouches: z.boolean().optional(),
     notifyDailyTasks: z.boolean().optional(),
+    notifyCoauthorInvites: z.boolean().optional(),
   })
   .strict();
 export type NotificationPreferences = z.infer<typeof notificationPreferencesSchema>;

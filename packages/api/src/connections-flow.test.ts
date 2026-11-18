@@ -132,15 +132,19 @@ describe('Worker connection flow', () => {
   describe('GET /network/suggestions — QA/duplicate-account filtering', () => {
     let real: { id: string };
     let qa: { id: string };
+    let qaTestLocal: { id: string };
     let dupeA: { id: string };
     let dupeB: { id: string };
 
     beforeAll(async () => {
+      // A real signup never lands on @test.local or @*.invalid — those are
+      // fixture-only domains. Use a realistic-looking address here so this
+      // case isn't accidentally caught by either exclusion.
       real = await prisma.user.create({
         data: {
           firstName: 'Carol',
           lastName: `Real${stamp}`,
-          email: `carol-real-${stamp}@test.local`,
+          email: `carol-real-${stamp}@gmail.com`,
           role: 'worker',
           authProvider: 'email',
           passwordHash: 'not-a-real-hash',
@@ -156,11 +160,27 @@ describe('Worker connection flow', () => {
           passwordHash: 'not-a-real-hash',
         },
       });
+      // Mirrors the actual staging junk the sim found (2026-11-13/16): QA
+      // probe accounts with real-looking names, left behind on the shared
+      // DB by the integration suite itself, which uses @test.local for
+      // every one of its fixtures (packages/api/src/*.test.ts) — not the
+      // deliberately-seeded @*.invalid convention the original filter only
+      // caught.
+      qaTestLocal = await prisma.user.create({
+        data: {
+          firstName: 'Probe',
+          lastName: 'Sprint',
+          email: `probe-sprint-${stamp}@test.local`,
+          role: 'worker',
+          authProvider: 'email',
+          passwordHash: 'not-a-real-hash',
+        },
+      });
       dupeA = await prisma.user.create({
         data: {
           firstName: 'Dana',
           lastName: `Dupe${stamp}`,
-          email: `dana-dupe-a-${stamp}@test.local`,
+          email: `dana-dupe-a-${stamp}@gmail.com`,
           role: 'worker',
           authProvider: 'email',
           passwordHash: 'not-a-real-hash',
@@ -172,7 +192,7 @@ describe('Worker connection flow', () => {
         data: {
           firstName: 'Dana',
           lastName: `Dupe${stamp} `,
-          email: `dana-dupe-b-${stamp}@test.local`,
+          email: `dana-dupe-b-${stamp}@gmail.com`,
           role: 'worker',
           authProvider: 'email',
           passwordHash: 'not-a-real-hash',
@@ -181,12 +201,12 @@ describe('Worker connection flow', () => {
     });
 
     afterAll(async () => {
-      for (const u of [real, qa, dupeA, dupeB]) {
+      for (const u of [real, qa, qaTestLocal, dupeA, dupeB]) {
         if (u) await prisma.user.delete({ where: { id: u.id } }).catch(() => {});
       }
     });
 
-    it('excludes @*.invalid QA accounts and collapses duplicate-name accounts', async () => {
+    it('excludes @*.invalid and @test.local QA accounts and collapses duplicate-name accounts', async () => {
       const res = await app.inject({
         method: 'GET',
         url: '/network/suggestions',
@@ -197,6 +217,7 @@ describe('Worker connection flow', () => {
 
       expect(ids).toContain(real.id);
       expect(ids).not.toContain(qa.id);
+      expect(ids).not.toContain(qaTestLocal.id);
 
       // Only one of the two "Dana Dupe" accounts should survive the dedupe.
       const dupeSurvivors = ids.filter((id) => id === dupeA.id || id === dupeB.id);

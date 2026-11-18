@@ -94,6 +94,39 @@ describe('Trade Card + license-expiry reminders', () => {
     expect(body.vouches).toBe(0);
   });
 
+  it('GET /users/me/trade-card — lazily backfills a slug for an account that has none (sim finding, 2026-10-19 / 2026-11-16)', async () => {
+    const u = await prisma.user.create({
+      data: {
+        firstName: 'Noslug',
+        lastName: 'Worker',
+        email: `noslug-worker-${stamp}@test.local`,
+        role: 'worker',
+        authProvider: 'email',
+        passwordHash: 'not-a-real-hash',
+      },
+    });
+    expect(u.slug).toBeNull();
+
+    const res = await app.inject({
+      method: 'GET',
+      url: '/users/me/trade-card',
+      headers: { authorization: `Bearer ${signAccessToken(u.id, 'worker')}` },
+    });
+    expect(res.statusCode).toBe(200);
+    const assignedSlug: string = res.json().slug;
+    expect(assignedSlug).toBeTruthy();
+
+    // Persisted, not just returned once.
+    const reloaded = await prisma.user.findUnique({ where: { id: u.id } });
+    expect(reloaded?.slug).toBe(assignedSlug);
+
+    // The feature this unblocks: the public page is now reachable by slug.
+    const shared = await app.inject({ method: 'GET', url: `/u/${assignedSlug}` });
+    expect(shared.statusCode).toBe(200);
+
+    await prisma.user.delete({ where: { id: u.id } }).catch(() => {});
+  });
+
   it('GET /users/me/trade-card — requires auth (401)', async () => {
     const res = await app.inject({ method: 'GET', url: '/users/me/trade-card' });
     expect(res.statusCode).toBe(401);

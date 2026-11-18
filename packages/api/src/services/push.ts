@@ -50,8 +50,10 @@ export async function sendNotification(params: {
       post_like: settings.notifyPostLikes,
       post_comment: settings.notifyPostComments,
       post_mention: settings.notifyMentions,
-      // Co-author invites are tag-like events; share the mentions preference.
-      coauthor_invite: settings.notifyMentions,
+      // Own preference — a co-author invite is an actionable invitation (it
+      // changes real post state on accept), not mention-spam, so it must not
+      // be silently lost when a user mutes @-mentions.
+      coauthor_invite: settings.notifyCoauthorInvites,
       license_expiry: settings.notifyLicenseExpiry,
       vouch_received: settings.notifyVouches,
       vouch_confirmed: settings.notifyVouches,

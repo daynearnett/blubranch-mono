@@ -360,14 +360,18 @@ export async function connectionRoutes(app: FastifyInstance): Promise<void> {
     );
 
     // Fetch candidate users (not already connected, limit pool). Excludes
-    // throwaway QA/smoke-test accounts (seeded with an @*.invalid email, per
-    // convention — see docs/SIM-TESTER-AGENTS.md) so they don't crowd out real
-    // people in the suggestion list.
+    // throwaway QA/smoke-test accounts so they don't crowd out real people in
+    // the suggestion list. Two fixture conventions in practice: the
+    // deliberate @*.invalid smoke-test seed (docs/SIM-TESTER-AGENTS.md) and
+    // @test.local, which the entire integration test suite uses for its
+    // fixture users (packages/api/src/*.test.ts) — the latter is what's
+    // actually been showing up as junk (names like "Carol Real", "Dana Dupe
+    // A/B", "Rita Reporter"), not the former.
     const candidates = await prisma.user.findMany({
       where: {
         id: { notIn: [...connectedIds] },
         role: 'worker',
-        email: { not: { endsWith: '.invalid' } },
+        NOT: [{ email: { endsWith: '.invalid' } }, { email: { endsWith: '@test.local' } }],
       },
       take: 50,
       include: {

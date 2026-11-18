@@ -356,6 +356,7 @@ export interface MeResponse {
     notifyLicenseExpiry: boolean;
     notifyVouches: boolean;
     notifyDailyTasks: boolean;
+    notifyCoauthorInvites: boolean;
   } | null;
   trades: { id: number; name: string; slug: string }[];
   skills: { id: number; name: string; tradeId: number | null }[];
@@ -1068,6 +1069,7 @@ export const notifications = {
     notifyLicenseExpiry?: boolean;
     notifyVouches?: boolean;
     notifyDailyTasks?: boolean;
+    notifyCoauthorInvites?: boolean;
   }) =>
     request<unknown>('/settings/notifications', { method: 'PUT', body: JSON.stringify(prefs) }),
 };

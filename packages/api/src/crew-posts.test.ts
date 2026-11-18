@@ -194,4 +194,36 @@ describe('Crew posts — co-author invite/accept', () => {
     });
     expect(res.statusCode).toBe(409);
   });
+
+  it('coauthor_invite notifications are gated by notifyCoauthorInvites, not notifyMentions', async () => {
+    // A worker who muted @-mention spam must still get real crew-post
+    // invites — the two preferences were previously (incorrectly) the same
+    // toggle (sim finding, first caught 2026-11-09).
+    const muter = await mkUser('Mort');
+    await prisma.userSettings.create({
+      data: { userId: muter.id, notifyMentions: false, notifyCoauthorInvites: true },
+    });
+    await prisma.connection.create({
+      data: { requesterId: author.id, receiverId: muter.id, status: 'accepted' },
+    });
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/posts',
+      headers: { authorization: `Bearer ${author.token}` },
+      payload: { content: 'Mort, you were on this one too.', coauthorIds: [muter.id] },
+    });
+    expect(res.statusCode).toBe(201);
+
+    let notif = null;
+    for (let i = 0; i < 20 && !notif; i++) {
+      notif = await prisma.notification.findFirst({
+        where: { userId: muter.id, type: 'coauthor_invite' },
+      });
+      if (!notif) await new Promise((r) => setTimeout(r, 100));
+    }
+    expect(notif).not.toBeNull();
+
+    await prisma.user.delete({ where: { id: muter.id } }).catch(() => {});
+  });
 });
