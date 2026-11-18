@@ -18,6 +18,7 @@ import { geocodeAddress, setGeographyPoint } from '../services/geocode.js';
 import { notifyProfileView } from '../services/push.js';
 import { checkApplyReadiness } from '../services/apply-readiness.js';
 import { recomputeProfileCompleteness } from '../services/profile-completeness.js';
+import { ensureUserSlug } from '../lib/slug.js';
 
 // Confirmed vouch → the shape public profiles display ("Vouched by" section).
 function serializeVouch(v: {
@@ -448,6 +449,8 @@ export async function userRoutes(app: FastifyInstance): Promise<void> {
     // Profile-view notification (throttled, non-blocking).
     if (request.user?.id) notifyProfileView(request.user.id, user.id).catch(() => {});
 
+    const slug = user.slug ?? (await ensureUserSlug(user.id, user.firstName, user.lastName));
+
     const showRate = user.settings?.showHourlyRate ?? false;
     const showUnion = user.settings?.showUnion ?? true;
 
@@ -470,7 +473,7 @@ export async function userRoutes(app: FastifyInstance): Promise<void> {
       profilePhotoUrl: user.profilePhotoUrl,
       role: user.role,
       isVerified: user.isVerified,
-      slug: user.slug,
+      slug,
       workerProfile: user.workerProfile
         ? {
             ...user.workerProfile,
@@ -515,13 +518,14 @@ export async function userRoutes(app: FastifyInstance): Promise<void> {
     const vouchCount = await prisma.vouch.count({
       where: { voucheeId: user.id, status: 'confirmed' },
     });
+    const slug = user.slug ?? (await ensureUserSlug(user.id, user.firstName, user.lastName));
 
     return reply.send({
       id: user.id,
       firstName: user.firstName,
       lastName: user.lastName,
       profilePhotoUrl: user.profilePhotoUrl,
-      slug: user.slug,
+      slug,
       isVerified: user.isVerified,
       trade: user.trades[0]?.trade?.name ?? null,
       experienceLevel: user.workerProfile?.experienceLevel ?? null,
