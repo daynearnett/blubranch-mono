@@ -129,6 +129,28 @@ export async function syncSubscription(prisma: PrismaClient, sub: Stripe.Subscri
   const justActivated = ACTIVE_SUB_STATUSES.includes(sub.status);
 
   const existing = await prisma.subscription.findUnique({ where: { userId } });
+
+  // Guard against a stale webhook clobbering a newer subscription. `/intent`
+  // doesn't block a retry on anything short of an active/trialing local row
+  // (see POST /payments/subscription/intent), so a user who abandons a
+  // `default_incomplete` subscription and retries ends up with TWO Stripe
+  // subscription objects for a while — the old one still exists until
+  // Stripe auto-expires it (~23h later) or we hear about it another way.
+  // That late event for the OLD sub.id would otherwise overwrite the row
+  // (upsert is keyed on userId only) even though the NEW subscription is the
+  // one actually in effect — this is exactly what broke both employer
+  // subscriptions simultaneously on 2026-11-15/16 (sim findings). Only skip
+  // when the event reports bad news (nothing good is lost by accepting an
+  // activation) for a subscription id that's no longer the one on file.
+  const STALE_BAD_STATUSES: Stripe.Subscription.Status[] = ['canceled', 'incomplete_expired', 'unpaid'];
+  if (
+    existing &&
+    existing.stripeSubscriptionId !== sub.id &&
+    STALE_BAD_STATUSES.includes(sub.status)
+  ) {
+    return;
+  }
+
   await prisma.subscription.upsert({
     where: { userId },
     create: {

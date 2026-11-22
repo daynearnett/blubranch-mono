@@ -125,6 +125,44 @@ describe('Phase 5 payments', () => {
     expect(await hasActiveSubscription(prisma, employer.id)).toBe(false);
   });
 
+  it('syncSubscription ignores a stale canceled/expired event for a superseded subscription id', async () => {
+    // Simulate: the user abandoned an `incomplete` subscription (subA) and
+    // retried, ending up on a second, active subscription (subB) — the exact
+    // sequence behind the 2026-11-15 double-lapse (sim findings). subA's
+    // late auto-expiry webhook must NOT clobber subB's active row.
+    const subA = {
+      id: `sub_stale_a_${stamp}`,
+      status: 'active',
+      customer: `cus_stale_${stamp}`,
+      cancel_at_period_end: false,
+      metadata: { userId: employer.id },
+      items: { data: [{ current_period_end: Math.floor(Date.now() / 1000) + 86400 }] },
+    } as unknown as Stripe.Subscription;
+    await syncSubscription(prisma, subA);
+
+    const subB = { ...subA, id: `sub_stale_b_${stamp}` } as unknown as Stripe.Subscription;
+    await syncSubscription(prisma, subB);
+    let row = await prisma.subscription.findUnique({ where: { userId: employer.id } });
+    expect(row!.stripeSubscriptionId).toBe(`sub_stale_b_${stamp}`);
+    expect(row!.status).toBe('active');
+
+    // The late, stale event for subA (now superseded) arrives reporting bad
+    // news — must be ignored, not applied on top of subB's good state.
+    const staleAExpired = { ...subA, status: 'incomplete_expired' } as unknown as Stripe.Subscription;
+    await syncSubscription(prisma, staleAExpired);
+    row = await prisma.subscription.findUnique({ where: { userId: employer.id } });
+    expect(row!.stripeSubscriptionId).toBe(`sub_stale_b_${stamp}`);
+    expect(row!.status).toBe('active');
+    expect(await hasActiveSubscription(prisma, employer.id)).toBe(true);
+
+    // A real cancellation of the CURRENT subscription (same id) must still
+    // go through normally.
+    const subBCanceled = { ...subB, status: 'canceled' } as unknown as Stripe.Subscription;
+    await syncSubscription(prisma, subBCanceled);
+    row = await prisma.subscription.findUnique({ where: { userId: employer.id } });
+    expect(row!.status).toBe('canceled');
+  });
+
   it('GET /payments/subscription reflects the synced row', async () => {
     const res = await app.inject({
       method: 'GET',

@@ -143,6 +143,12 @@ model User {
   emailVerified   Boolean      @default(false) @map("email_verified")
   phoneVerified   Boolean      @default(false) @map("phone_verified")
   slug            String?      @unique @db.VarChar(100)
+  // Throwaway accounts created by regression/smoke-test scripts (stripe-e2e,
+  // staging-verify, webhook-test, verify-moderation, etc.) or backfilled onto
+  // pre-existing fixture rows by scripts/mark-test-accounts.ts. Used to keep
+  // these out of /network/suggestions — the old `email.endsWith('.invalid')`
+  // check missed them because they use realistic-looking emails.
+  isTestAccount   Boolean      @default(false) @map("is_test_account")
   termsAcceptedAt DateTime?    @map("terms_accepted_at")
   termsVersion    String?      @map("terms_version") @db.VarChar(20)
   // Bumped on password reset; refresh tokens embed it, so a bump signs the
@@ -257,6 +263,10 @@ model UserSettings {
   notifyPostLikes           Boolean @default(true) @map("notify_post_likes")
   notifyPostComments        Boolean @default(true) @map("notify_post_comments")
   notifyMentions            Boolean @default(true) @map("notify_mentions")
+  // Split from notifyMentions (2026-11-22) — a worker muting @-mention spam
+  // was also losing real crew-post coauthor invites with zero fallback
+  // signal (confirmed broken 4 consecutive weekly sim checks, Nov 9-16).
+  notifyCoauthorInvites     Boolean @default(true) @map("notify_coauthor_invites")
   notifyLicenseExpiry       Boolean @default(true) @map("notify_license_expiry")
   notifyVouches             Boolean @default(true) @map("notify_vouches")
   notifyDailyTasks          Boolean @default(true) @map("notify_daily_tasks")

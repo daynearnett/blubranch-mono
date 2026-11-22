@@ -353,6 +353,7 @@ export interface MeResponse {
     notifyPostLikes: boolean;
     notifyPostComments: boolean;
     notifyMentions: boolean;
+    notifyCoauthorInvites: boolean;
     notifyLicenseExpiry: boolean;
     notifyVouches: boolean;
     notifyDailyTasks: boolean;
@@ -1065,6 +1066,7 @@ export const notifications = {
     notifyPostLikes?: boolean;
     notifyPostComments?: boolean;
     notifyMentions?: boolean;
+    notifyCoauthorInvites?: boolean;
     notifyLicenseExpiry?: boolean;
     notifyVouches?: boolean;
     notifyDailyTasks?: boolean;

@@ -8,6 +8,13 @@
 // displayed; an unconfirmed one can be dismissed immediately via
 // PUT /vouches/:id/decline, or it ages out on its own via the nightly
 // vouch-expiry job (jobs/vouch-expiry.ts).
+//
+// By deliberate contrast, routes/messages.ts does NOT gate cold DMs behind a
+// connection — it only rate-limits non-connection sends (see
+// checkNonConnectionLimit). Recruiters/workers messaging across the network
+// without a prior connection is a legitimate product flow; a fabricated
+// "worked together" claim is not. Don't read "DM worked while unconnected"
+// as a gap in this vouch gate — they're intentionally different rules.
 import { vouchInputSchema } from '@blubranch/shared';
 import type { FastifyInstance } from 'fastify';
 import { requireAuth } from '../auth/middleware.js';

@@ -27,6 +27,7 @@ export const notificationPreferencesSchema = z
     notifyPostLikes: z.boolean().optional(),
     notifyPostComments: z.boolean().optional(),
     notifyMentions: z.boolean().optional(),
+    notifyCoauthorInvites: z.boolean().optional(),
     notifyLicenseExpiry: z.boolean().optional(),
     notifyVouches: z.boolean().optional(),
     notifyDailyTasks: z.boolean().optional(),

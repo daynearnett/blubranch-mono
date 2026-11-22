@@ -41,6 +41,7 @@ async function main() {
       role: 'employer',
       authProvider: 'email',
       passwordHash: 'x',
+      isTestAccount: true,
     },
   });
   const token = signAccessToken(employer.id, 'employer');
