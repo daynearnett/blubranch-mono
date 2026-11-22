@@ -50,8 +50,9 @@ export async function sendNotification(params: {
       post_like: settings.notifyPostLikes,
       post_comment: settings.notifyPostComments,
       post_mention: settings.notifyMentions,
-      // Co-author invites are tag-like events; share the mentions preference.
-      coauthor_invite: settings.notifyMentions,
+      // Own preference (split from notifyMentions 2026-11-22) — a worker
+      // muting @-mention spam shouldn't also lose real crew-post invites.
+      coauthor_invite: settings.notifyCoauthorInvites,
       license_expiry: settings.notifyLicenseExpiry,
       vouch_received: settings.notifyVouches,
       vouch_confirmed: settings.notifyVouches,

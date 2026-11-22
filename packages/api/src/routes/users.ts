@@ -13,6 +13,7 @@ import type { FastifyInstance } from 'fastify';
 import { requireAuth } from '../auth/middleware.js';
 import { getPrisma } from '../lib/prisma.js';
 import { serializeUser } from '../lib/serialize.js';
+import { generateUniqueSlug } from '../lib/slug.js';
 import { parseBody } from '../lib/validate.js';
 import { geocodeAddress, setGeographyPoint } from '../services/geocode.js';
 import { notifyProfileView } from '../services/push.js';
@@ -512,6 +513,16 @@ export async function userRoutes(app: FastifyInstance): Promise<void> {
     });
     if (!user) return reply.code(404).send({ error: 'NotFound' });
 
+    // Self-heal pre-existing rows created before slugs were assigned at
+    // registration (every account signed up before this fix — see
+    // lib/slug.ts) the moment the owner opens their own card, since that's
+    // also the exact moment they'd try to share it.
+    let slug = user.slug;
+    if (!slug) {
+      slug = await generateUniqueSlug(prisma, user.firstName, user.lastName);
+      await prisma.user.update({ where: { id: user.id }, data: { slug } });
+    }
+
     const vouchCount = await prisma.vouch.count({
       where: { voucheeId: user.id, status: 'confirmed' },
     });
@@ -521,7 +532,7 @@ export async function userRoutes(app: FastifyInstance): Promise<void> {
       firstName: user.firstName,
       lastName: user.lastName,
       profilePhotoUrl: user.profilePhotoUrl,
-      slug: user.slug,
+      slug,
       isVerified: user.isVerified,
       trade: user.trades[0]?.trade?.name ?? null,
       experienceLevel: user.workerProfile?.experienceLevel ?? null,

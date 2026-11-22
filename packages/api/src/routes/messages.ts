@@ -17,6 +17,37 @@ const NON_CONNECTION_DAILY_LIMIT = 50;
 export async function messageRoutes(app: FastifyInstance): Promise<void> {
   const prisma = getPrisma();
 
+  // ── Helper: mark a conversation's unread (not-mine) messages read ──
+  // Shared by PUT /conversations/:id/read and the mark-read-on-fetch
+  // fallback in GET /conversations/:id/messages below. Re-tested broken by
+  // the sim every week since Nov 9: a plain GET never marked anything read
+  // — only the explicit PUT did, which the mobile client may or may not
+  // actually call reliably on thread-open. Resolving that ambiguity
+  // server-side rather than leaving it open indefinitely.
+  async function markConversationRead(
+    conversationId: string,
+    userId: string,
+    otherUserId: string,
+  ): Promise<number> {
+    const now = new Date();
+    const result = await prisma.message.updateMany({
+      where: { conversationId, senderId: { not: userId }, readAt: null },
+      data: { readAt: now },
+    });
+
+    if (result.count > 0) {
+      try {
+        const { getIO } = await import('../lib/socket.js');
+        const { emitMessageRead } = await import('../socket/message-handlers.js');
+        emitMessageRead(getIO(), conversationId, otherUserId, userId, now);
+      } catch {
+        // Socket.io not available — skip.
+      }
+    }
+
+    return result.count;
+  }
+
   // ── Helper: check if two users are connected ────────────────────
   async function areConnected(userA: string, userB: string): Promise<boolean> {
     const conn = await prisma.connection.findFirst({
@@ -167,6 +198,15 @@ export async function messageRoutes(app: FastifyInstance): Promise<void> {
       });
       if (!convo || (convo.userAId !== userId && convo.userBId !== userId)) {
         return reply.code(404).send({ error: 'Conversation not found' });
+      }
+
+      // Mark-read-on-fetch: only on the first page (no cursor) — that's the
+      // "opened the thread" load, not a scroll-back into older history.
+      // Done before the select below so the page we return already reflects
+      // the just-cleared readAt instead of a stale null.
+      if (!cursor) {
+        const otherUserId = convo.userAId === userId ? convo.userBId : convo.userAId;
+        await markConversationRead(conversationId, userId, otherUserId);
       }
 
       const messages = await prisma.message.findMany({
@@ -382,29 +422,10 @@ export async function messageRoutes(app: FastifyInstance): Promise<void> {
         return reply.code(404).send({ error: 'Conversation not found' });
       }
 
-      const now = new Date();
-      const result = await prisma.message.updateMany({
-        where: {
-          conversationId,
-          senderId: { not: userId },
-          readAt: null,
-        },
-        data: { readAt: now },
-      });
+      const otherUserId = convo.userAId === userId ? convo.userBId : convo.userAId;
+      const readCount = await markConversationRead(conversationId, userId, otherUserId);
 
-      // Emit read receipt via Socket.io.
-      if (result.count > 0) {
-        try {
-          const { getIO } = await import('../lib/socket.js');
-          const { emitMessageRead } = await import('../socket/message-handlers.js');
-          const senderId = convo.userAId === userId ? convo.userBId : convo.userAId;
-          emitMessageRead(getIO(), conversationId, senderId, userId, now);
-        } catch {
-          // Socket.io not available — skip.
-        }
-      }
-
-      return reply.send({ readCount: result.count });
+      return reply.send({ readCount });
     },
   );
 

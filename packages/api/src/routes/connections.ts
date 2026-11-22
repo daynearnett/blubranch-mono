@@ -360,13 +360,18 @@ export async function connectionRoutes(app: FastifyInstance): Promise<void> {
     );
 
     // Fetch candidate users (not already connected, limit pool). Excludes
-    // throwaway QA/smoke-test accounts (seeded with an @*.invalid email, per
-    // convention — see docs/SIM-TESTER-AGENTS.md) so they don't crowd out real
-    // people in the suggestion list.
+    // throwaway QA/smoke-test accounts so they don't crowd out real people in
+    // the suggestion list. `email.endsWith('.invalid')` only catches accounts
+    // that follow the docs/SIM-TESTER-AGENTS.md convention; most regression
+    // scripts (stripe-e2e, staging-verify, webhook-test, verify-moderation)
+    // use realistic-looking emails instead, so those are tagged explicitly
+    // via `isTestAccount` (set by the scripts themselves going forward, or
+    // backfilled onto pre-existing rows by scripts/mark-test-accounts.ts).
     const candidates = await prisma.user.findMany({
       where: {
         id: { notIn: [...connectedIds] },
         role: 'worker',
+        isTestAccount: false,
         email: { not: { endsWith: '.invalid' } },
       },
       take: 50,

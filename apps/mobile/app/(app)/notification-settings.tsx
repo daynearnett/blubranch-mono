@@ -25,6 +25,7 @@ type PrefKey =
   | 'notifyPostLikes'
   | 'notifyPostComments'
   | 'notifyMentions'
+  | 'notifyCoauthorInvites'
   | 'notifyLicenseExpiry'
   | 'notifyDailyTasks'
   | 'notifyVouches';
@@ -33,6 +34,7 @@ const ROWS: { key: PrefKey; label: string; desc: string }[] = [
   { key: 'notifyMessages', label: 'Messages', desc: 'New direct messages' },
   { key: 'notifyConnectionRequests', label: 'Branch', desc: 'Requests and acceptances' },
   { key: 'notifyMentions', label: 'Tags', desc: 'When someone tags you in a post or comment' },
+  { key: 'notifyCoauthorInvites', label: 'Crew invites', desc: "When someone tags you as a coauthor on a crew post" },
   { key: 'notifyPostLikes', label: 'Likes', desc: 'When someone likes your post' },
   { key: 'notifyPostComments', label: 'Comments', desc: 'When someone comments on your post' },
   { key: 'notifyVouches', label: 'Vouches', desc: 'When someone vouches for you' },

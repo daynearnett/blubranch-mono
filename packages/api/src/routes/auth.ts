@@ -25,6 +25,7 @@ import {
 } from '../services/email.js';
 import { getPrisma } from '../lib/prisma.js';
 import { serializeUser } from '../lib/serialize.js';
+import { generateUniqueSlug } from '../lib/slug.js';
 import { parseBody } from '../lib/validate.js';
 import { verifySocialIdToken } from '../services/social-auth.js';
 
@@ -64,6 +65,7 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
     if (!data) return;
 
     const passwordHash = await hashPassword(data.password);
+    const slug = await generateUniqueSlug(prisma, data.firstName, data.lastName);
 
     try {
       const user = await prisma.user.create({
@@ -75,6 +77,7 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
           passwordHash,
           role: data.role,
           authProvider: 'email',
+          slug,
           ...(data.termsAccepted
             ? { termsAcceptedAt: new Date(), termsVersion: TERMS_VERSION }
             : {}),
@@ -353,6 +356,7 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
     const firstName = identity.firstName || data.firstName || 'New';
     const lastName = identity.lastName || data.lastName || 'Member';
     const role = data.role ?? 'worker';
+    const slug = await generateUniqueSlug(prisma, firstName, lastName);
 
     user = await prisma.user.create({
       data: {
@@ -363,6 +367,7 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
         authProvider: identity.provider,
         authProviderId: identity.providerUserId,
         emailVerified: identity.emailVerified,
+        slug,
         ...(role === 'worker'
           ? {
               workerProfile: {

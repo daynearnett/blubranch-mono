@@ -171,6 +171,60 @@ describe('Messaging routes', () => {
     expect(body.messages[1].content).toBe('Hey Bob, nice to meet you!');
   });
 
+  it('GET /conversations/:id/messages — marks unread messages read on the first page (no cursor)', async () => {
+    // Fresh pair so this is isolated from the read-state left by earlier tests.
+    const userC = await prisma.user.create({
+      data: {
+        firstName: 'Cara',
+        lastName: 'TestMsg',
+        email: `cara-msg-${Date.now()}@test.local`,
+        role: 'worker',
+        authProvider: 'email',
+        passwordHash: 'not-a-real-hash',
+      },
+    });
+    const userD = await prisma.user.create({
+      data: {
+        firstName: 'Dev',
+        lastName: 'TestMsg',
+        email: `dev-msg-${Date.now()}@test.local`,
+        role: 'worker',
+        authProvider: 'email',
+        passwordHash: 'not-a-real-hash',
+      },
+    });
+    const tokenC = signAccessToken(userC.id, 'worker');
+    const tokenD = signAccessToken(userD.id, 'worker');
+
+    const sendRes = await app.inject({
+      method: 'POST',
+      url: '/messages',
+      headers: { authorization: `Bearer ${tokenC}` },
+      payload: { recipientId: userD.id, content: 'Unread until you open this' },
+    });
+    const convoId = sendRes.json().conversation.id;
+
+    // D fetches the thread without ever calling PUT .../read.
+    const fetchRes = await app.inject({
+      method: 'GET',
+      url: `/conversations/${convoId}/messages?limit=10`,
+      headers: { authorization: `Bearer ${tokenD}` },
+    });
+    expect(fetchRes.statusCode).toBe(200);
+    // The page returned already reflects the mark-read that just happened.
+    expect(fetchRes.json().messages[0].readAt).not.toBeNull();
+
+    const unreadRes = await app.inject({
+      method: 'GET',
+      url: '/messages/unread-count',
+      headers: { authorization: `Bearer ${tokenD}` },
+    });
+    expect(unreadRes.json().unreadCount).toBe(0);
+
+    await prisma.user.delete({ where: { id: userC.id } }).catch(() => {});
+    await prisma.user.delete({ where: { id: userD.id } }).catch(() => {});
+  });
+
   it('POST /messages — rejects self-messaging', async () => {
     const res = await app.inject({
       method: 'POST',
